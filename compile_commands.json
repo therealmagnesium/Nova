@@ -1,0 +1,36 @@
+[
+ {
+  "directory": "/home/magnesium/dev/C++/Nova/build",
+  "arguments": [
+   "/usr/bin/c++",
+   "-I/home/magnesium/dev/C++/Nova/Nova/source",
+   "-MD",
+   "-MT",
+   "Nova/CMakeFiles/Nova.dir/source/Test.cpp.o",
+   "-MF",
+   "CMakeFiles/Nova.dir/source/Test.cpp.o.d",
+   "-o",
+   "CMakeFiles/Nova.dir/source/Test.cpp.o",
+   "-c",
+   "/home/magnesium/dev/C++/Nova/Nova/source/Test.cpp"
+  ],
+  "file": "/home/magnesium/dev/C++/Nova/Nova/source/Test.cpp"
+ },
+ {
+  "directory": "/home/magnesium/dev/C++/Nova/build",
+  "arguments": [
+   "/usr/bin/c++",
+   "-I/home/magnesium/dev/C++/Nova/Nova/source",
+   "-MD",
+   "-MT",
+   "Sandbox/CMakeFiles/SandboxApp.dir/source/Main.cpp.o",
+   "-MF",
+   "CMakeFiles/SandboxApp.dir/source/Main.cpp.o.d",
+   "-o",
+   "CMakeFiles/SandboxApp.dir/source/Main.cpp.o",
+   "-c",
+   "/home/magnesium/dev/C++/Nova/Sandbox/source/Main.cpp"
+  ],
+  "file": "/home/magnesium/dev/C++/Nova/Sandbox/source/Main.cpp"
+ }
+]

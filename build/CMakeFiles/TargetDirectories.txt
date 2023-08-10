@@ -1,0 +1,8 @@
+/home/magnesium/dev/C++/Nova/build/CMakeFiles/edit_cache.dir
+/home/magnesium/dev/C++/Nova/build/CMakeFiles/rebuild_cache.dir
+/home/magnesium/dev/C++/Nova/build/Nova/CMakeFiles/Nova.dir
+/home/magnesium/dev/C++/Nova/build/Nova/CMakeFiles/edit_cache.dir
+/home/magnesium/dev/C++/Nova/build/Nova/CMakeFiles/rebuild_cache.dir
+/home/magnesium/dev/C++/Nova/build/Sandbox/CMakeFiles/SandboxApp.dir
+/home/magnesium/dev/C++/Nova/build/Sandbox/CMakeFiles/edit_cache.dir
+/home/magnesium/dev/C++/Nova/build/Sandbox/CMakeFiles/rebuild_cache.dir
