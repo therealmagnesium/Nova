@@ -11,16 +11,22 @@ if [ "$1" == "clean" ]; then
         rm Nova/Makefile
         rm Sandbox/Makefile
     fi
-
+    
     cd ..
 else
     echo -n "Would you like to configure your project? (y/n): "
     read configure
     if [ $configure == 'y' ]; then
-        cmake ..
+        if [ "$1" == "debug" ]; then
+            cmake -DGLFW_BUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=Debug ..
+        elif [ "$1" == "release" ]; then
+            cmake -DGLFW_BUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+        fi
+
+        mv compile_commands.json ..
     fi
 
-    compiledb make all
+    make all
 
     echo -n "Would you like to run the project? (y/n): "
     read execute
@@ -28,5 +34,5 @@ else
         ./Sandbox/SandboxApp
     fi
 
-    mv compile_commands.json .. && cd ..
+    cd ..
 fi

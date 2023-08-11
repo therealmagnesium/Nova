@@ -1,0 +1,6 @@
+# Directories
+.cache/
+build/
+
+# Files
+compile_commands.json
