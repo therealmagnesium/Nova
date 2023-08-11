@@ -1,2 +1,0 @@
-/usr/bin/ar qc libNova.a CMakeFiles/Nova.dir/source/Test.cpp.o
-/usr/bin/ranlib libNova.a
