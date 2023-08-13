@@ -10,6 +10,7 @@ namespace Nova
         int width, height;
         const char* title;
         GLFWwindow* handle;
+        float clearColor[3];
 
         Window(int widthIn, int heightIn, const char* titleIn);
         ~Window();

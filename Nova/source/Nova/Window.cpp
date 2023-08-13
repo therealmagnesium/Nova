@@ -3,6 +3,12 @@
 
 namespace Nova
 {
+
+static void WindowResizeCallback(GLFWwindow* window, int width, int height)
+{
+    glViewport(0, 0, width, height); 
+}
+
 Window::Window(int widthIn, int heightIn, const char* titleIn) :
     width(widthIn), height(heightIn), title(titleIn)
 {
@@ -27,6 +33,7 @@ bool Window::Init()
     handle = glfwCreateWindow(width, height, title, NULL, NULL);
     if (!handle)
     { ERROR_RETURN(false, "Failed to create window handle!\n"); }
+    glfwSetFramebufferSizeCallback(handle, WindowResizeCallback);
 
     glfwMakeContextCurrent(handle);
     
@@ -36,13 +43,17 @@ bool Window::Init()
     printf("Loaded opengl version %d.%d\n", GLAD_VERSION_MAJOR(gladVersion), GLAD_VERSION_MINOR(gladVersion));
     
     glViewport(0, 0, width, height);
+
     return true;
 }
 
 void Window::HandleEvents()
 {
-    glfwSwapBuffers(handle);
+    glClearColor(clearColor[0], clearColor[1], clearColor[2], 1.f);
+    glClear(GL_COLOR_BUFFER_BIT); 
+
     glfwPollEvents();
+    glfwSwapBuffers(handle);
 }
 
 void Window::Kill()
