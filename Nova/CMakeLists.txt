@@ -5,6 +5,7 @@ add_compile_definitions("GLFW_INCLUDE_NONE")
 
 target_include_directories("Nova" PUBLIC "${CMAKE_SOURCE_DIR}/vendor/glfw/include")
 target_include_directories("Nova" PUBLIC "${CMAKE_SOURCE_DIR}/vendor/glad/include")
+target_include_directories("Nova" PUBLIC "${CMAKE_SOURCE_DIR}/vendor/glm/glm")
 target_include_directories("Nova" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/source/Nova")
 
 target_link_directories("Nova" PUBLIC "${CMAKE_SOURCE_DIR}/build/vendor/glfw/src")
