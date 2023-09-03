@@ -12,7 +12,7 @@ if [ "$1" == "clean" ]; then
         rm Sandbox/Makefile
     fi
 
-    cd .. 
+    cd ..
 elif [ "$1" == "run" ]; then
     cd Sandbox
     ./SandboxApp
@@ -25,6 +25,7 @@ else
     fi
 
     mv compile_commands.json ..
+    cp -r ../Sandbox/assets ./Sandbox
 
     make all
 
