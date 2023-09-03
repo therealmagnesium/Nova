@@ -9,8 +9,20 @@ namespace Nova
     {
         uint32_t rendererID;
 
-        VertexBuffer(void* data, size_t size);
+        VertexBuffer(float* data, size_t size);
         ~VertexBuffer();
+
+        void Bind();
+        void Unbind();
+    };
+
+    struct IndexBuffer
+    {
+        uint32_t rendererID;
+        uint32_t count;
+
+        IndexBuffer(uint32_t* data, uint32_t countIn);
+        ~IndexBuffer();
 
         void Bind();
         void Unbind();
