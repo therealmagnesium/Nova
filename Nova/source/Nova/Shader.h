@@ -19,5 +19,6 @@ namespace Nova
 
         uint32_t GetUniformLocation(const char* name);
         void SetUniform4f(const char* name, float v0, float v1, float v2, float v3);
+        void SetUniformMatrix4fv(const char* name, size_t count, float* value);
     };
 }

@@ -4,10 +4,8 @@
 #include <GLFW/glfw3.h>
 #include <fstream>
 #include <glad/gl.h>
+#include <glm.hpp>
 #include <sstream>
-#include <string.h>
-#include <unordered_map>
-#include <vector>
 
 namespace Nova
 {
@@ -133,5 +131,10 @@ namespace Nova
     void Shader::SetUniform4f(const char* name, float v0, float v1, float v2, float v3)
     {
         glUniform4f(GetUniformLocation(name), v0, v1, v2, v3);
+    }
+
+    void Shader::SetUniformMatrix4fv(const char* name, size_t count, float* value)
+    {
+        glUniformMatrix4fv(GetUniformLocation(name), count, GL_FALSE, value);
     }
 }
