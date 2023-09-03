@@ -1,28 +1,33 @@
 #pragma once
-
-#include <GLFW/glfw3.h>
-#include <glad/gl.h>
+#include <stdint.h>
 
 namespace Nova
 {
-    struct Window
+    struct WindowArgs
     {
-        int width, height;
-        float clearColor[3];
+        uint32_t width;
+        uint32_t height;
         const char* title;
-        GLFWwindow* handle;
 
-        Window(int widthIn, int heightIn, const char* titleIn);
-        ~Window();
-
-        bool Init();
-        void Clear();
-        void Display();
-        void HandleEvents();
-        void Kill();
-
-        static void ResizeCallback(GLFWwindow* window, int width, int height);
+        WindowArgs(const char* titleIn = "Nova Window", uint32_t widthIn = 1280, uint32_t heightIn = 720)
+            : width(widthIn), height(heightIn), title(titleIn)
+        {
+        }
     };
 
+    struct Window
+    {
+        bool closed;
+
+        virtual ~Window()
+        {
+        }
+        virtual void HandleEvents() = 0;
+        virtual void Clear(float r, float g, float b) = 0;
+        virtual void Display() = 0;
+        virtual void SetVSync(bool enable) = 0;
+    };
+
+    Window* CreateWindow(const WindowArgs& args = WindowArgs());
     bool WindowShouldClose(Window* window);
 }
