@@ -19,6 +19,11 @@ namespace Nova
         virtual void Init(const WindowArgs& args);
         virtual void Shutdown();
 
+        inline void* GetHandle() override
+        {
+            return handle;
+        };
+
         void HandleEvents() override;
         void Clear(float r, float g, float b) override;
         void Display() override;

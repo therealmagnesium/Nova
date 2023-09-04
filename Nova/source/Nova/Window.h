@@ -22,6 +22,9 @@ namespace Nova
         virtual ~Window()
         {
         }
+
+        virtual void* GetHandle() = 0;
+
         virtual void HandleEvents() = 0;
         virtual void Clear(float r, float g, float b) = 0;
         virtual void Display() = 0;
