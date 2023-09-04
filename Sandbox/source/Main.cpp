@@ -1,3 +1,5 @@
+#include <Nova/Camera/FreeLookCamera.h>
+#include <Nova/Camera/OrthographicCamera.h>
 #include <Nova/Shader.h>
 #include <Nova/VertexArray.h>
 #include <Nova/Window.h>
@@ -15,9 +17,12 @@ int main(int argc, char* argv[])
     Nova::Window* window = Nova::CreateWindow(windowArgs);
     window->SetVSync(true);
 
+    Nova::FreeLookCamera camera({0.f, 0.f, 2.f}, windowArgs.width, windowArgs.height);
+
     float vertices[] = {
         -0.5f, 0.0f, 0.5f, -0.5f, 0.0f, -0.5f, 0.5f, 0.0f, -0.5f, 0.5f, 0.0f, 0.5f, 0.0f, 0.8f, 0.0f,
     };
+
     uint32_t indices[] = {
         0, 1, 2, 0, 2, 3, 0, 1, 4, 1, 2, 4, 2, 3, 4, 3, 0, 4,
     };
@@ -34,13 +39,6 @@ int main(int argc, char* argv[])
     Nova::Shader shader("assets/basic.glsl");
     shader.Bind();
 
-    glm::mat4 model = glm::mat4(1.0f);
-    glm::mat4 view = glm::mat4(1.0f);
-    glm::mat4 proj = glm::mat4(1.0f);
-
-    view = glm::translate(view, glm::vec3(0.f, -0.5f, -2.f));
-    proj = glm::perspective(glm::radians(45.f), (float)windowArgs.width / windowArgs.height, 0.1f, 100.f);
-
     int frameCount = 0;
     double previousTime = glfwGetTime();
 
@@ -49,15 +47,13 @@ int main(int argc, char* argv[])
         double currentTime = glfwGetTime();
 
         window->HandleEvents();
+        camera.HandleInputs(window);
+
         window->Clear(0.2f, 0.3f, 0.7f);
 
-        model = glm::rotate(model, glm::radians(1.f), glm::vec3(0.f, 1.f, 0.f));
-
-        shader.Bind();
+        camera.CalculateViewProjectionMatrix(45.f, 0.1f, 100.f, shader, "uViewProj");
         shader.SetUniform4f("uColor", 0.6f, 0.5, 0.7, 1.f);
-        shader.SetUniformMatrix4fv("uModel", 1, glm::value_ptr(model));
-        shader.SetUniformMatrix4fv("uView", 1, glm::value_ptr(view));
-        shader.SetUniformMatrix4fv("uProj", 1, glm::value_ptr(proj));
+        shader.Bind();
 
         vao.Bind();
         glDrawElements(GL_TRIANGLES, ebo.count, GL_UNSIGNED_INT, NULL);
