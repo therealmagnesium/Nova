@@ -3,6 +3,7 @@
 bin/
 build/
 compile_commands/
+SDL3-build/
 
 # Files
 .luarc.json
