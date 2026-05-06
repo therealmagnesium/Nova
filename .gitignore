@@ -1,0 +1,11 @@
+# Directories
+.cache/
+bin/
+build/
+compile_commands/
+
+# Files
+.luarc.json
+Makefile
+*.make
+compile_commands.json
