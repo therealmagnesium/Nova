@@ -30,28 +30,28 @@ namespace Nova
             Count,
         };
 
-        static const char* color_table[(u32)TextColor::Count] = {
-            "\x1b[30m", // Black
-            "\x1b[31m", // Red
-            "\x1b[32m", // Green
-            "\x1b[33m", // Yellow
-            "\x1b[34m", // Blue
-            "\x1b[35m", // Magenta
-            "\x1b[36m", // Cyan
-            "\x1b[37m", // White
-            "\x1b[90m", // Light black
-            "\x1b[91m", // Light red
-            "\x1b[92m", // Light green
-            "\x1b[93m", // Light yellow
-            "\x1b[94m", // Light blue
-            "\x1b[95m", // Light magenta
-            "\x1b[96m", // Light cyan
-            "\x1b[97m", // Light white
-        };
-
         template <typename... Args>
         inline void Log(const char* prefix, const char* message, TextColor color, Args... args)
         {
+            const char* color_table[(u32)TextColor::Count] = {
+                "\x1b[30m", // Black
+                "\x1b[31m", // Red
+                "\x1b[32m", // Green
+                "\x1b[33m", // Yellow
+                "\x1b[34m", // Blue
+                "\x1b[35m", // Magenta
+                "\x1b[36m", // Cyan
+                "\x1b[37m", // White
+                "\x1b[90m", // Light black
+                "\x1b[91m", // Light red
+                "\x1b[92m", // Light green
+                "\x1b[93m", // Light yellow
+                "\x1b[94m", // Light blue
+                "\x1b[95m", // Light magenta
+                "\x1b[96m", // Light cyan
+                "\x1b[97m", // Light white
+            };
+
             char format_buffer[8192]{};
             sprintf(format_buffer, "%s%s %s \033[0m", color_table[(u32)color], prefix, message);
 

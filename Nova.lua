@@ -5,9 +5,8 @@
 
 framework_root = path.getabsolute(".") -- resolves to wherever framework.lua lives
 
-function Test()
-    print("What The Fuck")
-end
+group("Dependencies")
+group("")
 
 function LinkNova()
     includedirs({
@@ -15,15 +14,18 @@ function LinkNova()
         framework_root .. "/vendor/SDL3/include",
     })
 
-    links({ "Nova" })
-
-    filter("system:windows")
     libdirs({
         framework_root .. "/bin/%{cfg.buildcfg}-windows/Nova",
         framework_root .. "/vendor/SDL3-build",
     })
+
     links({
+        "Nova",
         "SDL3",
+    })
+
+    filter("system:windows")
+    links({
         "setupapi",
         "winmm",
         "imm32",
@@ -33,12 +35,7 @@ function LinkNova()
     })
 
     filter("system:linux")
-    libdirs({
-        framework_root .. "/bin/%{cfg.buildcfg}-linux/Nova",
-        framework_root .. "/vendor/SDL3-build",
-    })
     links({
-        "SDL3",
         "dl",
         "pthread",
         "m",

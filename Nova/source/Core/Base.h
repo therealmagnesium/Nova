@@ -1,4 +1,5 @@
 #pragma once
+#include <new>
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -25,21 +26,25 @@ class string
 {
 public:
     string() = default;
+    string(const string& other);
     string(const char* format, ...);
     ~string();
 
     inline const char* c_str() const { return !m_IsHeapAllocated ? m_BufferInline : m_BufferHeap; }
     inline bool IsHeapAllocated() const { return m_IsHeapAllocated; }
 
-    inline string& operator=(const char* rhs)
-    {
-        string& lhs = *this;
-        lhs = string(rhs);
-        return lhs;
-    }
-
-    inline bool operator==(const string& rhs) { return !m_IsHeapAllocated ? strcmp(m_BufferInline, rhs.m_BufferInline) == 0 : m_BufferHeap == rhs.m_BufferHeap; }
+    inline bool operator==(const string& rhs) { return !m_IsHeapAllocated ? strcmp(m_BufferInline, rhs.m_BufferInline) == 0 : strcmp(m_BufferHeap, rhs.m_BufferHeap) == 0; }
     inline bool operator!=(const string& rhs) { return !(*this == rhs); }
+
+    inline string& operator=(const string& rhs)
+    {
+        if (this != &rhs)
+        {
+            this->~string();
+            new (this) string(rhs); // uses copy constructor above
+        }
+        return *this;
+    }
 
 private:
     char m_BufferInline[64] = {};

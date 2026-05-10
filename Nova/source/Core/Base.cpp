@@ -3,6 +3,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+string::string(const string& other)
+{
+    if (other.m_IsHeapAllocated)
+    {
+        s32 len = strlen(other.m_BufferHeap);
+        m_BufferHeap = (char*)malloc(len + 1);
+        memcpy(m_BufferHeap, other.m_BufferHeap, len + 1);
+        m_IsHeapAllocated = true;
+    }
+    else
+    {
+        memcpy(m_BufferInline, other.m_BufferInline, 64);
+    }
+}
+
 string::string(const char* format, ...)
 {
     va_list args;
