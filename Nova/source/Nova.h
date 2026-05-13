@@ -3,5 +3,6 @@
 #include "Core/Base.h"
 #include "Core/Log.h"
 
+#include "Graphics/Buffers.h"
 #include "Graphics/Renderer.h"
 #include "Graphics/Window.h"

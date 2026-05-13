@@ -9,37 +9,38 @@ group("Dependencies")
 group("")
 
 function LinkNova()
-    includedirs({
-        framework_root .. "/Nova/source",
-        framework_root .. "/vendor/SDL3/include",
-    })
+	includedirs({
+		framework_root .. "/Nova/source",
+		framework_root .. "/vendor/SDL3/include",
+		framework_root .. "/vendor/glm",
+	})
 
-    libdirs({
-        framework_root .. "/bin/%{cfg.buildcfg}-windows/Nova",
-        framework_root .. "/vendor/SDL3-build",
-    })
+	libdirs({
+		framework_root .. "/bin/%{cfg.buildcfg}-windows/Nova",
+		framework_root .. "/vendor/SDL3-build",
+	})
 
-    links({
-        "Nova",
-        "SDL3",
-    })
+	links({
+		"Nova",
+		"SDL3",
+	})
 
-    filter("system:windows")
-    links({
-        "setupapi",
-        "winmm",
-        "imm32",
-        "version",
-        "ole32",
-        "oleaut32",
-    })
+	filter("system:windows")
+	links({
+		"setupapi",
+		"winmm",
+		"imm32",
+		"version",
+		"ole32",
+		"oleaut32",
+	})
 
-    filter("system:linux")
-    links({
-        "dl",
-        "pthread",
-        "m",
-    })
+	filter("system:linux")
+	links({
+		"dl",
+		"pthread",
+		"m",
+	})
 
-    filter({}) -- reset filters
+	filter({}) -- reset filters
 end

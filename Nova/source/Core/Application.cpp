@@ -27,12 +27,23 @@ namespace Nova::Core::Application
             FATAL("%s", "Application::Create - SDL failed to initialize properly!");
             return app;
         }
+        context = &app;
 
         app.window = Windows::Create(config.screen_width, config.screen_height, config.name);
+        Renderer::Init();
 
         app.config = config;
         app.is_valid = true;
         return app;
+    }
+
+    void Shutdown(App& app)
+    {
+        app.is_valid = false;
+
+        Renderer::Shutdown();
+        Windows::Destroy(app.window);
+        SDL_Quit();
     }
 
     void Run(App& app)
@@ -40,7 +51,6 @@ namespace Nova::Core::Application
         if (!app.is_valid)
             return;
 
-        context = &app;
         app.is_running = true;
 
         app.config.callbacks.on_create();
@@ -50,20 +60,14 @@ namespace Nova::Core::Application
             app.config.callbacks.on_event();
             app.config.callbacks.on_update();
 
-            Renderer::BeginFrame();
-            app.config.callbacks.on_render();
-            app.config.callbacks.on_render_ui();
-            Renderer::EndFrame();
+            if (Renderer::BeginFrame())
+            {
+                app.config.callbacks.on_render();
+                app.config.callbacks.on_render_ui();
+                Renderer::EndFrame();
+            }
         }
         app.config.callbacks.on_shutdown();
-    }
-
-    void Shutdown(App& app)
-    {
-        app.is_valid = false;
-
-        Windows::Destroy(app.window);
-        SDL_Quit();
     }
 
     u16 GetScreenWidth() { return context->config.screen_width; }

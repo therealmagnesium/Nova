@@ -9,13 +9,14 @@ targetdir("%{wks.location}/bin/" .. output_dir .. "/%{prj.name}")
 objdir("%{wks.location}/build/" .. output_dir .. "/%{prj.name}")
 
 files({
-    "source/**.h",
-    "source/**.cpp",
+	"source/**.h",
+	"source/**.cpp",
 })
 
 includedirs({
-    "source",
-    "%{wks.location}/vendor/SDL3/include",
+	"source",
+	"%{wks.location}/vendor/SDL3/include",
+	"%{wks.location}/vendor/glm",
 })
 
 filter("system:windows")

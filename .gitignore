@@ -9,4 +9,5 @@ SDL3-build/
 .luarc.json
 Makefile
 *.make
+*.spv
 compile_commands.json

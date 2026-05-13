@@ -16,7 +16,7 @@ typedef int32_t s32;   //!< 32-bit signed integer.
 typedef int64_t s64;   //!< 64-bit signed integer.
 typedef intptr_t sptr; //!< Pointer-sized signed integer.
 
-#define LEN(array) sizeof(array) / sizeof(array[0])
+#define LEN(array) (sizeof(array) / sizeof(array[0]))
 
 #define KB(x) (u64)(x << 10)
 #define MB(x) (u64)(x << 20)
