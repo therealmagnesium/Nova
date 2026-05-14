@@ -1,4 +1,5 @@
 #pragma once
+#include "Core/Base.h"
 #include <glm/glm.hpp>
 
 namespace Nova::Graphics
@@ -17,5 +18,9 @@ namespace Nova::Graphics
         void EndFrame();
 
         void* GetRenderPass();
+        u32 IncrementVertexBuffers();
+        u32 IncrementIndexBuffers();
+        u32 DecrementVertexBuffers();
+        u32 DecrementIndexBuffers();
     }
 }

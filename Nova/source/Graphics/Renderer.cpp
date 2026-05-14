@@ -18,6 +18,8 @@ namespace Nova::Graphics::Renderer
         SDL_GPUCommandBuffer* command_buffer = NULL;
         SDL_GPURenderPass* render_pass = NULL;
         SDL_GPUTexture* swapchain_texture = NULL;
+        u32 vertex_buffer_count = 0;
+        u32 index_buffer_count = 0;
         u16 framebuffer_width = 0;
         u16 framebuffer_height = 0;
     };
@@ -166,4 +168,8 @@ namespace Nova::Graphics::Renderer
     }
 
     void* GetRenderPass() { return state.render_pass; }
+    u32 IncrementVertexBuffers() { return state.vertex_buffer_count++; }
+    u32 IncrementIndexBuffers() { return state.index_buffer_count++; }
+    u32 DecrementVertexBuffers() { return state.vertex_buffer_count--; }
+    u32 DecrementIndexBuffers() { return state.index_buffer_count--; }
 }

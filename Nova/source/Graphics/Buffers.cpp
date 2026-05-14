@@ -9,47 +9,56 @@ using namespace Nova::Core;
 
 namespace Nova::Graphics::Buffers
 {
-    GPUBuffer* Create(GPUBufferType type, u32 size)
+    GPUBuffer Create(GPUBufferType type, u32 size)
     {
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
 
         SDL_GPUBufferCreateInfo buffer_info = {};
-        buffer_info.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
+        buffer_info.usage = type == GPUBufferType::Vertex ? SDL_GPU_BUFFERUSAGE_VERTEX : SDL_GPU_BUFFERUSAGE_INDEX;
         buffer_info.size = size;
 
-        GPUBuffer* buffer = (GPUBuffer*)SDL_CreateGPUBuffer(device, &buffer_info);
-        if (buffer == NULL)
+        GPUBuffer* buffer_handle = (GPUBuffer*)SDL_CreateGPUBuffer(device, &buffer_info);
+        if (buffer_handle == NULL)
         {
-            ERROR("Buffers::Create - %s", "Failed to create vertex buffer!");
-            return NULL;
+            ERROR("Buffers::Create - Failed to create %s buffer!", type == GPUBufferType::Vertex ? "vertex" : "index");
+            return Stub_GPUBuffer;
         }
 
+        GPUBuffer buffer;
+        buffer.type = type;
+        buffer.id = type == GPUBufferType::Vertex ? Renderer::IncrementVertexBuffers() : Renderer::IncrementIndexBuffers();
+        buffer.handle = buffer_handle;
         return buffer;
     }
 
-    void Destroy(GPUBuffer* buffer)
+    void Destroy(GPUBuffer& buffer)
     {
-        if (buffer == NULL)
+        if (buffer.handle == NULL)
             return;
 
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
-        SDL_ReleaseGPUBuffer(device, (SDL_GPUBuffer*)buffer);
+        SDL_ReleaseGPUBuffer(device, (SDL_GPUBuffer*)buffer.handle);
 
-        buffer = NULL;
+        buffer.handle = NULL;
+        buffer.id = 0;
     }
 
-    void Bind(GPUBuffer* buffer, u32 slot)
+    void Bind(const GPUBuffer& buffer, u32 slot)
     {
         SDL_GPURenderPass* render_pass = (SDL_GPURenderPass*)Renderer::GetRenderPass();
         SDL_GPUBufferBinding binding = {};
-        binding.buffer = (SDL_GPUBuffer*)buffer;
+        binding.buffer = (SDL_GPUBuffer*)buffer.handle;
         binding.offset = 0;
-        SDL_BindGPUVertexBuffers(render_pass, slot, &binding, 1);
+
+        if (buffer.type == GPUBufferType::Vertex)
+            SDL_BindGPUVertexBuffers(render_pass, slot, &binding, 1);
+        else
+            SDL_BindGPUIndexBuffer(render_pass, &binding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
     }
 
-    void Upload(GPUBuffer* buffer, void* data, u32 size)
+    void Upload(GPUBuffer& buffer, void* data, u32 size)
     {
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
@@ -75,7 +84,7 @@ namespace Nova::Graphics::Buffers
         source.offset = 0;
 
         SDL_GPUBufferRegion dest = {};
-        dest.buffer = (SDL_GPUBuffer*)buffer;
+        dest.buffer = (SDL_GPUBuffer*)buffer.handle;
         dest.offset = 0;
         dest.size = size;
 
