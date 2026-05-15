@@ -6,6 +6,7 @@
 framework_root = path.getabsolute(".") -- resolves to wherever framework.lua lives
 
 group("Dependencies")
+include("vendor/stb_image/premake5.lua")
 group("")
 
 function LinkNova()
@@ -18,11 +19,13 @@ function LinkNova()
 	libdirs({
 		framework_root .. "/bin/%{cfg.buildcfg}-windows/Nova",
 		framework_root .. "/vendor/SDL3-build",
+		framework_root .. "/vendor/stb_image/bin",
 	})
 
 	links({
 		"Nova",
 		"SDL3",
+		"stb_image",
 	})
 
 	filter("system:windows")

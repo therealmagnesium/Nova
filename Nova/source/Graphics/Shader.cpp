@@ -9,16 +9,17 @@ namespace Nova::Graphics::Shaders
 {
     void* CreateShader(SDL_GPUDevice* gpu_device, const std::filesystem::path& path, const ShaderStorageInfo& info);
 
-    Shader Load(const std::filesystem::path& path_vertex, const std::filesystem::path& path_fragment, const ShaderStorageInfo& info)
+    Shader Load(const std::filesystem::path& path_vertex, const std::filesystem::path& path_fragment, const ShaderStorageInfo& info_vertex, const ShaderStorageInfo& info_fragment)
     {
         Shader shader;
 
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
 
-        shader.handle_vertex = CreateShader(device, path_vertex, info);
-        shader.handle_fragment = CreateShader(device, path_fragment, info);
-        shader.info = info;
+        shader.handle_vertex = CreateShader(device, path_vertex, info_vertex);
+        shader.handle_fragment = CreateShader(device, path_fragment, info_fragment);
+        shader.info_vertex = info_vertex;
+        shader.info_fragment = info_fragment;
 
         return shader;
     }
@@ -104,9 +105,14 @@ namespace Nova::Graphics::Shaders
         if (shader.handle_fragment != NULL)
             SDL_ReleaseGPUShader(device, (SDL_GPUShader*)shader.handle_fragment);
 
-        shader.info.sampler_count = 0;
-        shader.info.storage_texture_count = 0;
-        shader.info.storage_buffer_count = 0;
-        shader.info.uniform_buffer_count = 0;
+        shader.info_vertex.sampler_count = 0;
+        shader.info_vertex.storage_texture_count = 0;
+        shader.info_vertex.storage_buffer_count = 0;
+        shader.info_vertex.uniform_buffer_count = 0;
+
+        shader.info_fragment.sampler_count = 0;
+        shader.info_fragment.storage_texture_count = 0;
+        shader.info_fragment.storage_buffer_count = 0;
+        shader.info_fragment.uniform_buffer_count = 0;
     }
 }

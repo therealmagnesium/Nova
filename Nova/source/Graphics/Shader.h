@@ -14,7 +14,8 @@ namespace Nova::Graphics
 
     struct Shader
     {
-        ShaderStorageInfo info;
+        ShaderStorageInfo info_vertex;
+        ShaderStorageInfo info_fragment;
         void* handle_vertex = NULL;
         void* handle_fragment = NULL;
     };
@@ -23,7 +24,9 @@ namespace Nova::Graphics
 
     namespace Shaders
     {
-        Shader Load(const std::filesystem::path& path_vertex, const std::filesystem::path& path_fragment, const ShaderStorageInfo& info = Stub_ShaderStorageInfo);
+        Shader Load(const std::filesystem::path& path_vertex, const std::filesystem::path& path_fragment,
+                    const ShaderStorageInfo& info_vertex = Stub_ShaderStorageInfo,
+                    const ShaderStorageInfo& info_fragment = Stub_ShaderStorageInfo);
         void Unload(Shader& shader);
     }
 }

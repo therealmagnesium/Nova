@@ -1,5 +1,6 @@
 #include "Graphics/Renderer.h"
 #include "Graphics/Shader.h"
+#include "Graphics/Texture.h"
 #include "Core/Application.h"
 #include "Core/Base.h"
 #include "Core/Log.h"
@@ -33,7 +34,10 @@ namespace Nova::Graphics::Renderer
         const std::filesystem::path path_base = SDL_GetBasePath();
         const std::filesystem::path path_vertex = path_base / "Assets/Shaders/Compiled/Diffuse_vs.spv";
         const std::filesystem::path path_fragment = path_base / "Assets/Shaders/Compiled/Diffuse_fs.spv";
-        state.shader_diffuse = Shaders::Load(path_vertex, path_fragment);
+
+        ShaderStorageInfo diffuse_fragment_info = {};
+        diffuse_fragment_info.sampler_count = 1;
+        state.shader_diffuse = Shaders::Load(path_vertex, path_fragment, Stub_ShaderStorageInfo, diffuse_fragment_info);
 
         SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {};
 
@@ -55,10 +59,10 @@ namespace Nova::Graphics::Renderer
         vertex_buffer_desc.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
         // Define each attribute (element within a vertex)
-        SDL_GPUVertexAttribute vertex_attributes[2]{};
+        SDL_GPUVertexAttribute vertex_attributes[3] = {};
 
         // Attribute 0: position (vec3 = 3 floats)
-        vertex_attributes[0].location = 0; // matches "layout(location=0)" in GLSL
+        vertex_attributes[0].location = 0;
         vertex_attributes[0].buffer_slot = 0;
         vertex_attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
         vertex_attributes[0].offset = offsetof(Vertex, position);
@@ -69,10 +73,16 @@ namespace Nova::Graphics::Renderer
         vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4;
         vertex_attributes[1].offset = offsetof(Vertex, color);
 
+        // Attribute 2: uv (vec2 = 2 floats)
+        vertex_attributes[2].location = 2;
+        vertex_attributes[2].buffer_slot = 0;
+        vertex_attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
+        vertex_attributes[2].offset = offsetof(Vertex, uv);
+
         pipeline_info.vertex_input_state.vertex_buffer_descriptions = &vertex_buffer_desc;
         pipeline_info.vertex_input_state.num_vertex_buffers = 1;
         pipeline_info.vertex_input_state.vertex_attributes = vertex_attributes;
-        pipeline_info.vertex_input_state.num_vertex_attributes = 2;
+        pipeline_info.vertex_input_state.num_vertex_attributes = 3;
 
         // --- Primitive Type ---
         pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
@@ -111,11 +121,14 @@ namespace Nova::Graphics::Renderer
         }
 
         Shaders::Unload(state.shader_diffuse); // Shader resources not needed after creating the pipeline
+
+        Textures::SetupSamplers();
     }
 
     void Shutdown()
     {
         const Window& window = Application::GetWindow();
+        Textures::FreeSamplers();
         SDL_ReleaseGPUGraphicsPipeline((SDL_GPUDevice*)window.gpu_device, state.pipeline);
     }
 
