@@ -3,9 +3,7 @@
 #include "Core/Log.h"
 #include <SDL3/SDL_gpu.h>
 
-using namespace Nova::Core;
-
-namespace Nova::Graphics::Shaders
+namespace Nova::Shaders
 {
     void* CreateShader(SDL_GPUDevice* gpu_device, const std::filesystem::path& path, const ShaderStorageInfo& info);
 

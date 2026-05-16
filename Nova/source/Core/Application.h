@@ -2,7 +2,7 @@
 #include "Core/Base.h"
 #include "Graphics/Window.h"
 
-namespace Nova::Core
+namespace Nova
 {
     using EventCallback = void (*)(void);
     struct EventCallbacks
@@ -25,7 +25,7 @@ namespace Nova::Core
 
     struct App
     {
-        Graphics::Window window;
+        Window window;
         AppConfig config;
         bool is_running = false;
         bool is_valid = false;
@@ -39,7 +39,7 @@ namespace Nova::Core
 
         u16 GetScreenWidth();
         u16 GetScreenHeight();
-        Graphics::Window& GetWindow();
+        Window& GetWindow();
 
         void Quit();
     }

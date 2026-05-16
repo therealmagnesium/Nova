@@ -4,9 +4,7 @@
 
 #include <SDL3/SDL.h>
 
-using namespace Nova::Graphics;
-
-namespace Nova::Core::Application
+namespace Nova::Application
 {
     static App* context = NULL;
 

@@ -2,7 +2,7 @@
 #include "Core/Base.h"
 #include <filesystem>
 
-namespace Nova::Graphics
+namespace Nova
 {
     using TextureHandle = void*;
 

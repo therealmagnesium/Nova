@@ -8,9 +8,7 @@
 #include <stb_image.h>
 #include <algorithm>
 
-using namespace Nova::Core;
-
-namespace Nova::Graphics::Textures
+namespace Nova::Textures
 {
     static SDL_GPUSampler* samplers[6];
 

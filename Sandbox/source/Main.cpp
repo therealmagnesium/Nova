@@ -1,8 +1,7 @@
 #include "Game.h"
 #include <Nova.h>
 
-using namespace Nova::Core;
-using namespace Nova::Graphics;
+using namespace Nova;
 
 int main(int argc, char** argv)
 {

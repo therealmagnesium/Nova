@@ -2,7 +2,7 @@
 #include "Core/Base.h"
 #include <glm/glm.hpp>
 
-namespace Nova::Graphics
+namespace Nova
 {
     struct Vertex
     {
@@ -19,6 +19,10 @@ namespace Nova::Graphics
         void EndFrame();
 
         void* GetRenderPass();
+        void* GetCommandBuffer();
+        const glm::mat4& GetMatrixView();
+        const glm::mat4& GetMatrixProjection();
+
         u32 IncrementVertexBuffers();
         u32 IncrementIndexBuffers();
         u32 DecrementVertexBuffers();

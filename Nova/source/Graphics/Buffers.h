@@ -1,7 +1,7 @@
 #pragma once
 #include "Core/Base.h"
 
-namespace Nova::Graphics
+namespace Nova
 {
     using GPUBufferHandle = void*;
 

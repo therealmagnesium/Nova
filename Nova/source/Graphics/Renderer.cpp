@@ -7,13 +7,15 @@
 
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_filesystem.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
-using namespace Nova::Core;
-
-namespace Nova::Graphics::Renderer
+namespace Nova::Renderer
 {
     struct RenderState
     {
+        glm::mat4 matrix_view;
+        glm::mat4 matrix_projection;
         Shader shader_diffuse;
         SDL_GPUGraphicsPipeline* pipeline = NULL;
         SDL_GPUCommandBuffer* command_buffer = NULL;
@@ -35,9 +37,12 @@ namespace Nova::Graphics::Renderer
         const std::filesystem::path path_vertex = path_base / "Assets/Shaders/Compiled/Diffuse_vs.spv";
         const std::filesystem::path path_fragment = path_base / "Assets/Shaders/Compiled/Diffuse_fs.spv";
 
+        ShaderStorageInfo diffuse_vertex_info = {};
+        diffuse_vertex_info.uniform_buffer_count = 1;
+
         ShaderStorageInfo diffuse_fragment_info = {};
         diffuse_fragment_info.sampler_count = 1;
-        state.shader_diffuse = Shaders::Load(path_vertex, path_fragment, Stub_ShaderStorageInfo, diffuse_fragment_info);
+        state.shader_diffuse = Shaders::Load(path_vertex, path_fragment, diffuse_vertex_info, diffuse_fragment_info);
 
         SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {};
 
@@ -159,6 +164,10 @@ namespace Nova::Graphics::Renderer
             return false;
         }
 
+        const float aspect_ratio = (float)Application::GetScreenWidth() / (float)Application::GetScreenHeight();
+        state.matrix_view = glm::lookAt(glm::vec3(0.f, 0.f, 2.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f)); // TODO: Get view matrix from primary camera
+        state.matrix_projection = glm::perspectiveRH_ZO(glm::radians(75.f), aspect_ratio, 0.1f, 1000.f);               // TODO: Get near and far plane and fov from primary camera
+
         SDL_GPUColorTargetInfo target_info = {};
         target_info.texture = state.swapchain_texture;
         target_info.clear_color = SDL_FColor{0.12f, 0.12f, 0.12f, 1.f};
@@ -170,17 +179,22 @@ namespace Nova::Graphics::Renderer
 
         state.render_pass = SDL_BeginGPURenderPass(state.command_buffer, &target_info, 1, NULL);
         SDL_BindGPUGraphicsPipeline(state.render_pass, state.pipeline);
-
         return true;
     }
 
     void EndFrame()
     {
+        state.matrix_view = glm::mat4(1.f);
+        state.matrix_projection = glm::mat4(1.f);
         SDL_EndGPURenderPass(state.render_pass);
         SDL_SubmitGPUCommandBuffer(state.command_buffer);
     }
 
     void* GetRenderPass() { return state.render_pass; }
+    void* GetCommandBuffer() { return state.command_buffer; }
+    const glm::mat4& GetMatrixView() { return state.matrix_view; }
+    const glm::mat4& GetMatrixProjection() { return state.matrix_projection; }
+
     u32 IncrementVertexBuffers() { return state.vertex_buffer_count++; }
     u32 IncrementIndexBuffers() { return state.index_buffer_count++; }
     u32 DecrementVertexBuffers() { return state.vertex_buffer_count--; }

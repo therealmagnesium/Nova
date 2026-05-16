@@ -5,9 +5,7 @@
 
 #include <SDL3/SDL_gpu.h>
 
-using namespace Nova::Core;
-
-namespace Nova::Graphics::Buffers
+namespace Nova::Buffers
 {
     GPUBuffer Create(GPUBufferType type, u32 size)
     {

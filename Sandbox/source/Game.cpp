@@ -2,9 +2,15 @@
 
 #include <Nova.h>
 #include <SDL3/SDL_gpu.h>
+#include <glm/gtc/matrix_transform.hpp>
 
-using namespace Nova::Core;
-using namespace Nova::Graphics;
+using namespace Nova;
+
+struct MVPData
+{
+    glm::mat4 matrix_model;
+    glm::mat4 matrix_view_projection;
+};
 
 struct GameState
 {
@@ -46,9 +52,21 @@ namespace Game
     void OnRender()
     {
         SDL_GPURenderPass* render_pass = (SDL_GPURenderPass*)Renderer::GetRenderPass();
+        SDL_GPUCommandBuffer* command_buffer = (SDL_GPUCommandBuffer*)Renderer::GetCommandBuffer();
+
         Buffers::Bind(state.vertex_buffer);
         Buffers::Bind(state.index_buffer);
         Textures::Bind(state.texture, TextureSampler::PointClamp);
+
+        MVPData mvp_data;
+        mvp_data.matrix_model = glm::mat4(1.f);
+        mvp_data.matrix_model = glm::translate(mvp_data.matrix_model, glm::vec3(0.f));
+        mvp_data.matrix_model = glm::rotate(mvp_data.matrix_model, glm::radians(0.f), glm::vec3(1.f, 0.f, 0.f));
+        mvp_data.matrix_model = glm::rotate(mvp_data.matrix_model, glm::radians(0.f), glm::vec3(0.f, 1.f, 0.f));
+        mvp_data.matrix_model = glm::rotate(mvp_data.matrix_model, glm::radians(0.f), glm::vec3(0.f, 0.f, 1.f));
+        mvp_data.matrix_model = glm::scale(mvp_data.matrix_model, glm::vec3(1.f));
+        mvp_data.matrix_view_projection = Renderer::GetMatrixProjection() * Renderer::GetMatrixView();
+        SDL_PushGPUVertexUniformData(command_buffer, 0, &mvp_data, sizeof(MVPData));
         SDL_DrawGPUIndexedPrimitives(render_pass, 6, 1, 0, 0, 0);
     }
 

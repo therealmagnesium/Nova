@@ -6,7 +6,7 @@
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_video.h>
 
-namespace Nova::Graphics::Windows
+namespace Nova::Windows
 {
     Window Create(u16 width, u16 height, const string& title)
     {
@@ -62,7 +62,7 @@ namespace Nova::Graphics::Windows
             switch (event.type)
             {
                 case SDL_EVENT_QUIT:
-                    Core::Application::Quit();
+                    Application::Quit();
                     break;
 
                 default:
