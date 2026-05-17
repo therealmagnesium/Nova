@@ -1,6 +1,8 @@
 #include "Graphics/Renderer.h"
+#include "Graphics/Camera.h"
 #include "Graphics/Shader.h"
 #include "Graphics/Texture.h"
+
 #include "Core/Application.h"
 #include "Core/Base.h"
 #include "Core/Log.h"
@@ -17,6 +19,7 @@ namespace Nova::Renderer
         glm::mat4 matrix_view;
         glm::mat4 matrix_projection;
         Shader shader_diffuse;
+        Camera3D* primary_camera = NULL;
         SDL_GPUGraphicsPipeline* pipeline = NULL;
         SDL_GPUCommandBuffer* command_buffer = NULL;
         SDL_GPURenderPass* render_pass = NULL;
@@ -164,9 +167,11 @@ namespace Nova::Renderer
             return false;
         }
 
-        const float aspect_ratio = (float)Application::GetScreenWidth() / (float)Application::GetScreenHeight();
-        state.matrix_view = glm::lookAt(glm::vec3(0.f, 0.f, 2.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f)); // TODO: Get view matrix from primary camera
-        state.matrix_projection = glm::perspectiveRH_ZO(glm::radians(75.f), aspect_ratio, 0.1f, 1000.f);               // TODO: Get near and far plane and fov from primary camera
+        if (state.primary_camera != NULL)
+        {
+            state.matrix_view = Cameras::GetMatrixView3D(*state.primary_camera);
+            state.matrix_projection = Cameras::GetMatrixProjection3D(*state.primary_camera);
+        }
 
         SDL_GPUColorTargetInfo target_info = {};
         target_info.texture = state.swapchain_texture;
@@ -192,9 +197,11 @@ namespace Nova::Renderer
 
     void* GetRenderPass() { return state.render_pass; }
     void* GetCommandBuffer() { return state.command_buffer; }
+    Camera3D* GetPrimaryCamera() { return state.primary_camera; }
     const glm::mat4& GetMatrixView() { return state.matrix_view; }
     const glm::mat4& GetMatrixProjection() { return state.matrix_projection; }
 
+    void SetPrimaryCamera(Camera3D* camera) { state.primary_camera = camera; }
     u32 IncrementVertexBuffers() { return state.vertex_buffer_count++; }
     u32 IncrementIndexBuffers() { return state.index_buffer_count++; }
     u32 DecrementVertexBuffers() { return state.vertex_buffer_count--; }

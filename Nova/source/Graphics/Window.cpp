@@ -1,5 +1,7 @@
 #include "Graphics/Window.h"
+
 #include "Core/Application.h"
+#include "Core/Input.h"
 #include "Core/Log.h"
 
 #include <SDL3/SDL_events.h>
@@ -56,6 +58,8 @@ namespace Nova::Windows
 
     void HandleEvents(Window& window)
     {
+        Input::Reset();
+
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
@@ -63,6 +67,26 @@ namespace Nova::Windows
             {
                 case SDL_EVENT_QUIT:
                     Application::Quit();
+                    break;
+
+                case SDL_EVENT_KEY_DOWN:
+                    Input::Callback_OnKeyHeld(&event);
+                    break;
+
+                case SDL_EVENT_KEY_UP:
+                    Input::Callback_OnKeyReleased(&event);
+                    break;
+
+                case SDL_EVENT_MOUSE_MOTION:
+                    Input::Callback_OnMouseMove(&event);
+                    break;
+
+                case SDL_EVENT_MOUSE_BUTTON_DOWN:
+                    Input::Callback_OnMouseButtonHeld(&event);
+                    break;
+
+                case SDL_EVENT_MOUSE_BUTTON_UP:
+                    Input::Callback_OnMouseButtonReleased(&event);
                     break;
 
                 default:

@@ -8,5 +8,5 @@ layout (set = 2, binding = 0) uniform sampler2D texture_albedo;
 
 void main()
 {
-   result = texture(texture_albedo, v_uv); 
+   result = texture(texture_albedo, v_uv) * v_color; 
 }

@@ -4,6 +4,8 @@
 
 namespace Nova
 {
+    struct Camera3D;
+
     struct Vertex
     {
         glm::vec3 position;
@@ -20,9 +22,11 @@ namespace Nova
 
         void* GetRenderPass();
         void* GetCommandBuffer();
+        Camera3D* GetPrimaryCamera();
         const glm::mat4& GetMatrixView();
         const glm::mat4& GetMatrixProjection();
 
+        void SetPrimaryCamera(Camera3D* camera);
         u32 IncrementVertexBuffers();
         u32 IncrementIndexBuffers();
         u32 DecrementVertexBuffers();

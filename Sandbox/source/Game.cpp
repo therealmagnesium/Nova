@@ -14,6 +14,7 @@ struct MVPData
 
 struct GameState
 {
+    Camera3D camera;
     Texture texture;
     GPUBuffer vertex_buffer;
     GPUBuffer index_buffer;
@@ -44,10 +45,22 @@ namespace Game
 
         Buffers::Upload(state.vertex_buffer, vertices, sizeof(Vertex) * LEN(vertices));
         Buffers::Upload(state.index_buffer, indices, sizeof(u16) * LEN(indices));
+
+        state.camera.position = glm::vec3(0.f, 0.f, 2.f);
+        state.camera.up = glm::vec3(0.f, 1.f, 0.f);
+        state.camera.yaw = -90.f;
+        state.camera.pitch = 0.f;
+        state.camera.fov = 75.f;
+        state.camera.clip_near = 0.1f;
+        state.camera.clip_far = 100.f;
+        Renderer::SetPrimaryCamera(&state.camera);
     }
 
-    void OnEvent() {}
-    void OnUpdate() {}
+    void OnEvent()
+    {
+    }
+
+    void OnUpdate() { Cameras::UpdateEditor(state.camera, 0.1f, 1.f); }
 
     void OnRender()
     {
