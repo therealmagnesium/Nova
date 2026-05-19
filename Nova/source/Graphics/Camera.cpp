@@ -2,6 +2,7 @@
 #include "Core/Application.h"
 #include "Core/Input.h"
 
+#include <SDL3/SDL_mouse.h>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 
@@ -23,8 +24,14 @@ namespace Nova::Cameras
             const glm::vec2 mouse_delta = Input::GetMouseRelative() * glm::vec2(1.f, -1.f);
 
             if (Input::IsMouseDown(MOUSE_BUTTON_RIGHT))
+            {
+                SDL_HideCursor();
                 Camera3D_Rotate(camera, mouse_delta, look_sensitivity);
+            }
         }
+
+        if (Input::IsMouseReleased(MOUSE_BUTTON_RIGHT))
+            SDL_ShowCursor();
     }
 
     glm::mat4 GetMatrixView3D(const Camera3D& camera)

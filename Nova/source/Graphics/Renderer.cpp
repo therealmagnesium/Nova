@@ -1,5 +1,6 @@
 #include "Graphics/Renderer.h"
 #include "Graphics/Camera.h"
+#include "Graphics/Mesh.h"
 #include "Graphics/Shader.h"
 #include "Graphics/Texture.h"
 
@@ -28,6 +29,13 @@ namespace Nova::Renderer
         u32 index_buffer_count = 0;
         u16 framebuffer_width = 0;
         u16 framebuffer_height = 0;
+        Texture texture_default_white;
+    };
+
+    struct MVPData
+    {
+        glm::mat4 matrix_model;
+        glm::mat4 matrix_view_projection;
     };
 
     static RenderState state;
@@ -44,6 +52,7 @@ namespace Nova::Renderer
         diffuse_vertex_info.uniform_buffer_count = 1;
 
         ShaderStorageInfo diffuse_fragment_info = {};
+        diffuse_fragment_info.uniform_buffer_count = 1;
         diffuse_fragment_info.sampler_count = 1;
         state.shader_diffuse = Shaders::Load(path_vertex, path_fragment, diffuse_vertex_info, diffuse_fragment_info);
 
@@ -131,11 +140,13 @@ namespace Nova::Renderer
         Shaders::Unload(state.shader_diffuse); // Shader resources not needed after creating the pipeline
 
         Textures::SetupSamplers();
+        state.texture_default_white = Textures::LoadDefaultWhite();
     }
 
     void Shutdown()
     {
         const Window& window = Application::GetWindow();
+        Textures::Unload(state.texture_default_white);
         Textures::FreeSamplers();
         SDL_ReleaseGPUGraphicsPipeline((SDL_GPUDevice*)window.gpu_device, state.pipeline);
     }
@@ -193,6 +204,22 @@ namespace Nova::Renderer
         state.matrix_projection = glm::mat4(1.f);
         SDL_EndGPURenderPass(state.render_pass);
         SDL_SubmitGPUCommandBuffer(state.command_buffer);
+    }
+
+    void DrawMesh(const Mesh& mesh, const glm::mat4& transform, const Material& material)
+    {
+        Buffers::Bind(mesh.buffer_vertex);
+        Buffers::Bind(mesh.buffer_index);
+        Textures::Bind(material.albedo_texture != NULL ? *material.albedo_texture : state.texture_default_white, TextureSampler::PointClamp);
+
+        float material_data[6] = {material.albedo.r, material.albedo.g, material.albedo.b, material.albedo.a, 0.f, 0.f};
+
+        MVPData mvp_data;
+        mvp_data.matrix_model = transform;
+        mvp_data.matrix_view_projection = state.matrix_projection * state.matrix_view;
+        SDL_PushGPUVertexUniformData(state.command_buffer, 0, &mvp_data, sizeof(MVPData));
+        SDL_PushGPUFragmentUniformData(state.command_buffer, 0, material_data, sizeof(float) * LEN(material_data));
+        SDL_DrawGPUIndexedPrimitives(state.render_pass, mesh.indices.size(), 1, 0, 0, 0);
     }
 
     void* GetRenderPass() { return state.render_pass; }

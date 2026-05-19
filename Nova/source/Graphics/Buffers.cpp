@@ -56,7 +56,7 @@ namespace Nova::Buffers
             SDL_BindGPUIndexBuffer(render_pass, &binding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
     }
 
-    void Upload(GPUBuffer& buffer, void* data, u32 size)
+    void Upload(GPUBuffer& buffer, const void* data, u32 size)
     {
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;

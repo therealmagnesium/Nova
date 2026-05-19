@@ -25,6 +25,6 @@ namespace Nova
         GPUBuffer Create(GPUBufferType type, u32 size);
         void Destroy(GPUBuffer& buffer);
         void Bind(const GPUBuffer& buffer, u32 slot = 0);
-        void Upload(GPUBuffer& buffer, void* data, u32 size);
+        void Upload(GPUBuffer& buffer, const void* data, u32 size);
     }
 }

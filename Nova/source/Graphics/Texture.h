@@ -41,6 +41,7 @@ namespace Nova
         void SetupSamplers();
         void FreeSamplers();
 
+        Texture LoadDefaultWhite();
         Texture Load(const std::filesystem::path& path);
         void Unload(Texture& texture);
         void Bind(const Texture& texture, TextureSampler sampler_index, u8 slot = 0);
