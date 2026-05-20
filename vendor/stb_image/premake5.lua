@@ -1,9 +1,11 @@
+---@diagnostic disable: undefined-global
 project("stb_image")
 kind("StaticLib")
 language("C")
 cdialect("C23")
 systemversion("latest")
-staticruntime("on")
+staticruntime("off")
+pic("on")
 
 targetdir("bin/")
 objdir("build/")

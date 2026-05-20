@@ -3,47 +3,34 @@
 -- Games using Nova include this file to get all
 -- necessary include paths, lib paths, and link flags.
 
-framework_root = path.getabsolute(".") -- resolves to wherever framework.lua lives
-
-group("Dependencies")
-include("vendor/stb_image/premake5.lua")
-group("")
+framework_root = path.getabsolute(".") -- resolves to wherever Nova.lua lives
 
 function LinkNova()
-	includedirs({
-		framework_root .. "/Nova/source",
-		framework_root .. "/vendor/SDL3/include",
-		framework_root .. "/vendor/glm",
-	})
+    local nova_build_path = framework_root .. "/bin/%{cfg.buildcfg}-%{cfg.system}/Nova"
+    local nova_build = ""
 
-	libdirs({
-		framework_root .. "/bin/%{cfg.buildcfg}-windows/Nova",
-		framework_root .. "/vendor/SDL3-build",
-		framework_root .. "/vendor/stb_image/bin",
-	})
+    filter("system:windows")
+    nova_build = nova_build_path .. "/libNova.dll"
 
-	links({
-		"Nova",
-		"SDL3",
-		"stb_image",
-	})
+    filter("system:linux")
+    nova_build = nova_build_path .. "/libNova.so"
 
-	filter("system:windows")
-	links({
-		"setupapi",
-		"winmm",
-		"imm32",
-		"version",
-		"ole32",
-		"oleaut32",
-	})
+    postbuildcommands({
+        "echo Copying Nova.[dll/so] to %{cfg.buildtarget.abspath}...",
+        "{COPYFILE} " .. nova_build .. " %{cfg.buildtarget.directory}",
+    })
 
-	filter("system:linux")
-	links({
-		"dl",
-		"pthread",
-		"m",
-	})
+    includedirs({
+        framework_root .. "/Nova/source",
+        framework_root .. "/vendor/SDL3/include",
+        framework_root .. "/vendor/glm",
+    })
 
-	filter({}) -- reset filters
+    links({
+        "Nova",
+    })
+
+    filter("system:windows")
+    filter("system:linux")
+    filter({}) -- reset filters
 end

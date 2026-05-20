@@ -37,18 +37,32 @@ setup-config() {
 }
 
 build-cmake-dependencies() {
-	local build_dir="vendor/SDL3-build"
-	if [[ -d "$build_dir" ]]; then
-		echo "SDL3 is already built, advancing to next step..."
-		return 0
+	local build_dir_sdl="vendor/SDL3/build"
+	if [[ ! -d "$build_dir_sdl" ]]; then
+		echo "Building SDL3..."
+		cmake -G "Unix Makefiles" -S vendor/SDL3 -B $build_dir_sdl \
+			-DCMAKE_BUILD_TYPE=Release \
+			-DSDL_SHARED=OFF \
+			-DSDL_STATIC=ON \
+			-DCMAKE_POSITION_INDEPENDENT_CODE=ON
+		#cmake --build $build_dir_sdl --config Release
+		cd $build_dir_sdl
+		make -j4
+		cd ../../..
 	fi
 
-	echo "Building SDL3..."
-	cmake -S vendor/SDL3 -B vendor/SDL3-build \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DSDL_SHARED=OFF \
-		-DSDL_STATIC=ON
-	cmake --build vendor/SDL3-build --config Release
+	local build_dir_assimp="vendor/assimp/build"
+	if [[ ! -d "$build_dir_assimp" ]]; then
+		echo "Building Assimp..."
+		cmake -G "Ninja" -DASSIMP_BUILD_TESTS=off \
+			-DASSIMP_INSTALL=off \
+			-DASSIMP_BUILD_ZLIB=on \
+			-DBUILD_SHARED_LIBS=off \
+			-DASSIMP_WARNINGS_AS_ERRORS=off -S vendor/assimp -B $build_dir_assimp
+		cd $build_dir_assimp
+		ninja
+		cd ../../..
+	fi
 }
 
 build-nova() {
