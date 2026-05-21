@@ -1,6 +1,7 @@
 #include "Graphics/Renderer.h"
 #include "Graphics/Camera.h"
 #include "Graphics/Mesh.h"
+#include "Graphics/Model.h"
 #include "Graphics/Shader.h"
 #include "Graphics/Texture.h"
 
@@ -30,6 +31,7 @@ namespace Nova::Renderer
         u16 framebuffer_width = 0;
         u16 framebuffer_height = 0;
         Texture texture_default_white;
+        Texture texture_depth_stencil;
     };
 
     struct MVPData
@@ -109,9 +111,10 @@ namespace Nova::Renderer
         pipeline_info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
         pipeline_info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
 
-        // --- Depth/Stencil (disabled for now) ---
-        pipeline_info.depth_stencil_state.enable_depth_test = false;
-        pipeline_info.depth_stencil_state.enable_depth_write = false;
+        // --- Depth/Stencil  ---
+        pipeline_info.depth_stencil_state.enable_depth_test = true;
+        pipeline_info.depth_stencil_state.enable_depth_write = true;
+        pipeline_info.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS;
 
         // --- Color Blend ---
         SDL_GPUColorTargetBlendState blend = {};
@@ -128,6 +131,8 @@ namespace Nova::Renderer
 
         pipeline_info.target_info.color_target_descriptions = &color_target_desc;
         pipeline_info.target_info.num_color_targets = 1;
+        pipeline_info.target_info.has_depth_stencil_target = true;
+        pipeline_info.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
 
         // --- Create the pipeline ---
         state.pipeline = SDL_CreateGPUGraphicsPipeline((SDL_GPUDevice*)window.gpu_device, &pipeline_info);
@@ -141,11 +146,13 @@ namespace Nova::Renderer
 
         Textures::SetupSamplers();
         state.texture_default_white = Textures::LoadDefaultWhite();
+        state.texture_depth_stencil = Textures::LoadDepthTexture(window.width, window.height);
     }
 
     void Shutdown()
     {
         const Window& window = Application::GetWindow();
+        Textures::Unload(state.texture_depth_stencil);
         Textures::Unload(state.texture_default_white);
         Textures::FreeSamplers();
         SDL_ReleaseGPUGraphicsPipeline((SDL_GPUDevice*)window.gpu_device, state.pipeline);
@@ -186,15 +193,23 @@ namespace Nova::Renderer
 
         SDL_GPUColorTargetInfo target_info = {};
         target_info.texture = state.swapchain_texture;
-        target_info.clear_color = SDL_FColor{0.12f, 0.12f, 0.12f, 1.f};
+        target_info.clear_color = (SDL_FColor){0.12f, 0.12f, 0.12f, 1.f};
         target_info.load_op = SDL_GPU_LOADOP_CLEAR;
         target_info.store_op = SDL_GPU_STOREOP_STORE;
         target_info.mip_level = 0;
         target_info.layer_or_depth_plane = 0;
         target_info.cycle = false;
 
-        state.render_pass = SDL_BeginGPURenderPass(state.command_buffer, &target_info, 1, NULL);
+        SDL_GPUDepthStencilTargetInfo depth_stencil_info = {};
+        depth_stencil_info.texture = (SDL_GPUTexture*)state.texture_depth_stencil.handle; /**< The texture that will be used as the depth stencil target by the render pass. */
+        depth_stencil_info.clear_depth = 1.f;                                             /**< The value to clear the depth component to at the beginning of the render pass. Ignored if SDL_GPU_LOADOP_CLEAR is not used. */
+        depth_stencil_info.load_op = SDL_GPU_LOADOP_CLEAR;                                /**< What is done with the depth contents at the beginning of the render pass. */
+        depth_stencil_info.store_op = SDL_GPU_STOREOP_DONT_CARE;                          /**< What is done with the depth results of the render pass. */
+        depth_stencil_info.cycle = false;                                                 /**< true cycles the texture if the texture is bound and any load ops are not LOAD */
+
+        state.render_pass = SDL_BeginGPURenderPass(state.command_buffer, &target_info, 1, &depth_stencil_info);
         SDL_BindGPUGraphicsPipeline(state.render_pass, state.pipeline);
+
         return true;
     }
 
@@ -208,10 +223,14 @@ namespace Nova::Renderer
 
     void DrawMesh(const Mesh& mesh, const glm::mat4& transform, const Material& material)
     {
+        if (mesh.buffer_vertex.handle == NULL || mesh.buffer_index.handle == NULL)
+            return;
+
         Buffers::Bind(mesh.buffer_vertex);
         Buffers::Bind(mesh.buffer_index);
         Textures::Bind(material.albedo_texture != NULL ? *material.albedo_texture : state.texture_default_white, TextureSampler::PointClamp);
 
+        // Albedo, metallic, roughness
         float material_data[6] = {material.albedo.r, material.albedo.g, material.albedo.b, material.albedo.a, 0.f, 0.f};
 
         MVPData mvp_data;
@@ -220,6 +239,21 @@ namespace Nova::Renderer
         SDL_PushGPUVertexUniformData(state.command_buffer, 0, &mvp_data, sizeof(MVPData));
         SDL_PushGPUFragmentUniformData(state.command_buffer, 0, material_data, sizeof(float) * LEN(material_data));
         SDL_DrawGPUIndexedPrimitives(state.render_pass, mesh.indices.size(), 1, 0, 0, 0);
+    }
+
+    void DrawModel(const Model& model, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
+    {
+        for (const Mesh& mesh : model.meshes)
+        {
+            glm::mat4 transform = glm::mat4(1.f);
+            transform = glm::translate(transform, position);
+            transform = glm::rotate(transform, glm::radians(rotation.x), glm::vec3(1.f, 0.f, 0.f));
+            transform = glm::rotate(transform, glm::radians(rotation.y), glm::vec3(0.f, 1.f, 0.f));
+            transform = glm::rotate(transform, glm::radians(rotation.z), glm::vec3(0.f, 0.f, 1.f));
+            transform = glm::scale(transform, scale);
+
+            Renderer::DrawMesh(mesh, transform, model.materials[mesh.material_index]);
+        }
     }
 
     void* GetRenderPass() { return state.render_pass; }
@@ -233,4 +267,11 @@ namespace Nova::Renderer
     u32 IncrementIndexBuffers() { return state.index_buffer_count++; }
     u32 DecrementVertexBuffers() { return state.vertex_buffer_count--; }
     u32 DecrementIndexBuffers() { return state.index_buffer_count--; }
+
+    void Callback_OnResize()
+    {
+        const Window& window = Application::GetWindow();
+        Textures::Unload(state.texture_depth_stencil);
+        state.texture_depth_stencil = Textures::LoadDepthTexture(window.width, window.height);
+    }
 }

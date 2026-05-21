@@ -16,6 +16,14 @@ typedef int32_t s32;   //!< 32-bit signed integer.
 typedef int64_t s64;   //!< 64-bit signed integer.
 typedef intptr_t sptr; //!< Pointer-sized signed integer.
 
+#define V2_FMT "<%.3f, %.3f>"
+#define V3_FMT "<%.3f, %.3f, %.3f>"
+#define V4_FMT "<%.3f, %.3f, %.3f, %.3f>"
+
+#define V2_OPEN(v) v.x, v.y
+#define V3_OPEN(v) v.x, v.y, v.z
+#define V4_OPEN(v) v.x, v.y, v.z, v.w
+
 #define LEN(array) (sizeof(array) / sizeof(array[0]))
 
 #define KB(x) (u64)(x << 10)

@@ -53,7 +53,7 @@ namespace Nova::Buffers
         if (buffer.type == GPUBufferType::Vertex)
             SDL_BindGPUVertexBuffers(render_pass, slot, &binding, 1);
         else
-            SDL_BindGPUIndexBuffer(render_pass, &binding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+            SDL_BindGPUIndexBuffer(render_pass, &binding, SDL_GPU_INDEXELEMENTSIZE_32BIT);
     }
 
     void Upload(GPUBuffer& buffer, const void* data, u32 size)

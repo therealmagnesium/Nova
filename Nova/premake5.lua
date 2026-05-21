@@ -27,11 +27,14 @@ libdirs({
     "%{wks.location}/vendor/assimp/build/lib",
 })
 
+linkoptions({ "-Wl,--start-group" })
 links({
     "SDL3",
     "stb_image",
     "assimp",
+    "z",
 })
+linkoptions({ "-Wl,--end-group" })
 
 filter("system:windows")
 defines({ "PLATFORM_WINDOWS" })

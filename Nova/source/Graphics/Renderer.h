@@ -5,8 +5,9 @@
 namespace Nova
 {
     struct Camera3D;
-    struct Mesh;
     struct Material;
+    struct Mesh;
+    struct Model;
 
     namespace Renderer
     {
@@ -16,6 +17,10 @@ namespace Nova
         void EndFrame();
 
         void DrawMesh(const Mesh& mesh, const glm::mat4& transform, const Material& material);
+        void DrawModel(const Model& model,
+                       const glm::vec3& position = glm::vec3(0.f),
+                       const glm::vec3& rotation = glm::vec3(0.f),
+                       const glm::vec3& scale = glm::vec3(1.f));
 
         void* GetRenderPass();
         void* GetCommandBuffer();
@@ -28,5 +33,6 @@ namespace Nova
         u32 IncrementIndexBuffers();
         u32 DecrementVertexBuffers();
         u32 DecrementIndexBuffers();
+        void Callback_OnResize();
     }
 }

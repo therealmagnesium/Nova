@@ -1,4 +1,5 @@
 #include "Graphics/Window.h"
+#include "Graphics/Renderer.h"
 
 #include "Core/Application.h"
 #include "Core/Input.h"
@@ -13,6 +14,9 @@ namespace Nova::Windows
     Window Create(u16 width, u16 height, const string& title)
     {
         Window window;
+        window.width = width;
+        window.height = height;
+        window.title = title;
 
         SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
         window.handle = (void*)SDL_CreateWindow(title.c_str(), width, height, flags);
@@ -87,6 +91,12 @@ namespace Nova::Windows
 
                 case SDL_EVENT_MOUSE_BUTTON_UP:
                     Input::Callback_OnMouseButtonReleased(&event);
+                    break;
+
+                case SDL_EVENT_WINDOW_RESIZED:
+                    window.width = event.window.data1;
+                    window.height = event.window.data2;
+                    Renderer::Callback_OnResize();
                     break;
 
                 default:

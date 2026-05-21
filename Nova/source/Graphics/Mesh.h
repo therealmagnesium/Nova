@@ -11,23 +11,24 @@ namespace Nova
 
     struct Vertex
     {
-        glm::vec3 position;
-        glm::vec4 color;
-        glm::vec2 uv;
+        glm::vec3 position;               // Attribute 0
+        glm::vec4 color = glm::vec4(1.f); // Attribute 1
+        glm::vec2 uv;                     // Attribute 2
     };
 
     struct Material
     {
         glm::vec4 albedo = glm::vec4(1.f);
-        const Texture* albedo_texture = NULL;
+        Texture* albedo_texture = NULL;
     };
 
     struct Mesh
     {
         std::vector<Vertex> vertices;
-        std::vector<u16> indices;
+        std::vector<u32> indices;
         GPUBuffer buffer_vertex;
         GPUBuffer buffer_index;
+        s32 material_index = -1;
     };
 
     inline const Mesh Stub_Mesh;
@@ -35,7 +36,7 @@ namespace Nova
 
     namespace Meshes
     {
-        Mesh Create(const Vertex* vertices, u32 vertex_count, const u16* indices, u32 index_count);
+        Mesh Create(const Vertex* vertices, u32 vertex_count, const u32* indices, u32 index_count);
         Mesh GenerateQuad();
         void Destroy(Mesh& mesh);
     }

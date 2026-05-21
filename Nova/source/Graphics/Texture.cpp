@@ -121,6 +121,68 @@ namespace Nova::Textures
                 SDL_ReleaseGPUSampler((SDL_GPUDevice*)window.gpu_device, samplers[i]);
     }
 
+    Texture LoadDefaultWhite()
+    {
+        Texture texture;
+        texture.width = 1;
+        texture.height = 1;
+        texture.mip_levels = 1;
+        texture.channel_count = 4;
+
+        SDL_GPUTextureCreateInfo info = {};
+        info.type = SDL_GPU_TEXTURETYPE_2D;
+        info.format = TextureFormatToSDL(texture.format);
+        info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        info.width = texture.width;
+        info.height = texture.height;
+        info.layer_count_or_depth = 1;
+        info.num_levels = texture.mip_levels;
+
+        const u8 image_data[4] = {255, 255, 255, 255};
+        const Window& window = Application::GetWindow();
+        SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
+        texture.handle = SDL_CreateGPUTexture(device, &info);
+
+        if (texture.handle == NULL)
+        {
+            ERROR("Textures::LoadDefaultWhite - %s", "Failed to create gpu texture for default white texture!");
+            return Stub_Texture;
+        }
+
+        UploadTexture((SDL_GPUTexture*)texture.handle, image_data, texture.width, texture.height);
+        return texture;
+    }
+
+    Texture LoadDepthTexture(u16 framebuffer_width, u16 framebuffer_height)
+    {
+        Texture texture;
+        texture.width = framebuffer_width;
+        texture.height = framebuffer_height;
+        texture.mip_levels = 1;
+        texture.channel_count = 1;
+        texture.format = TextureFormat::Depth32F;
+
+        SDL_GPUTextureCreateInfo info = {};
+        info.type = SDL_GPU_TEXTURETYPE_2D;
+        info.format = TextureFormatToSDL(texture.format);
+        info.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
+        info.width = texture.width;
+        info.height = texture.height;
+        info.layer_count_or_depth = 1;
+        info.num_levels = texture.mip_levels;
+
+        const Window& window = Application::GetWindow();
+        SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
+        texture.handle = SDL_CreateGPUTexture(device, &info);
+        if (texture.handle == NULL)
+        {
+            ERROR("Textures::LoadDepthTexture - %s", "Failed to create gpu texture for depth texture!");
+            return Stub_Texture;
+        }
+
+        return texture;
+    }
+
     Texture Load(const std::filesystem::path& path)
     {
         Texture texture;
@@ -143,13 +205,13 @@ namespace Nova::Textures
         texture.mip_levels = CalculateMipLevels(texture.width, texture.height);
 
         SDL_GPUTextureCreateInfo info = {};
-        info.type = SDL_GPU_TEXTURETYPE_2D;               /**< The base dimensionality of the texture. */
-        info.format = TextureFormatToSDL(texture.format); /**< The pixel format of the texture. */
-        info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;        /**< How the texture is intended to be used by the client. */
-        info.width = texture.width;                       /**< The width of the texture. */
-        info.height = texture.height;                     /**< The height of the texture. */
-        info.layer_count_or_depth = 1;                    /**< The layer count or depth of the texture. This value is treated as a layer count on 2D array textures, and as a depth value on 3D textures. */
-        info.num_levels = texture.mip_levels;             /**< The number of mip levels in the texture. */
+        info.type = SDL_GPU_TEXTURETYPE_2D;
+        info.format = TextureFormatToSDL(texture.format);
+        info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        info.width = texture.width;
+        info.height = texture.height;
+        info.layer_count_or_depth = 1;
+        info.num_levels = texture.mip_levels;
 
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
@@ -164,38 +226,6 @@ namespace Nova::Textures
         UploadTexture((SDL_GPUTexture*)texture.handle, image_data, texture.width, texture.height);
         stbi_image_free(image_data);
 
-        return texture;
-    }
-
-    Texture LoadDefaultWhite()
-    {
-        Texture texture;
-        texture.width = 1;
-        texture.height = 1;
-        texture.mip_levels = 1;
-        texture.channel_count = 4;
-
-        SDL_GPUTextureCreateInfo info = {};
-        info.type = SDL_GPU_TEXTURETYPE_2D;               /**< The base dimensionality of the texture. */
-        info.format = TextureFormatToSDL(texture.format); /**< The pixel format of the texture. */
-        info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;        /**< How the texture is intended to be used by the client. */
-        info.width = texture.width;                       /**< The width of the texture. */
-        info.height = texture.height;                     /**< The height of the texture. */
-        info.layer_count_or_depth = 1;                    /**< The layer count or depth of the texture. This value is treated as a layer count on 2D array textures, and as a depth value on 3D textures. */
-        info.num_levels = texture.mip_levels;             /**< The number of mip levels in the texture. */
-
-        const u8 image_data[4] = {255, 255, 255, 255};
-        const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
-        texture.handle = SDL_CreateGPUTexture(device, &info);
-
-        if (texture.handle == NULL)
-        {
-            ERROR("Textures::LoadDefaultWhite - %s", "Failed to create gpu texture for default white texture!");
-            return Stub_Texture;
-        }
-
-        UploadTexture((SDL_GPUTexture*)texture.handle, image_data, texture.width, texture.height);
         return texture;
     }
 
