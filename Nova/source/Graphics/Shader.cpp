@@ -68,7 +68,7 @@ namespace Nova::Shaders
             return NULL;
         }
 
-        SDL_GPUShaderCreateInfo shader_info;
+        SDL_GPUShaderCreateInfo shader_info = {};
         shader_info.code_size = code_size;
         shader_info.code = code;
         shader_info.entrypoint = entrypoint;

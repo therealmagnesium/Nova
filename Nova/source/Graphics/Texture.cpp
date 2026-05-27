@@ -19,7 +19,8 @@ namespace Nova::Textures
     void SetupSamplers()
     {
         const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
+        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
+        u8 index;
 
         SDL_GPUSamplerCreateInfo linear_repeat_info = {};
         linear_repeat_info.min_filter = SDL_GPU_FILTER_LINEAR;
@@ -36,7 +37,8 @@ namespace Nova::Textures
         linear_repeat_info.enable_anisotropy = false;
         linear_repeat_info.enable_compare = false;
 
-        samplers[0] = SDL_CreateGPUSampler(device, &linear_repeat_info);
+        index = static_cast<u8>(TextureSampler::LinearRepeat);
+        samplers[index] = SDL_CreateGPUSampler(device, &linear_repeat_info);
 
         SDL_GPUSamplerCreateInfo linear_clamp_info = {};
         linear_clamp_info.min_filter = SDL_GPU_FILTER_LINEAR;
@@ -53,7 +55,8 @@ namespace Nova::Textures
         linear_clamp_info.enable_anisotropy = false;
         linear_clamp_info.enable_compare = false;
 
-        samplers[1] = SDL_CreateGPUSampler(device, &linear_clamp_info);
+        index = static_cast<u8>(TextureSampler::LinearClamp);
+        samplers[index] = SDL_CreateGPUSampler(device, &linear_clamp_info);
 
         SDL_GPUSamplerCreateInfo point_repeat_info = {};
         point_repeat_info.min_filter = SDL_GPU_FILTER_NEAREST;
@@ -63,7 +66,8 @@ namespace Nova::Textures
         point_repeat_info.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_REPEAT;
         point_repeat_info.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_REPEAT;
 
-        samplers[2] = SDL_CreateGPUSampler(device, &point_repeat_info);
+        index = static_cast<u8>(TextureSampler::PointRepeat);
+        samplers[index] = SDL_CreateGPUSampler(device, &point_repeat_info);
 
         SDL_GPUSamplerCreateInfo point_clamp_info = {};
         point_clamp_info.min_filter = SDL_GPU_FILTER_NEAREST;
@@ -73,7 +77,8 @@ namespace Nova::Textures
         point_clamp_info.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
         point_clamp_info.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
 
-        samplers[3] = SDL_CreateGPUSampler(device, &point_clamp_info);
+        index = static_cast<u8>(TextureSampler::PointClamp);
+        samplers[index] = SDL_CreateGPUSampler(device, &point_clamp_info);
 
         SDL_GPUSamplerCreateInfo anisotropic_repeat_info = {};
         anisotropic_repeat_info.min_filter = SDL_GPU_FILTER_LINEAR;
@@ -87,7 +92,8 @@ namespace Nova::Textures
         anisotropic_repeat_info.min_lod = 0.0f;
         anisotropic_repeat_info.max_lod = 1000.f;
 
-        samplers[4] = SDL_CreateGPUSampler(device, &anisotropic_repeat_info);
+        index = static_cast<u8>(TextureSampler::AnisotropicRepeat);
+        samplers[index] = SDL_CreateGPUSampler(device, &anisotropic_repeat_info);
 
         SDL_GPUSamplerCreateInfo anisotropic_clamp_info = {};
         anisotropic_clamp_info.min_filter = SDL_GPU_FILTER_LINEAR;
@@ -101,7 +107,8 @@ namespace Nova::Textures
         anisotropic_clamp_info.min_lod = 0.0f;
         anisotropic_clamp_info.max_lod = 1000.f;
 
-        samplers[5] = SDL_CreateGPUSampler(device, &anisotropic_clamp_info);
+        index = static_cast<u8>(TextureSampler::AnisotropicClamp);
+        samplers[index] = SDL_CreateGPUSampler(device, &anisotropic_clamp_info);
 
         for (u8 i = 0; i < LEN(samplers); i++)
         {
@@ -118,7 +125,7 @@ namespace Nova::Textures
 
         for (u8 i = 0; i < LEN(samplers); i++)
             if (samplers[i] != NULL)
-                SDL_ReleaseGPUSampler((SDL_GPUDevice*)window.gpu_device, samplers[i]);
+                SDL_ReleaseGPUSampler(static_cast<SDL_GPUDevice*>(window.gpu_device), samplers[i]);
     }
 
     Texture LoadDefaultWhite()
@@ -140,7 +147,7 @@ namespace Nova::Textures
 
         const u8 image_data[4] = {255, 255, 255, 255};
         const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
+        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
         texture.handle = SDL_CreateGPUTexture(device, &info);
 
         if (texture.handle == NULL)
@@ -149,7 +156,7 @@ namespace Nova::Textures
             return Stub_Texture;
         }
 
-        UploadTexture((SDL_GPUTexture*)texture.handle, image_data, texture.width, texture.height);
+        UploadTexture(static_cast<SDL_GPUTexture*>(texture.handle), image_data, texture.width, texture.height);
         return texture;
     }
 
@@ -172,7 +179,7 @@ namespace Nova::Textures
         info.num_levels = texture.mip_levels;
 
         const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
+        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
         texture.handle = SDL_CreateGPUTexture(device, &info);
         if (texture.handle == NULL)
         {
@@ -214,7 +221,7 @@ namespace Nova::Textures
         info.num_levels = texture.mip_levels;
 
         const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
+        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
         texture.handle = SDL_CreateGPUTexture(device, &info);
 
         if (texture.handle == NULL)
@@ -223,7 +230,7 @@ namespace Nova::Textures
             return Stub_Texture;
         }
 
-        UploadTexture((SDL_GPUTexture*)texture.handle, image_data, texture.width, texture.height);
+        UploadTexture(static_cast<SDL_GPUTexture*>(texture.handle), image_data, texture.width, texture.height);
         stbi_image_free(image_data);
 
         return texture;
@@ -234,7 +241,7 @@ namespace Nova::Textures
         if (texture.handle != NULL)
         {
             const Window& window = Application::GetWindow();
-            SDL_ReleaseGPUTexture((SDL_GPUDevice*)window.gpu_device, (SDL_GPUTexture*)texture.handle);
+            SDL_ReleaseGPUTexture(static_cast<SDL_GPUDevice*>(window.gpu_device), static_cast<SDL_GPUTexture*>(texture.handle));
         }
 
         texture.handle = NULL;
@@ -250,7 +257,7 @@ namespace Nova::Textures
             return;
 
         SDL_GPUTextureSamplerBinding binding = {};
-        binding.texture = (SDL_GPUTexture*)texture.handle;
+        binding.texture = static_cast<SDL_GPUTexture*>(texture.handle);
         binding.sampler = samplers[(u8)sampler_index];
 
         SDL_GPURenderPass* render_pass = (SDL_GPURenderPass*)Renderer::GetRenderPass();
@@ -298,7 +305,7 @@ namespace Nova::Textures
     void UploadTexture(SDL_GPUTexture* texture_handle, const u8* image_data, u16 width, u16 height)
     {
         const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
+        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
         const u32 data_size = width * height * 4;
 
         SDL_GPUTransferBufferCreateInfo transfer_info = {};

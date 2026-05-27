@@ -7,37 +7,54 @@
 
 namespace Nova::Buffers
 {
+    u32 BufferTypeToSDLBufferUsage(GPUBufferType type);
+    string BufferTypeToString(GPUBufferType type);
+    u32 CalculateBufferID(GPUBufferType type);
+
     GPUBuffer Create(GPUBufferType type, u32 size)
     {
         const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
+        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
 
         SDL_GPUBufferCreateInfo buffer_info = {};
-        buffer_info.usage = type == GPUBufferType::Vertex ? SDL_GPU_BUFFERUSAGE_VERTEX : SDL_GPU_BUFFERUSAGE_INDEX;
+        buffer_info.usage = BufferTypeToSDLBufferUsage(type);
         buffer_info.size = size;
 
-        GPUBuffer* buffer_handle = (GPUBuffer*)SDL_CreateGPUBuffer(device, &buffer_info);
+        SDL_GPUBuffer* buffer_handle = SDL_CreateGPUBuffer(device, &buffer_info);
         if (buffer_handle == NULL)
         {
-            ERROR("Buffers::Create - Failed to create %s buffer!", type == GPUBufferType::Vertex ? "vertex" : "index");
+            ERROR("Buffers::Create - Failed to create %s!", BufferTypeToString(type).c_str());
             return Stub_GPUBuffer;
         }
 
         GPUBuffer buffer;
         buffer.type = type;
-        buffer.id = type == GPUBufferType::Vertex ? Renderer::IncrementVertexBuffers() : Renderer::IncrementIndexBuffers();
+        buffer.id = CalculateBufferID(buffer.type);
         buffer.handle = buffer_handle;
         return buffer;
     }
 
     void Destroy(GPUBuffer& buffer)
     {
-        if (buffer.handle == NULL)
+        if (buffer.handle == NULL || buffer.id == 0)
             return;
 
         const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
-        SDL_ReleaseGPUBuffer(device, (SDL_GPUBuffer*)buffer.handle);
+        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
+        SDL_ReleaseGPUBuffer(device, static_cast<SDL_GPUBuffer*>(buffer.handle));
+
+        switch (buffer.type)
+        {
+            case GPUBufferType::Vertex:
+                Renderer::DecrementVertexBuffers();
+                break;
+            case GPUBufferType::Index:
+                Renderer::DecrementIndexBuffers();
+                break;
+            case GPUBufferType::Storage:
+                Renderer::DecrementStorageBuffers();
+                break;
+        }
 
         buffer.handle = NULL;
         buffer.id = 0;
@@ -45,9 +62,9 @@ namespace Nova::Buffers
 
     void Bind(const GPUBuffer& buffer, u32 slot)
     {
-        SDL_GPURenderPass* render_pass = (SDL_GPURenderPass*)Renderer::GetRenderPass();
+        SDL_GPURenderPass* render_pass = static_cast<SDL_GPURenderPass*>(Renderer::GetRenderPass());
         SDL_GPUBufferBinding binding = {};
-        binding.buffer = (SDL_GPUBuffer*)buffer.handle;
+        binding.buffer = static_cast<SDL_GPUBuffer*>(buffer.handle);
         binding.offset = 0;
 
         if (buffer.type == GPUBufferType::Vertex)
@@ -59,7 +76,7 @@ namespace Nova::Buffers
     void Upload(GPUBuffer& buffer, const void* data, u32 size)
     {
         const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
+        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
 
         // Create a transfer buffer (CPU-accessible staging area)
         SDL_GPUTransferBufferCreateInfo transfer_buffer_info = {};
@@ -82,7 +99,7 @@ namespace Nova::Buffers
         source.offset = 0;
 
         SDL_GPUBufferRegion dest = {};
-        dest.buffer = (SDL_GPUBuffer*)buffer.handle;
+        dest.buffer = static_cast<SDL_GPUBuffer*>(buffer.handle);
         dest.offset = 0;
         dest.size = size;
 
@@ -92,5 +109,58 @@ namespace Nova::Buffers
         // Submit the command buffer and release the transfer buffer
         SDL_SubmitGPUCommandBuffer(command_buffer);
         SDL_ReleaseGPUTransferBuffer(device, transfer_buffer);
+    }
+
+    u32 BufferTypeToSDLBufferUsage(GPUBufferType type)
+    {
+        u32 type_sdl = 0;
+        switch (type)
+        {
+            case GPUBufferType::Vertex:
+                type_sdl = SDL_GPU_BUFFERUSAGE_VERTEX;
+                break;
+            case GPUBufferType::Index:
+                type_sdl = SDL_GPU_BUFFERUSAGE_INDEX;
+                break;
+            case GPUBufferType::Storage:
+                type_sdl = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ;
+                break;
+        }
+        return type_sdl;
+    }
+
+    string BufferTypeToString(GPUBufferType type)
+    {
+        string name;
+        switch (type)
+        {
+            case GPUBufferType::Vertex:
+                name = "Vertex Buffer";
+                break;
+            case GPUBufferType::Index:
+                name = "Index Buffer";
+                break;
+            case GPUBufferType::Storage:
+                name = "Shader Storage Buffer";
+                break;
+        }
+        return name;
+    }
+
+    u32 CalculateBufferID(GPUBufferType type)
+    {
+        u32 id = 0;
+        switch (type)
+        {
+            case GPUBufferType::Vertex:
+                id = Renderer::IncrementVertexBuffers();
+                break;
+            case GPUBufferType::Index:
+                id = Renderer::IncrementIndexBuffers();
+                break;
+            case GPUBufferType::Storage:
+                id = Renderer::IncrementStorageBuffers();
+        }
+        return id;
     }
 }

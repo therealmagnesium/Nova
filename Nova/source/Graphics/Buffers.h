@@ -7,8 +7,9 @@ namespace Nova
 
     enum class GPUBufferType : u8
     {
-        Vertex = 0,
-        Index
+        Vertex = 0, // VBO
+        Index,      // IBO
+        Storage,    // SSBO
     };
 
     struct GPUBuffer
@@ -16,6 +17,30 @@ namespace Nova
         GPUBufferHandle handle = NULL;
         u32 id = 0;
         GPUBufferType type = GPUBufferType::Vertex;
+
+        /*
+        GPUBuffer() = default;
+        GPUBuffer(const GPUBuffer&) = delete;
+        GPUBuffer& operator=(const GPUBuffer&) = delete;
+
+        GPUBuffer(GPUBuffer&& other) noexcept
+        {
+            other.id = 0;
+            other.handle = NULL;
+        }
+
+        GPUBuffer& operator=(GPUBuffer&& other) noexcept
+        {
+            if (this != &other)
+            {
+                handle = other.handle;
+                id = other.id;
+                type = other.type;
+                other.handle = NULL;
+                other.id = 0;
+            }
+            return *this;
+        }*/
     };
 
     inline const GPUBuffer Stub_GPUBuffer;

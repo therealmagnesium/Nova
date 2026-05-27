@@ -32,6 +32,7 @@ namespace Nova::Application
 
         app.config = config;
         app.is_valid = true;
+        context = NULL;
         return app;
     }
 
@@ -49,6 +50,7 @@ namespace Nova::Application
         if (!app.is_valid)
             return;
 
+        context = &app;
         app.is_running = true;
 
         app.config.callbacks.on_create();

@@ -31,8 +31,10 @@ namespace Nova
         void SetPrimaryCamera(Camera3D* camera);
         u32 IncrementVertexBuffers();
         u32 IncrementIndexBuffers();
+        u32 IncrementStorageBuffers();
         u32 DecrementVertexBuffers();
         u32 DecrementIndexBuffers();
+        u32 DecrementStorageBuffers();
         void Callback_OnResize();
     }
 }

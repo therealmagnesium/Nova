@@ -10,6 +10,7 @@
 
 namespace Nova::Models
 {
+    u32 CountNodeMeshReferences(aiNode* node);
     void ProcessNode(Model& model, aiNode* ai_node, const aiScene* ai_scene);
     Mesh ProcessMesh(Model& model, aiMesh* ai_mesh, const aiScene* ai_scene);
 
@@ -30,8 +31,9 @@ namespace Nova::Models
             return Stub_Model;
         }
 
-        model.materials.reserve(scene->mNumMaterials);
-        model.meshes.reserve(scene->mNumMeshes);
+        const u32 mesh_count = CountNodeMeshReferences(scene->mRootNode);
+        model.meshes.reserve(mesh_count);
+        model.materials.resize(scene->mNumMaterials);
         ProcessNode(model, scene->mRootNode, scene);
 
         INFO("Models::Load - Model \"%s\" loaded successfully with %ld meshes and %ld materials", path_full.c_str(), model.meshes.size(), model.materials.size());
@@ -51,12 +53,20 @@ namespace Nova::Models
         model.materials.clear();
     }
 
+    u32 CountNodeMeshReferences(aiNode* node)
+    {
+        u32 count = node->mNumMeshes;
+        for (u32 i = 0; i < node->mNumChildren; i++)
+            count += CountNodeMeshReferences(node->mChildren[i]);
+        return count;
+    }
+
     void ProcessNode(Model& model, aiNode* ai_node, const aiScene* ai_scene)
     {
         for (u32 i = 0; i < ai_node->mNumMeshes; i++)
         {
             aiMesh* ai_mesh = ai_scene->mMeshes[ai_node->mMeshes[i]];
-            model.meshes.emplace_back(ProcessMesh(model, ai_mesh, ai_scene));
+            model.meshes.emplace_back(std::move(ProcessMesh(model, ai_mesh, ai_scene)));
         }
 
         for (u32 i = 0; i < ai_node->mNumChildren; i++)
@@ -86,17 +96,20 @@ namespace Nova::Models
             vertex.position.y = ai_mesh->mVertices[i].y;
             vertex.position.z = ai_mesh->mVertices[i].z;
 
+            /*
             if (ai_mesh->HasVertexColors(0))
             {
                 vertex.color.r = ai_mesh->mColors[0][i].r;
                 vertex.color.g = ai_mesh->mColors[0][i].g;
                 vertex.color.b = ai_mesh->mColors[0][i].b;
                 vertex.color.a = ai_mesh->mColors[0][i].a;
-            }
+            }*/
 
             if (ai_mesh->HasNormals())
             {
-                // TODO: Once normal vectors are supported, copy the data from ai_mesh here
+                vertex.normal.x = ai_mesh->mNormals[i].x;
+                vertex.normal.y = ai_mesh->mNormals[i].y;
+                vertex.normal.z = ai_mesh->mNormals[i].z;
             }
 
             if (ai_mesh->HasTextureCoords(0))
@@ -117,22 +130,17 @@ namespace Nova::Models
 
         Mesh mesh = Meshes::Create(vertices.data(), vertices.size(), indices.data(), indices.size());
 
-        if (ai_mesh->mMaterialIndex >= 0)
+        mesh.material_index = ai_mesh->mMaterialIndex;
+        aiMaterial* assimpMaterial = ai_scene->mMaterials[mesh.material_index];
+        Material& material = model.materials[mesh.material_index];
+
+        aiColor4D albedo;
+        if (assimpMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, albedo) == aiReturn_SUCCESS)
         {
-            mesh.material_index = ai_mesh->mMaterialIndex;
-            aiMaterial* assimpMaterial = ai_scene->mMaterials[mesh.material_index];
-            Material material;
-
-            aiColor4D albedo;
-            if (assimpMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, albedo) == aiReturn_SUCCESS)
-            {
-                material.albedo.r = albedo.r;
-                material.albedo.g = albedo.g;
-                material.albedo.b = albedo.b;
-                material.albedo.a = albedo.a;
-            }
-
-            model.materials.emplace_back(material);
+            material.albedo.r = albedo.r;
+            material.albedo.g = albedo.g;
+            material.albedo.b = albedo.b;
+            material.albedo.a = albedo.a;
         }
 
         return mesh;

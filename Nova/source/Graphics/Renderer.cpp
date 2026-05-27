@@ -28,8 +28,9 @@ namespace Nova::Renderer
         SDL_GPUTexture* swapchain_texture = NULL;
         u32 vertex_buffer_count = 0;
         u32 index_buffer_count = 0;
-        u16 framebuffer_width = 0;
-        u16 framebuffer_height = 0;
+        u32 storage_buffer_count = 0;
+        u32 framebuffer_width = 0;
+        u32 framebuffer_height = 0;
         Texture texture_default_white;
         Texture texture_depth_stencil;
     };
@@ -38,6 +39,7 @@ namespace Nova::Renderer
     {
         glm::mat4 matrix_model;
         glm::mat4 matrix_view_projection;
+        glm::mat4 matrix_normal;
     };
 
     static RenderState state;
@@ -61,8 +63,8 @@ namespace Nova::Renderer
         SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {};
 
         // --- Shaders ---
-        pipeline_info.vertex_shader = (SDL_GPUShader*)state.shader_diffuse.handle_vertex;
-        pipeline_info.fragment_shader = (SDL_GPUShader*)state.shader_diffuse.handle_fragment;
+        pipeline_info.vertex_shader = static_cast<SDL_GPUShader*>(state.shader_diffuse.handle_vertex);
+        pipeline_info.fragment_shader = static_cast<SDL_GPUShader*>(state.shader_diffuse.handle_fragment);
 
         if (pipeline_info.vertex_shader == NULL || pipeline_info.fragment_shader == NULL)
         {
@@ -86,11 +88,11 @@ namespace Nova::Renderer
         vertex_attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
         vertex_attributes[0].offset = offsetof(Vertex, position);
 
-        // Attribute 1: color (vec4 = 4 floats)
+        // Attribute 1: normal (vec3 = 3 floats)
         vertex_attributes[1].location = 1;
         vertex_attributes[1].buffer_slot = 0;
-        vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4;
-        vertex_attributes[1].offset = offsetof(Vertex, color);
+        vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
+        vertex_attributes[1].offset = offsetof(Vertex, normal);
 
         // Attribute 2: uv (vec2 = 2 floats)
         vertex_attributes[2].location = 2;
@@ -108,7 +110,7 @@ namespace Nova::Renderer
 
         // --- Rasterizer ---
         pipeline_info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
-        pipeline_info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
+        pipeline_info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_BACK;
         pipeline_info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
 
         // --- Depth/Stencil  ---
@@ -126,7 +128,7 @@ namespace Nova::Renderer
 
         // --- Color Target Format (must match swapchain format) ---
         SDL_GPUColorTargetDescription color_target_desc = {};
-        color_target_desc.format = SDL_GetGPUSwapchainTextureFormat((SDL_GPUDevice*)window.gpu_device, (SDL_Window*)window.handle);
+        color_target_desc.format = SDL_GetGPUSwapchainTextureFormat(static_cast<SDL_GPUDevice*>(window.gpu_device), (SDL_Window*)window.handle);
         color_target_desc.blend_state = blend;
 
         pipeline_info.target_info.color_target_descriptions = &color_target_desc;
@@ -135,7 +137,7 @@ namespace Nova::Renderer
         pipeline_info.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
 
         // --- Create the pipeline ---
-        state.pipeline = SDL_CreateGPUGraphicsPipeline((SDL_GPUDevice*)window.gpu_device, &pipeline_info);
+        state.pipeline = SDL_CreateGPUGraphicsPipeline(static_cast<SDL_GPUDevice*>(window.gpu_device), &pipeline_info);
         if (state.pipeline == NULL)
         {
             FATAL("Renderer::Init - %s", "Failed to create the graphics pipeline!");
@@ -151,18 +153,19 @@ namespace Nova::Renderer
 
     void Shutdown()
     {
-        const Window& window = Application::GetWindow();
-        Textures::Unload(state.texture_depth_stencil);
         Textures::Unload(state.texture_default_white);
+        Textures::Unload(state.texture_depth_stencil);
         Textures::FreeSamplers();
-        SDL_ReleaseGPUGraphicsPipeline((SDL_GPUDevice*)window.gpu_device, state.pipeline);
+
+        const Window& window = Application::GetWindow();
+        SDL_ReleaseGPUGraphicsPipeline(static_cast<SDL_GPUDevice*>(window.gpu_device), state.pipeline);
     }
 
     bool BeginFrame()
     {
         const Window& window = Application::GetWindow();
         SDL_Window* window_handle = (SDL_Window*)window.handle;
-        SDL_GPUDevice* gpu_device = (SDL_GPUDevice*)window.gpu_device;
+        SDL_GPUDevice* gpu_device = static_cast<SDL_GPUDevice*>(window.gpu_device);
 
         state.render_pass = NULL;
 
@@ -170,17 +173,16 @@ namespace Nova::Renderer
         if (state.command_buffer == NULL)
             return false;
 
-        if (!SDL_AcquireGPUSwapchainTexture(state.command_buffer, window_handle, &state.swapchain_texture,
-                                            (u32*)&state.framebuffer_width, (u32*)&state.framebuffer_height))
+        if (!SDL_AcquireGPUSwapchainTexture(state.command_buffer, window_handle, &state.swapchain_texture, &state.framebuffer_width, &state.framebuffer_height))
         {
-            SDL_CancelGPUCommandBuffer(state.command_buffer);
+            SDL_SubmitGPUCommandBuffer(state.command_buffer);
             state.command_buffer = NULL;
             return false;
         }
 
         if (state.swapchain_texture == NULL)
         {
-            SDL_CancelGPUCommandBuffer(state.command_buffer);
+            SDL_SubmitGPUCommandBuffer(state.command_buffer);
             state.command_buffer = NULL;
             return false;
         }
@@ -201,11 +203,11 @@ namespace Nova::Renderer
         target_info.cycle = false;
 
         SDL_GPUDepthStencilTargetInfo depth_stencil_info = {};
-        depth_stencil_info.texture = (SDL_GPUTexture*)state.texture_depth_stencil.handle; /**< The texture that will be used as the depth stencil target by the render pass. */
-        depth_stencil_info.clear_depth = 1.f;                                             /**< The value to clear the depth component to at the beginning of the render pass. Ignored if SDL_GPU_LOADOP_CLEAR is not used. */
-        depth_stencil_info.load_op = SDL_GPU_LOADOP_CLEAR;                                /**< What is done with the depth contents at the beginning of the render pass. */
-        depth_stencil_info.store_op = SDL_GPU_STOREOP_DONT_CARE;                          /**< What is done with the depth results of the render pass. */
-        depth_stencil_info.cycle = false;                                                 /**< true cycles the texture if the texture is bound and any load ops are not LOAD */
+        depth_stencil_info.texture = static_cast<SDL_GPUTexture*>(state.texture_depth_stencil.handle); /**< The texture that will be used as the depth stencil target by the render pass. */
+        depth_stencil_info.clear_depth = 1.f;                                                          /**< The value to clear the depth component to at the beginning of the render pass. Ignored if SDL_GPU_LOADOP_CLEAR is not used. */
+        depth_stencil_info.load_op = SDL_GPU_LOADOP_CLEAR;                                             /**< What is done with the depth contents at the beginning of the render pass. */
+        depth_stencil_info.store_op = SDL_GPU_STOREOP_DONT_CARE;                                       /**< What is done with the depth results of the render pass. */
+        depth_stencil_info.cycle = false;                                                              /**< true cycles the texture if the texture is bound and any load ops are not LOAD */
 
         state.render_pass = SDL_BeginGPURenderPass(state.command_buffer, &target_info, 1, &depth_stencil_info);
         SDL_BindGPUGraphicsPipeline(state.render_pass, state.pipeline);
@@ -231,11 +233,13 @@ namespace Nova::Renderer
         Textures::Bind(material.albedo_texture != NULL ? *material.albedo_texture : state.texture_default_white, TextureSampler::PointClamp);
 
         // Albedo, metallic, roughness
-        float material_data[6] = {material.albedo.r, material.albedo.g, material.albedo.b, material.albedo.a, 0.f, 0.f};
+        const float material_data[6] = {material.albedo.r, material.albedo.g, material.albedo.b, material.albedo.a, 0.f, 0.f};
 
-        MVPData mvp_data;
-        mvp_data.matrix_model = transform;
-        mvp_data.matrix_view_projection = state.matrix_projection * state.matrix_view;
+        const MVPData mvp_data = (MVPData){
+            .matrix_model = transform,
+            .matrix_view_projection = state.matrix_projection * state.matrix_view,
+            .matrix_normal = glm::transpose(glm::inverse(transform))
+        };
         SDL_PushGPUVertexUniformData(state.command_buffer, 0, &mvp_data, sizeof(MVPData));
         SDL_PushGPUFragmentUniformData(state.command_buffer, 0, material_data, sizeof(float) * LEN(material_data));
         SDL_DrawGPUIndexedPrimitives(state.render_pass, mesh.indices.size(), 1, 0, 0, 0);
@@ -263,10 +267,12 @@ namespace Nova::Renderer
     const glm::mat4& GetMatrixProjection() { return state.matrix_projection; }
 
     void SetPrimaryCamera(Camera3D* camera) { state.primary_camera = camera; }
-    u32 IncrementVertexBuffers() { return state.vertex_buffer_count++; }
-    u32 IncrementIndexBuffers() { return state.index_buffer_count++; }
-    u32 DecrementVertexBuffers() { return state.vertex_buffer_count--; }
-    u32 DecrementIndexBuffers() { return state.index_buffer_count--; }
+    u32 IncrementVertexBuffers() { return ++state.vertex_buffer_count; }
+    u32 IncrementIndexBuffers() { return ++state.index_buffer_count; }
+    u32 IncrementStorageBuffers() { return ++state.storage_buffer_count; }
+    u32 DecrementVertexBuffers() { return --state.vertex_buffer_count; }
+    u32 DecrementIndexBuffers() { return --state.index_buffer_count; }
+    u32 DecrementStorageBuffers() { return --state.storage_buffer_count; }
 
     void Callback_OnResize()
     {

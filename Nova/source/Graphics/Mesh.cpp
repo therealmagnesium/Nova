@@ -27,10 +27,10 @@ namespace Nova::Meshes
     Mesh GenerateQuad()
     {
         const Vertex vertices[4] = {
-            (Vertex){.position = glm::vec3(-1.f, 1.f, 0.f), .color = glm::vec4(1.f, 1.f, 1.f, 1.f), .uv = glm::vec2(0.f, 1.f)},
-            (Vertex){.position = glm::vec3(1.f, 1.f, 0.f), .color = glm::vec4(1.f, 1.f, 1.f, 1.f), .uv = glm::vec2(1.f, 1.f)},
-            (Vertex){.position = glm::vec3(-1.f, -1.f, 0.f), .color = glm::vec4(1.f, 1.f, 1.f, 1.f), .uv = glm::vec2(0.f, 0.f)},
-            (Vertex){.position = glm::vec3(1.f, -1.f, 0.f), .color = glm::vec4(1.f, 1.f, 1.f, 1.f), .uv = glm::vec2(1.f, 0.f)},
+            (Vertex){.position = glm::vec3(-1.f, 1.f, 0.f), .normal = glm::vec3(0.f, 0.f, 1.f), .uv = glm::vec2(0.f, 1.f)},
+            (Vertex){.position = glm::vec3(1.f, 1.f, 0.f), .normal = glm::vec3(0.f, 0.f, 1.f), .uv = glm::vec2(1.f, 1.f)},
+            (Vertex){.position = glm::vec3(-1.f, -1.f, 0.f), .normal = glm::vec3(0.f, 0.f, 1.f), .uv = glm::vec2(0.f, 0.f)},
+            (Vertex){.position = glm::vec3(1.f, -1.f, 0.f), .normal = glm::vec3(0.f, 0.f, 1.f), .uv = glm::vec2(1.f, 0.f)},
         };
 
         const u32 indices[6] = {

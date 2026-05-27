@@ -11,9 +11,9 @@ namespace Nova
 
     struct Vertex
     {
-        glm::vec3 position;               // Attribute 0
-        glm::vec4 color = glm::vec4(1.f); // Attribute 1
-        glm::vec2 uv;                     // Attribute 2
+        glm::vec3 position; // Attribute 0
+        glm::vec3 normal;   // Attribute 1
+        glm::vec2 uv;       // Attribute 2
     };
 
     struct Material
@@ -28,7 +28,14 @@ namespace Nova
         std::vector<u32> indices;
         GPUBuffer buffer_vertex;
         GPUBuffer buffer_index;
-        s32 material_index = -1;
+        u32 material_index = 0;
+
+        /*
+        Mesh() = default;
+        Mesh(const Mesh&) = delete;
+        Mesh& operator=(const Mesh&) = delete;
+        Mesh(Mesh&&) = default;
+        Mesh& operator=(Mesh&&) = default;*/
     };
 
     inline const Mesh Stub_Mesh;

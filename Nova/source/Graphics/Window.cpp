@@ -13,50 +13,54 @@ namespace Nova::Windows
 {
     Window Create(u16 width, u16 height, const string& title)
     {
+        SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+        SDL_Window* handle = SDL_CreateWindow(title.c_str(), width, height, flags);
+
+        if (handle == NULL)
+        {
+            FATAL("Windows::Create - %s", "SDL failed to create the window handle!");
+            return Stub_Window;
+        }
+
+        SDL_SetWindowPosition(handle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+
+        SDL_GPUShaderFormat formats = SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_MSL;
+        SDL_GPUDevice* device = SDL_CreateGPUDevice(formats, true, NULL);
+
+        if (device == NULL)
+        {
+            FATAL("Windows::Create - %s", "SDL failed to create the GPU device!");
+            return Stub_Window;
+        }
+
+        if (!SDL_ClaimWindowForGPUDevice(device, handle))
+        {
+            FATAL("Windows::Create - %s", "The window failed to claim it's GPU device!");
+            return Stub_Window;
+        }
+
+        SDL_SetGPUSwapchainParameters(device, handle, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_VSYNC);
+
         Window window;
         window.width = width;
         window.height = height;
         window.title = title;
-
-        SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
-        window.handle = (void*)SDL_CreateWindow(title.c_str(), width, height, flags);
-
-        if (window.handle == NULL)
-        {
-            FATAL("Windows::Create - %s", "SDL failed to create the window handle!");
-            return window;
-        }
-
-        SDL_SetWindowPosition((SDL_Window*)window.handle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-
-        SDL_GPUShaderFormat formats = SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_MSL;
-        window.gpu_device = (void*)SDL_CreateGPUDevice(formats, true, NULL);
-
-        if (window.gpu_device == NULL)
-        {
-            FATAL("Windows::Create - %s", "SDL failed to create the GPU device!");
-            return window;
-        }
-
-        if (!SDL_ClaimWindowForGPUDevice((SDL_GPUDevice*)window.gpu_device, (SDL_Window*)window.handle))
-        {
-            FATAL("Windows::Create - %s", "The window failed to claim it's GPU device!");
-            return window;
-        }
-
-        SDL_SetGPUSwapchainParameters((SDL_GPUDevice*)window.gpu_device, (SDL_Window*)window.handle,
-                                      SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_VSYNC);
-
+        window.handle = handle;
+        window.gpu_device = device;
         window.is_valid = true;
+
         return window;
     }
 
     void Destroy(Window& window)
     {
-        SDL_WaitForGPUIdle((SDL_GPUDevice*)window.gpu_device);
-        SDL_ReleaseWindowFromGPUDevice((SDL_GPUDevice*)window.gpu_device, (SDL_Window*)window.handle);
-        SDL_DestroyGPUDevice((SDL_GPUDevice*)window.gpu_device);
-        SDL_DestroyWindow((SDL_Window*)window.handle);
+        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
+        SDL_Window* handle = static_cast<SDL_Window*>(window.handle);
+
+        SDL_WaitForGPUIdle(device);
+        SDL_ReleaseWindowFromGPUDevice(device, handle);
+        SDL_DestroyGPUDevice(device);
+        SDL_DestroyWindow(handle);
         window.is_valid = false;
     }
 
