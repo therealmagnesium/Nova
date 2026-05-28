@@ -1,7 +1,9 @@
 #include "Graphics/Shader.h"
 #include "Core/Application.h"
 #include "Core/Log.h"
+
 #include <SDL3/SDL_gpu.h>
+#include <SDL3/SDL_filesystem.h>
 
 namespace Nova::Shaders
 {
@@ -11,11 +13,15 @@ namespace Nova::Shaders
     {
         Shader shader;
 
+        const std::filesystem::path path_base = SDL_GetBasePath();
+        const std::filesystem::path path_vertex_full = path_base / path_vertex;
+        const std::filesystem::path path_fragment_full = path_base / path_fragment;
+
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = (SDL_GPUDevice*)window.gpu_device;
 
-        shader.handle_vertex = CreateShader(device, path_vertex, info_vertex);
-        shader.handle_fragment = CreateShader(device, path_fragment, info_fragment);
+        shader.handle_vertex = CreateShader(device, path_vertex_full, info_vertex);
+        shader.handle_fragment = CreateShader(device, path_fragment_full, info_fragment);
         shader.info_vertex = info_vertex;
         shader.info_fragment = info_fragment;
 

@@ -33,11 +33,14 @@ namespace Nova::Application
         app.config = config;
         app.is_valid = true;
         context = NULL;
+
+        INFO("Application \"%s\" initialized successfully!", app.config.name.c_str());
         return app;
     }
 
     void Shutdown(App& app)
     {
+        INFO("Shutting down application \"%s\"...", app.config.name.c_str());
         app.is_valid = false;
 
         Renderer::Shutdown();

@@ -12,6 +12,7 @@ struct GameState
     Model model_xbot;
     Model model_ybot;
     Camera3D camera;
+    bool is_wireframe = false;
 };
 
 static GameState state;
@@ -31,6 +32,9 @@ namespace Game
 
     void OnEvent()
     {
+        if (Input::IsKeyPressed(KEY_F1))
+            state.is_wireframe = !state.is_wireframe;
+
         if (Input::IsKeyPressed(KEY_F2))
             ResetEditorCamera();
     }
@@ -39,8 +43,28 @@ namespace Game
 
     void OnRender()
     {
+        const auto swapchain_info = (ColorTargetInfo){
+            .clear_color = glm::vec4(0.12, 0.12, 0.12, 1.f),
+            .texture = &Renderer::GetTextureSwapchain(),
+            .load_op = GPULoadOp::Clear,
+            .store_op = GPUStoreOp::Store,
+        };
+
+        const auto ds_info = (DepthStencilTargetInfo){
+            .texture = &Renderer::GetTextureDepthStencil(),
+            .clear_depth = 1.f,
+            .load_op = GPULoadOp::Clear,
+            .store_op = GPUStoreOp::Discard,
+        };
+
+        const RenderPassHandle render_pass = RenderPasses::Begin(&swapchain_info, 1, ds_info);
+        const PipelineType pipeline = !state.is_wireframe ? PipelineType::OutdoorMeshes : PipelineType::WireframeMeshes;
+        Pipelines::Bind(pipeline, render_pass);
+
         Renderer::DrawModel(state.model_xbot, glm::vec3(-1.f, 0.f, 0.f));
         Renderer::DrawModel(state.model_ybot, glm::vec3(1.f, 0.f, 0.f));
+
+        RenderPasses::End(render_pass);
     }
 
     void OnRenderUI() {}

@@ -2,6 +2,7 @@
 #include "Graphics/Camera.h"
 #include "Graphics/Mesh.h"
 #include "Graphics/Model.h"
+#include "Graphics/Pipeline.h"
 #include "Graphics/Shader.h"
 #include "Graphics/Texture.h"
 
@@ -21,18 +22,16 @@ namespace Nova::Renderer
         glm::mat4 matrix_view;
         glm::mat4 matrix_projection;
         Shader shader_diffuse;
+        Texture texture_default_white;
+        Texture texture_depth_stencil;
+        Texture texture_swapchain;
+        RenderPassHandle active_render_pass = NULL;
         Camera3D* primary_camera = NULL;
-        SDL_GPUGraphicsPipeline* pipeline = NULL;
         SDL_GPUCommandBuffer* command_buffer = NULL;
-        SDL_GPURenderPass* render_pass = NULL;
-        SDL_GPUTexture* swapchain_texture = NULL;
         u32 vertex_buffer_count = 0;
         u32 index_buffer_count = 0;
         u32 storage_buffer_count = 0;
-        u32 framebuffer_width = 0;
-        u32 framebuffer_height = 0;
-        Texture texture_default_white;
-        Texture texture_depth_stencil;
+        PipelineType pipeline_index = PipelineType::OutdoorMeshes;
     };
 
     struct MVPData
@@ -46,11 +45,8 @@ namespace Nova::Renderer
 
     void Init()
     {
-        const Window& window = Application::GetWindow();
-
-        const std::filesystem::path path_base = SDL_GetBasePath();
-        const std::filesystem::path path_vertex = path_base / "Assets/Shaders/Compiled/Diffuse_vs.spv";
-        const std::filesystem::path path_fragment = path_base / "Assets/Shaders/Compiled/Diffuse_fs.spv";
+        const std::filesystem::path path_vertex = "Assets/Shaders/Compiled/Diffuse_vs.spv";
+        const std::filesystem::path path_fragment = "Assets/Shaders/Compiled/Diffuse_fs.spv";
 
         ShaderStorageInfo diffuse_vertex_info = {};
         diffuse_vertex_info.uniform_buffer_count = 1;
@@ -60,127 +56,56 @@ namespace Nova::Renderer
         diffuse_fragment_info.sampler_count = 1;
         state.shader_diffuse = Shaders::Load(path_vertex, path_fragment, diffuse_vertex_info, diffuse_fragment_info);
 
-        SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {};
+        // Initialize all of the graphics pipelines
+        PipelineShaderInfo shader_info = {};
+        shader_info.outdoor_meshes = &state.shader_diffuse;
+        shader_info.outdoor_meshes_skinned = &state.shader_diffuse;
+        shader_info.indoor_meshes = &state.shader_diffuse;
+        shader_info.wireframe_meshes = &state.shader_diffuse;
+        Pipelines::Init(shader_info);
 
-        // --- Shaders ---
-        pipeline_info.vertex_shader = static_cast<SDL_GPUShader*>(state.shader_diffuse.handle_vertex);
-        pipeline_info.fragment_shader = static_cast<SDL_GPUShader*>(state.shader_diffuse.handle_fragment);
+        // Shader resources not needed after the pipelines are initialized
+        Shaders::Unload(state.shader_diffuse);
 
-        if (pipeline_info.vertex_shader == NULL || pipeline_info.fragment_shader == NULL)
-        {
-            FATAL("Renderer::Init - %s", "Cannot create the graphics pipeline since its shaders are invalid!");
-            return;
-        }
-
-        // --- Vertex Input Layout ---
-        // Describes the memory layout of each vertex in the vertex buffer
-        SDL_GPUVertexBufferDescription vertex_buffer_desc = {};
-        vertex_buffer_desc.slot = 0;
-        vertex_buffer_desc.pitch = sizeof(Vertex); // bytes per vertex
-        vertex_buffer_desc.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
-
-        // Define each attribute (element within a vertex)
-        SDL_GPUVertexAttribute vertex_attributes[3] = {};
-
-        // Attribute 0: position (vec3 = 3 floats)
-        vertex_attributes[0].location = 0;
-        vertex_attributes[0].buffer_slot = 0;
-        vertex_attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        vertex_attributes[0].offset = offsetof(Vertex, position);
-
-        // Attribute 1: normal (vec3 = 3 floats)
-        vertex_attributes[1].location = 1;
-        vertex_attributes[1].buffer_slot = 0;
-        vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        vertex_attributes[1].offset = offsetof(Vertex, normal);
-
-        // Attribute 2: uv (vec2 = 2 floats)
-        vertex_attributes[2].location = 2;
-        vertex_attributes[2].buffer_slot = 0;
-        vertex_attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
-        vertex_attributes[2].offset = offsetof(Vertex, uv);
-
-        pipeline_info.vertex_input_state.vertex_buffer_descriptions = &vertex_buffer_desc;
-        pipeline_info.vertex_input_state.num_vertex_buffers = 1;
-        pipeline_info.vertex_input_state.vertex_attributes = vertex_attributes;
-        pipeline_info.vertex_input_state.num_vertex_attributes = 3;
-
-        // --- Primitive Type ---
-        pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
-
-        // --- Rasterizer ---
-        pipeline_info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
-        pipeline_info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_BACK;
-        pipeline_info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
-
-        // --- Depth/Stencil  ---
-        pipeline_info.depth_stencil_state.enable_depth_test = true;
-        pipeline_info.depth_stencil_state.enable_depth_write = true;
-        pipeline_info.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS;
-
-        // --- Color Blend ---
-        SDL_GPUColorTargetBlendState blend = {};
-        blend.enable_blend = false; // opaque rendering
-        blend.color_write_mask = SDL_GPU_COLORCOMPONENT_R |
-                                 SDL_GPU_COLORCOMPONENT_G |
-                                 SDL_GPU_COLORCOMPONENT_B |
-                                 SDL_GPU_COLORCOMPONENT_A;
-
-        // --- Color Target Format (must match swapchain format) ---
-        SDL_GPUColorTargetDescription color_target_desc = {};
-        color_target_desc.format = SDL_GetGPUSwapchainTextureFormat(static_cast<SDL_GPUDevice*>(window.gpu_device), (SDL_Window*)window.handle);
-        color_target_desc.blend_state = blend;
-
-        pipeline_info.target_info.color_target_descriptions = &color_target_desc;
-        pipeline_info.target_info.num_color_targets = 1;
-        pipeline_info.target_info.has_depth_stencil_target = true;
-        pipeline_info.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
-
-        // --- Create the pipeline ---
-        state.pipeline = SDL_CreateGPUGraphicsPipeline(static_cast<SDL_GPUDevice*>(window.gpu_device), &pipeline_info);
-        if (state.pipeline == NULL)
-        {
-            FATAL("Renderer::Init - %s", "Failed to create the graphics pipeline!");
-            return;
-        }
-
-        Shaders::Unload(state.shader_diffuse); // Shader resources not needed after creating the pipeline
-
+        // Setup texture samplers and default textures
+        const Window& window = Application::GetWindow();
         Textures::SetupSamplers();
         state.texture_default_white = Textures::LoadDefaultWhite();
         state.texture_depth_stencil = Textures::LoadDepthTexture(window.width, window.height);
+        state.texture_swapchain = Stub_Texture; // Gets written in "BeginFrame"
+
+        INFO("The renderer initialized successfully with %d graphics pipelines", PipelineType::_Length);
     }
 
     void Shutdown()
     {
+        INFO("%s", "Shutting down the renderer...");
         Textures::Unload(state.texture_default_white);
         Textures::Unload(state.texture_depth_stencil);
         Textures::FreeSamplers();
-
-        const Window& window = Application::GetWindow();
-        SDL_ReleaseGPUGraphicsPipeline(static_cast<SDL_GPUDevice*>(window.gpu_device), state.pipeline);
+        Pipelines::Shutdown();
     }
 
     bool BeginFrame()
     {
         const Window& window = Application::GetWindow();
-        SDL_Window* window_handle = (SDL_Window*)window.handle;
+        SDL_Window* window_handle = static_cast<SDL_Window*>(window.handle);
         SDL_GPUDevice* gpu_device = static_cast<SDL_GPUDevice*>(window.gpu_device);
-
-        state.render_pass = NULL;
 
         state.command_buffer = SDL_AcquireGPUCommandBuffer(gpu_device);
         if (state.command_buffer == NULL)
             return false;
 
-        if (!SDL_AcquireGPUSwapchainTexture(state.command_buffer, window_handle, &state.swapchain_texture, &state.framebuffer_width, &state.framebuffer_height))
+        u32 swapchain_width, swapchain_height = 0;
+        SDL_GPUTexture* swapchain_handle = NULL;
+        if (!SDL_AcquireGPUSwapchainTexture(state.command_buffer, window_handle, &swapchain_handle, &swapchain_width, &swapchain_height))
         {
             SDL_SubmitGPUCommandBuffer(state.command_buffer);
             state.command_buffer = NULL;
             return false;
         }
 
-        if (state.swapchain_texture == NULL)
+        if (swapchain_handle == NULL)
         {
             SDL_SubmitGPUCommandBuffer(state.command_buffer);
             state.command_buffer = NULL;
@@ -193,24 +118,10 @@ namespace Nova::Renderer
             state.matrix_projection = Cameras::GetMatrixProjection3D(*state.primary_camera);
         }
 
-        SDL_GPUColorTargetInfo target_info = {};
-        target_info.texture = state.swapchain_texture;
-        target_info.clear_color = (SDL_FColor){0.12f, 0.12f, 0.12f, 1.f};
-        target_info.load_op = SDL_GPU_LOADOP_CLEAR;
-        target_info.store_op = SDL_GPU_STOREOP_STORE;
-        target_info.mip_level = 0;
-        target_info.layer_or_depth_plane = 0;
-        target_info.cycle = false;
-
-        SDL_GPUDepthStencilTargetInfo depth_stencil_info = {};
-        depth_stencil_info.texture = static_cast<SDL_GPUTexture*>(state.texture_depth_stencil.handle); /**< The texture that will be used as the depth stencil target by the render pass. */
-        depth_stencil_info.clear_depth = 1.f;                                                          /**< The value to clear the depth component to at the beginning of the render pass. Ignored if SDL_GPU_LOADOP_CLEAR is not used. */
-        depth_stencil_info.load_op = SDL_GPU_LOADOP_CLEAR;                                             /**< What is done with the depth contents at the beginning of the render pass. */
-        depth_stencil_info.store_op = SDL_GPU_STOREOP_DONT_CARE;                                       /**< What is done with the depth results of the render pass. */
-        depth_stencil_info.cycle = false;                                                              /**< true cycles the texture if the texture is bound and any load ops are not LOAD */
-
-        state.render_pass = SDL_BeginGPURenderPass(state.command_buffer, &target_info, 1, &depth_stencil_info);
-        SDL_BindGPUGraphicsPipeline(state.render_pass, state.pipeline);
+        state.texture_swapchain.handle = swapchain_handle;
+        state.texture_swapchain.width = swapchain_width;
+        state.texture_swapchain.height = swapchain_height;
+        state.texture_swapchain.channel_count = 4;
 
         return true;
     }
@@ -219,7 +130,6 @@ namespace Nova::Renderer
     {
         state.matrix_view = glm::mat4(1.f);
         state.matrix_projection = glm::mat4(1.f);
-        SDL_EndGPURenderPass(state.render_pass);
         SDL_SubmitGPUCommandBuffer(state.command_buffer);
     }
 
@@ -242,7 +152,7 @@ namespace Nova::Renderer
         };
         SDL_PushGPUVertexUniformData(state.command_buffer, 0, &mvp_data, sizeof(MVPData));
         SDL_PushGPUFragmentUniformData(state.command_buffer, 0, material_data, sizeof(float) * LEN(material_data));
-        SDL_DrawGPUIndexedPrimitives(state.render_pass, mesh.indices.size(), 1, 0, 0, 0);
+        SDL_DrawGPUIndexedPrimitives(static_cast<SDL_GPURenderPass*>(state.active_render_pass), mesh.indices.size(), 1, 0, 0, 0);
     }
 
     void DrawModel(const Model& model, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
@@ -260,12 +170,15 @@ namespace Nova::Renderer
         }
     }
 
-    void* GetRenderPass() { return state.render_pass; }
     void* GetCommandBuffer() { return state.command_buffer; }
     Camera3D* GetPrimaryCamera() { return state.primary_camera; }
+    RenderPassHandle GetActiveRenderPass() { return state.active_render_pass; }
+    const Texture& GetTextureSwapchain() { return state.texture_swapchain; }
+    const Texture& GetTextureDepthStencil() { return state.texture_depth_stencil; }
     const glm::mat4& GetMatrixView() { return state.matrix_view; }
     const glm::mat4& GetMatrixProjection() { return state.matrix_projection; }
 
+    void SetActiveRenderPass(RenderPassHandle render_pass) { state.active_render_pass = render_pass; }
     void SetPrimaryCamera(Camera3D* camera) { state.primary_camera = camera; }
     u32 IncrementVertexBuffers() { return ++state.vertex_buffer_count; }
     u32 IncrementIndexBuffers() { return ++state.index_buffer_count; }

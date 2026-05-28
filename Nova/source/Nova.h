@@ -9,6 +9,8 @@
 #include "Graphics/Camera.h"
 #include "Graphics/Mesh.h"
 #include "Graphics/Model.h"
+#include "Graphics/Pipeline.h"
 #include "Graphics/Renderer.h"
+#include "Graphics/RenderPass.h"
 #include "Graphics/Texture.h"
 #include "Graphics/Window.h"

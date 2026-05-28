@@ -36,7 +36,7 @@ namespace Nova::Models
         model.materials.resize(scene->mNumMaterials);
         ProcessNode(model, scene->mRootNode, scene);
 
-        INFO("Models::Load - Model \"%s\" loaded successfully with %ld meshes and %ld materials", path_full.c_str(), model.meshes.size(), model.materials.size());
+        INFO("Model \"%s\" loaded successfully with %ld meshes and %ld materials", path_full.c_str(), model.meshes.size(), model.materials.size());
         return model;
     }
 

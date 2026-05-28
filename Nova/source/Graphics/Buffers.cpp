@@ -62,7 +62,7 @@ namespace Nova::Buffers
 
     void Bind(const GPUBuffer& buffer, u32 slot)
     {
-        SDL_GPURenderPass* render_pass = static_cast<SDL_GPURenderPass*>(Renderer::GetRenderPass());
+        SDL_GPURenderPass* render_pass = static_cast<SDL_GPURenderPass*>(Renderer::GetActiveRenderPass());
         SDL_GPUBufferBinding binding = {};
         binding.buffer = static_cast<SDL_GPUBuffer*>(buffer.handle);
         binding.offset = 0;

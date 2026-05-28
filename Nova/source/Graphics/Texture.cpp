@@ -260,7 +260,7 @@ namespace Nova::Textures
         binding.texture = static_cast<SDL_GPUTexture*>(texture.handle);
         binding.sampler = samplers[(u8)sampler_index];
 
-        SDL_GPURenderPass* render_pass = (SDL_GPURenderPass*)Renderer::GetRenderPass();
+        SDL_GPURenderPass* render_pass = (SDL_GPURenderPass*)Renderer::GetActiveRenderPass();
         SDL_BindGPUFragmentSamplers(render_pass, slot, &binding, 1);
     }
 
