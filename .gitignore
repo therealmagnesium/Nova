@@ -10,4 +10,5 @@ SDL3-build/
 Makefile
 *.make
 *.spv
+*.blend1
 compile_commands.json

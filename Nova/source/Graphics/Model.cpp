@@ -143,6 +143,18 @@ namespace Nova::Models
             material.albedo.a = albedo.a;
         }
 
+        float metallic = 0.f;
+        if (assimpMaterial->Get(AI_MATKEY_METALLIC_FACTOR, metallic) == aiReturn_SUCCESS)
+            material.metallic = metallic;
+
+        float roughness = 0.f;
+        if (assimpMaterial->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) == aiReturn_SUCCESS)
+            material.roughness = roughness;
+
+        const char* mesh_name = ai_mesh->mName.C_Str();
+        if (strstr(mesh_name, "(indoor)") != NULL)
+            mesh.pipeline = GPUPipeline::IndoorMeshes;
+
         return mesh;
     }
 }

@@ -18,8 +18,8 @@ namespace Nova::Meshes
         Buffers::Upload(mesh.buffer_vertex, vertices, size_vertex_buffer);
         Buffers::Upload(mesh.buffer_index, indices, size_index_buffer);
 
-        mesh.vertices.assign(vertices, vertices + vertex_count);
-        mesh.indices.assign(indices, indices + index_count);
+        mesh.vertex_count = vertex_count;
+        mesh.index_count = index_count;
 
         return mesh;
     }
@@ -43,10 +43,10 @@ namespace Nova::Meshes
 
     void Destroy(Mesh& mesh)
     {
-        mesh.vertices.clear();
-        mesh.indices.clear();
         Buffers::Destroy(mesh.buffer_vertex);
         Buffers::Destroy(mesh.buffer_index);
+        mesh.vertex_count = 0;
+        mesh.index_count = 0;
     }
 
 }

@@ -24,9 +24,7 @@ namespace Nova
 
     namespace Shaders
     {
-        Shader Load(const std::filesystem::path& path_vertex, const std::filesystem::path& path_fragment,
-                    const ShaderStorageInfo& info_vertex = Stub_ShaderStorageInfo,
-                    const ShaderStorageInfo& info_fragment = Stub_ShaderStorageInfo);
+        Shader Load(const std::filesystem::path& path_vertex, const std::filesystem::path& path_fragment, const ShaderStorageInfo& info_vertex = Stub_ShaderStorageInfo, const ShaderStorageInfo& info_fragment = Stub_ShaderStorageInfo);
         void Unload(Shader& shader);
     }
 }

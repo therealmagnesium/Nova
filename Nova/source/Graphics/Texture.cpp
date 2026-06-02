@@ -160,7 +160,38 @@ namespace Nova::Textures
         return texture;
     }
 
-    Texture LoadDepthTexture(u16 framebuffer_width, u16 framebuffer_height)
+    Texture CreateFramebufferAttachmentHDR(u16 framebuffer_width, u16 framebuffer_height)
+    {
+        Texture texture;
+        texture.width = framebuffer_width;
+        texture.height = framebuffer_height;
+        texture.mip_levels = 1;
+        texture.channel_count = 1;
+        texture.format = TextureFormat::RGBA16F;
+
+        SDL_GPUTextureCreateInfo info = {};
+        info.type = SDL_GPU_TEXTURETYPE_2D;
+        info.format = TextureFormatToSDL(texture.format);
+        info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        info.width = texture.width;
+        info.height = texture.height;
+        info.layer_count_or_depth = 1;
+        info.num_levels = 1;
+        info.sample_count = SDL_GPU_SAMPLECOUNT_1;
+
+        const Window& window = Application::GetWindow();
+        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
+        texture.handle = SDL_CreateGPUTexture(device, &info);
+        if (texture.handle == NULL)
+        {
+            ERROR("Textures::CreateFramebufferAttachmentHDR - %s", "Failed to create gpu texture for HDR texture!");
+            return Stub_Texture;
+        }
+
+        return texture;
+    }
+
+    Texture CreateFramebufferAttachmentDepth(u16 framebuffer_width, u16 framebuffer_height)
     {
         Texture texture;
         texture.width = framebuffer_width;
@@ -176,14 +207,14 @@ namespace Nova::Textures
         info.width = texture.width;
         info.height = texture.height;
         info.layer_count_or_depth = 1;
-        info.num_levels = texture.mip_levels;
+        info.num_levels = 1;
 
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
         texture.handle = SDL_CreateGPUTexture(device, &info);
         if (texture.handle == NULL)
         {
-            ERROR("Textures::LoadDepthTexture - %s", "Failed to create gpu texture for depth texture!");
+            ERROR("Textures::CreateFramebufferAttachmentDepth - %s", "Failed to create gpu texture for depth texture!");
             return Stub_Texture;
         }
 

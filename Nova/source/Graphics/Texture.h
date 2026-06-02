@@ -42,7 +42,8 @@ namespace Nova
         void FreeSamplers();
 
         Texture LoadDefaultWhite();
-        Texture LoadDepthTexture(u16 framebuffer_width, u16 framebuffer_height);
+        Texture CreateFramebufferAttachmentHDR(u16 framebuffer_width, u16 framebuffer_height);
+        Texture CreateFramebufferAttachmentDepth(u16 framebuffer_width, u16 framebuffer_height);
         Texture Load(const std::filesystem::path& path);
         void Unload(Texture& texture);
         void Bind(const Texture& texture, TextureSampler sampler_index, u8 slot = 0);

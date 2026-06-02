@@ -83,6 +83,10 @@ build-nova() {
     echo "Compiling shaders..."
     glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/Diffuse_vs.glsl -o Sandbox/Assets/Shaders/Compiled/Diffuse_vs.spv
     glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/Diffuse_fs.glsl -o Sandbox/Assets/Shaders/Compiled/Diffuse_fs.spv
+    glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/PBR_vs.glsl -o Sandbox/Assets/Shaders/Compiled/PBR_vs.spv
+    glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/PBR_fs.glsl -o Sandbox/Assets/Shaders/Compiled/PBR_fs.spv
+    glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/Compositing_vs.glsl -o Sandbox/Assets/Shaders/Compiled/Compositing_vs.spv
+    glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/Compositing_fs.glsl -o Sandbox/Assets/Shaders/Compiled/Compositing_fs.spv
 
     cp -r Sandbox/Assets/ bin/${config_type^}-${platform}/Sandbox/
 

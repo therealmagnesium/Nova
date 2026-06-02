@@ -47,7 +47,7 @@ namespace Nova::Windows
         window.title = title;
         window.handle = handle;
         window.gpu_device = device;
-        window.is_valid = true;
+        window.state ^= NOVA_WINDOWSTATE_VALID;
 
         return window;
     }
@@ -61,11 +61,12 @@ namespace Nova::Windows
         SDL_ReleaseWindowFromGPUDevice(device, handle);
         SDL_DestroyGPUDevice(device);
         SDL_DestroyWindow(handle);
-        window.is_valid = false;
+        window.state ^= NOVA_WINDOWSTATE_VALID;
     }
 
     void HandleEvents(Window& window)
     {
+        window.state &= ~NOVA_WINDOWSTATE_RESIZED;
         Input::Reset();
 
         SDL_Event event;
@@ -100,7 +101,28 @@ namespace Nova::Windows
                 case SDL_EVENT_WINDOW_RESIZED:
                     window.width = event.window.data1;
                     window.height = event.window.data2;
+                    window.state |= NOVA_WINDOWSTATE_RESIZED;
+                    window.state &= ~NOVA_WINDOWSTATE_MAXIMIZED;
+                    window.state &= ~NOVA_WINDOWSTATE_MINIMIZED;
                     Renderer::Callback_OnResize();
+                    break;
+
+                case SDL_EVENT_WINDOW_MAXIMIZED:
+                    window.state |= NOVA_WINDOWSTATE_MAXIMIZED;
+                    window.state &= ~NOVA_WINDOWSTATE_MINIMIZED;
+                    break;
+
+                case SDL_EVENT_WINDOW_OCCLUDED:
+                case SDL_EVENT_WINDOW_MINIMIZED:
+                    window.state |= NOVA_WINDOWSTATE_MINIMIZED;
+                    window.state &= ~NOVA_WINDOWSTATE_MAXIMIZED;
+                    break;
+
+                case SDL_EVENT_WINDOW_EXPOSED:
+                case SDL_EVENT_WINDOW_RESTORED:
+                    window.state |= NOVA_WINDOWSTATE_RESIZED;
+                    window.state &= ~NOVA_WINDOWSTATE_MAXIMIZED;
+                    window.state &= ~NOVA_WINDOWSTATE_MINIMIZED;
                     break;
 
                 default:
@@ -108,4 +130,8 @@ namespace Nova::Windows
             }
         }
     }
+
+    bool IsResizing(const Window& window) { return window.state & NOVA_WINDOWSTATE_RESIZED; }
+    bool IsMinimized(const Window& window) { return window.state & NOVA_WINDOWSTATE_MINIMIZED; }
+    bool IsMaximized(const Window& window) { return window.state & NOVA_WINDOWSTATE_MAXIMIZED; }
 }

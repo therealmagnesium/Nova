@@ -1,8 +1,8 @@
 #pragma once
 #include "Core/Base.h"
 #include "Graphics/Buffers.h"
+#include "Graphics/Pipeline.h"
 
-#include <vector>
 #include <glm/glm.hpp>
 
 namespace Nova
@@ -20,22 +20,18 @@ namespace Nova
     {
         glm::vec4 albedo = glm::vec4(1.f);
         Texture* albedo_texture = NULL;
+        float metallic = 0.f;
+        float roughness = 0.f;
     };
 
     struct Mesh
     {
-        std::vector<Vertex> vertices;
-        std::vector<u32> indices;
         GPUBuffer buffer_vertex;
         GPUBuffer buffer_index;
+        u64 vertex_count = 0;
+        u64 index_count = 0;
         u32 material_index = 0;
-
-        /*
-        Mesh() = default;
-        Mesh(const Mesh&) = delete;
-        Mesh& operator=(const Mesh&) = delete;
-        Mesh(Mesh&&) = default;
-        Mesh& operator=(Mesh&&) = default;*/
+        GPUPipeline pipeline = GPUPipeline::OutdoorMeshes;
     };
 
     inline const Mesh Stub_Mesh;

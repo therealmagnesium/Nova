@@ -36,7 +36,17 @@ namespace Nova
         float clear_depth = 0.f;
         GPULoadOp load_op = GPULoadOp::Load;
         GPUStoreOp store_op = GPUStoreOp::Store;
+
+        inline bool operator==(const DepthStencilTargetInfo& other) const
+        {
+            return texture == other.texture && clear_depth == other.clear_depth &&
+                   load_op == other.load_op && store_op == other.store_op;
+        }
+        inline bool operator!=(const DepthStencilTargetInfo& other) const { return !(*this == other); }
     };
+
+    inline const ColorTargetInfo Stub_ColorTargetInfo;
+    inline const DepthStencilTargetInfo Stub_DepthStencilTargetInfo;
 
     namespace RenderPasses
     {
