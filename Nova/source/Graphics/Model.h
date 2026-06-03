@@ -6,6 +6,7 @@ namespace Nova
 {
     struct Material;
     struct Mesh;
+    struct Texture;
 
     struct Model
     {

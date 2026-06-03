@@ -78,7 +78,7 @@ build-nova() {
 
     local make_config=$config_type
     make_config+="_x64"
-    make all -s config=$make_config
+    make all -s -j4 config=$make_config
 
     echo "Compiling shaders..."
     glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/Diffuse_vs.glsl -o Sandbox/Assets/Shaders/Compiled/Diffuse_vs.spv

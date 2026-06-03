@@ -10,6 +10,7 @@ struct GameState
 {
     Model model_xbot;
     Model model_ybot;
+    Model model_boss;
     Model model_cube;
     Camera3D camera;
     Texture attachment_hdr;
@@ -29,6 +30,7 @@ namespace Game
         // Load the models
         state.model_xbot = Models::Load("Assets/Models/X-Bot.fbx");
         state.model_ybot = Models::Load("Assets/Models/Y-Bot.fbx");
+        state.model_boss = Models::Load("Assets/Models/Boss.fbx");
         state.model_cube = Models::Load("Assets/Models/Cube.fbx");
 
         // Create the HDR framebuffer attachments
@@ -87,6 +89,7 @@ namespace Game
         // Unload the models
         Models::Unload(state.model_xbot);
         Models::Unload(state.model_ybot);
+        Models::Unload(state.model_boss);
         Models::Unload(state.model_cube);
     }
 
@@ -105,13 +108,13 @@ namespace Game
     {
         const auto hdr_info = (ColorTargetInfo){
             .clear_color = glm::vec4(0.01f, 0.01f, 0.01f, 1.f), // Note: Colors are in linear space
-            .texture = &state.attachment_hdr,
+            .texture = Textures::GetHandle(state.attachment_hdr),
             .load_op = GPULoadOp::Clear,
             .store_op = GPUStoreOp::Store,
         };
 
         const auto ds_info = (DepthStencilTargetInfo){
-            .texture = &state.attachment_depth,
+            .texture = Textures::GetHandle(state.attachment_depth),
             .clear_depth = 1.f,
             .load_op = GPULoadOp::Clear,
             .store_op = GPUStoreOp::Discard,
@@ -121,6 +124,7 @@ namespace Game
         const RenderPassHandle scene_pass = RenderPasses::Begin(&hdr_info, 1, ds_info);
         Renderer::DrawModel(state.model_xbot, glm::vec3(-1.f, 1.2f, 0.f));
         Renderer::DrawModel(state.model_ybot, glm::vec3(1.f, 1.2f, 0.f));
+        Renderer::DrawModel(state.model_boss, glm::vec3(0.f, 1.5f, -2.f));
         Renderer::DrawModel(state.model_cube, glm::vec3(0.f), glm::vec3(0.f), glm::vec3(5.f, 0.1f, 5.f));
         RenderPasses::End(scene_pass);
     }

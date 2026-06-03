@@ -10,11 +10,24 @@
 
 namespace Nova::Textures
 {
-    static SDL_GPUSampler* samplers[6];
+    struct CachedTexture
+    {
+        Texture metadata;
+        TextureHandle handle;
+        std::filesystem::path path;
+    };
 
-    void UploadTexture(SDL_GPUTexture* texture_handle, const u8* image_data, u16 width, u16 height);
+    static SDL_GPUSampler* samplers[6];
+    static u32 default_white_id = TEXTURE_ID_NULL;
+    static u32 next_id = 1;
+    static std::unordered_map<u32, CachedTexture> cache;
+    static std::unordered_map<std::string, u32> path_to_id;
+    static const std::filesystem::path path_empty;
+
     SDL_GPUTextureFormat TextureFormatToSDL(TextureFormat format);
     u16 CalculateMipLevels(u16 width, u16 height);
+    Texture RegisterTexture(CachedTexture&& entry);
+    void UploadTexture(SDL_GPUTexture* texture_handle, const u8* image_data, u16 width, u16 height);
 
     void SetupSamplers()
     {
@@ -130,152 +143,231 @@ namespace Nova::Textures
 
     Texture LoadDefaultWhite()
     {
-        Texture texture;
-        texture.width = 1;
-        texture.height = 1;
-        texture.mip_levels = 1;
-        texture.channel_count = 4;
+        CachedTexture entry;
+        entry.metadata.width = 1;
+        entry.metadata.height = 1;
+        entry.metadata.mip_levels = 1;
+        entry.metadata.channel_count = 4;
+        entry.metadata.format = TextureFormat::RGBA8;
+        entry.path = "__default_white__";
+
+        const Window& window = Application::GetWindow();
+        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
 
         SDL_GPUTextureCreateInfo info = {};
         info.type = SDL_GPU_TEXTURETYPE_2D;
-        info.format = TextureFormatToSDL(texture.format);
+        info.format = TextureFormatToSDL(entry.metadata.format);
         info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
-        info.width = texture.width;
-        info.height = texture.height;
+        info.width = 1;
+        info.height = 1;
         info.layer_count_or_depth = 1;
-        info.num_levels = texture.mip_levels;
+        info.num_levels = 1;
 
-        const u8 image_data[4] = {255, 255, 255, 255};
-        const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
-        texture.handle = SDL_CreateGPUTexture(device, &info);
-
-        if (texture.handle == NULL)
+        entry.handle = SDL_CreateGPUTexture(device, &info);
+        if (entry.handle == NULL)
         {
-            ERROR("Textures::LoadDefaultWhite - %s", "Failed to create gpu texture for default white texture!");
+            ERROR("Textures::LoadDefaultWhite - %s", "Failed to create gpu texture!");
             return Stub_Texture;
         }
 
-        UploadTexture(static_cast<SDL_GPUTexture*>(texture.handle), image_data, texture.width, texture.height);
-        return texture;
+        const u8 white[4] = {255, 255, 255, 255};
+        UploadTexture(static_cast<SDL_GPUTexture*>(entry.handle), white, 1, 1);
+
+        Texture result = RegisterTexture(std::move(entry));
+        default_white_id = result.id;
+        return result;
     }
 
     Texture CreateFramebufferAttachmentHDR(u16 framebuffer_width, u16 framebuffer_height)
     {
-        Texture texture;
-        texture.width = framebuffer_width;
-        texture.height = framebuffer_height;
-        texture.mip_levels = 1;
-        texture.channel_count = 1;
-        texture.format = TextureFormat::RGBA16F;
+        CachedTexture entry;
+        entry.metadata.width = framebuffer_width;
+        entry.metadata.height = framebuffer_height;
+        entry.metadata.mip_levels = 1;
+        entry.metadata.channel_count = 1;
+        entry.metadata.format = TextureFormat::RGBA16F;
+        // No path — framebuffer attachments are never deduplicated by path
 
         SDL_GPUTextureCreateInfo info = {};
         info.type = SDL_GPU_TEXTURETYPE_2D;
-        info.format = TextureFormatToSDL(texture.format);
+        info.format = TextureFormatToSDL(entry.metadata.format);
         info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
-        info.width = texture.width;
-        info.height = texture.height;
+        info.width = framebuffer_width;
+        info.height = framebuffer_height;
         info.layer_count_or_depth = 1;
         info.num_levels = 1;
         info.sample_count = SDL_GPU_SAMPLECOUNT_1;
 
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
-        texture.handle = SDL_CreateGPUTexture(device, &info);
-        if (texture.handle == NULL)
+        entry.handle = SDL_CreateGPUTexture(device, &info);
+
+        if (entry.handle == NULL)
         {
             ERROR("Textures::CreateFramebufferAttachmentHDR - %s", "Failed to create gpu texture for HDR texture!");
             return Stub_Texture;
         }
 
-        return texture;
+        return RegisterTexture(std::move(entry));
     }
 
     Texture CreateFramebufferAttachmentDepth(u16 framebuffer_width, u16 framebuffer_height)
     {
-        Texture texture;
-        texture.width = framebuffer_width;
-        texture.height = framebuffer_height;
-        texture.mip_levels = 1;
-        texture.channel_count = 1;
-        texture.format = TextureFormat::Depth32F;
+        CachedTexture entry;
+        entry.metadata.width = framebuffer_width;
+        entry.metadata.height = framebuffer_height;
+        entry.metadata.mip_levels = 1;
+        entry.metadata.channel_count = 1;
+        entry.metadata.format = TextureFormat::Depth32F;
 
         SDL_GPUTextureCreateInfo info = {};
         info.type = SDL_GPU_TEXTURETYPE_2D;
-        info.format = TextureFormatToSDL(texture.format);
+        info.format = TextureFormatToSDL(entry.metadata.format);
         info.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
-        info.width = texture.width;
-        info.height = texture.height;
+        info.width = framebuffer_width;
+        info.height = framebuffer_height;
         info.layer_count_or_depth = 1;
         info.num_levels = 1;
 
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
-        texture.handle = SDL_CreateGPUTexture(device, &info);
-        if (texture.handle == NULL)
+        entry.handle = SDL_CreateGPUTexture(device, &info);
+
+        if (entry.handle == NULL)
         {
             ERROR("Textures::CreateFramebufferAttachmentDepth - %s", "Failed to create gpu texture for depth texture!");
             return Stub_Texture;
         }
 
-        return texture;
+        return RegisterTexture(std::move(entry));
+    }
+
+    Texture LoadFromMemory(const u8* data, u32 length, const std::filesystem::path& path)
+    {
+        if (!path.empty())
+        {
+            auto it = path_to_id.find(path.string());
+            if (it != path_to_id.end())
+                return cache[it->second].metadata;
+        }
+
+        stbi_set_flip_vertically_on_load(true);
+        s32 width, height, channels = 0;
+        u8* image_data = stbi_load_from_memory(data, (s32)length, &width, &height, &channels, STBI_rgb_alpha);
+        if (image_data == NULL)
+        {
+            WARN("Textures::LoadFromMemory - %s", "Failed to load texture from memory!");
+            return Stub_Texture;
+        }
+
+        CachedTexture entry;
+        entry.metadata.width = (u16)width;
+        entry.metadata.height = (u16)height;
+        entry.metadata.channel_count = (u8)channels;
+        entry.metadata.mip_levels = CalculateMipLevels((u16)width, (u16)height);
+        entry.metadata.format = TextureFormat::RGBA8_SRGB;
+
+        if (!path.empty())
+            entry.path = path;
+
+        const Window& window = Application::GetWindow();
+        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
+
+        SDL_GPUTextureCreateInfo info = {};
+        info.type = SDL_GPU_TEXTURETYPE_2D;
+        info.format = TextureFormatToSDL(entry.metadata.format);
+        info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        info.width = (u16)width;
+        info.height = (u16)height;
+        info.layer_count_or_depth = 1;
+        info.num_levels = entry.metadata.mip_levels;
+
+        entry.handle = SDL_CreateGPUTexture(device, &info);
+        if (entry.handle == NULL)
+        {
+            ERROR("Textures::LoadFromMemory - %s", "Failed to create gpu texture!");
+            stbi_image_free(image_data);
+            return Stub_Texture;
+        }
+
+        UploadTexture(static_cast<SDL_GPUTexture*>(entry.handle), image_data, (u16)width, (u16)height);
+        stbi_image_free(image_data);
+
+        return RegisterTexture(std::move(entry));
     }
 
     Texture Load(const std::filesystem::path& path)
     {
-        Texture texture;
+        auto it = path_to_id.find(path.string());
+        if (it != path_to_id.end())
+            return cache[it->second].metadata;
 
         const std::filesystem::path path_base = SDL_GetBasePath();
         const std::filesystem::path path_full = path_base / path;
 
-        stbi_set_flip_vertically_on_load(true);
-        s32 width, height, channel_count = 0;
-        u8* image_data = stbi_load(path_full.c_str(), &width, &height, &channel_count, 0);
+        s32 width, height, channels = 0;
+        u8* image_data = stbi_load(path_full.c_str(), &width, &height, &channels, STBI_rgb_alpha);
         if (image_data == NULL)
         {
-            WARN("Textures::Load - Failed to load texture, ensure %s is a valid path!", path_full.c_str());
+            WARN("Textures::Load - Failed to load texture \"%s\"!", path_full.c_str());
             return Stub_Texture;
         }
 
-        texture.width = width;
-        texture.height = height;
-        texture.channel_count = channel_count;
-        texture.mip_levels = CalculateMipLevels(texture.width, texture.height);
-
-        SDL_GPUTextureCreateInfo info = {};
-        info.type = SDL_GPU_TEXTURETYPE_2D;
-        info.format = TextureFormatToSDL(texture.format);
-        info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
-        info.width = texture.width;
-        info.height = texture.height;
-        info.layer_count_or_depth = 1;
-        info.num_levels = texture.mip_levels;
+        CachedTexture entry;
+        entry.metadata.width = (u16)width;
+        entry.metadata.height = (u16)height;
+        entry.metadata.channel_count = (u8)channels;
+        entry.metadata.mip_levels = CalculateMipLevels((u16)width, (u16)height);
+        entry.metadata.format = TextureFormat::RGBA8_SRGB;
+        entry.path = path; // store the relative path as the cache key
 
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
-        texture.handle = SDL_CreateGPUTexture(device, &info);
 
-        if (texture.handle == NULL)
+        SDL_GPUTextureCreateInfo info = {};
+        info.type = SDL_GPU_TEXTURETYPE_2D;
+        info.format = TextureFormatToSDL(entry.metadata.format);
+        info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        info.width = (u16)width;
+        info.height = (u16)height;
+        info.layer_count_or_depth = 1;
+        info.num_levels = entry.metadata.mip_levels;
+
+        entry.handle = SDL_CreateGPUTexture(device, &info);
+        if (entry.handle == NULL)
         {
             ERROR("Textures::Load - Failed to create gpu texture for \"%s\"!", path_full.c_str());
+            stbi_image_free(image_data);
             return Stub_Texture;
         }
 
-        UploadTexture(static_cast<SDL_GPUTexture*>(texture.handle), image_data, texture.width, texture.height);
+        UploadTexture(static_cast<SDL_GPUTexture*>(entry.handle), image_data, (u16)width, (u16)height);
         stbi_image_free(image_data);
 
-        return texture;
+        return RegisterTexture(std::move(entry));
     }
 
     void Unload(Texture& texture)
     {
-        if (texture.handle != NULL)
+        if (texture.id == TEXTURE_ID_NULL)
+            return;
+
+        auto it = cache.find(texture.id);
+        if (it != cache.end())
         {
             const Window& window = Application::GetWindow();
-            SDL_ReleaseGPUTexture(static_cast<SDL_GPUDevice*>(window.gpu_device), static_cast<SDL_GPUTexture*>(texture.handle));
+            SDL_ReleaseGPUTexture(
+                static_cast<SDL_GPUDevice*>(window.gpu_device),
+                static_cast<SDL_GPUTexture*>(it->second.handle)
+            );
+
+            if (!it->second.path.empty())
+                path_to_id.erase(it->second.path.string());
+
+            cache.erase(it);
         }
 
-        texture.handle = NULL;
+        texture.id = TEXTURE_ID_NULL;
         texture.width = 0;
         texture.height = 0;
         texture.mip_levels = 0;
@@ -284,15 +376,29 @@ namespace Nova::Textures
 
     void Bind(const Texture& texture, TextureSampler sampler_index, u8 slot)
     {
-        if (texture.handle == NULL)
+        // Fall back to default white if id is null or not found
+        auto it = cache.find(texture.id != TEXTURE_ID_NULL ? texture.id : path_to_id.at("__default_white__"));
+        if (it == cache.end())
             return;
 
         SDL_GPUTextureSamplerBinding binding = {};
-        binding.texture = static_cast<SDL_GPUTexture*>(texture.handle);
-        binding.sampler = samplers[(u8)sampler_index];
+        binding.texture = static_cast<SDL_GPUTexture*>(it->second.handle);
+        binding.sampler = samplers[static_cast<u8>(sampler_index)];
 
-        SDL_GPURenderPass* render_pass = (SDL_GPURenderPass*)Renderer::GetActiveRenderPass();
+        SDL_GPURenderPass* render_pass = static_cast<SDL_GPURenderPass*>(Renderer::GetActiveRenderPass());
         SDL_BindGPUFragmentSamplers(render_pass, slot, &binding, 1);
+    }
+
+    u32 GetDefaultWhiteID() { return default_white_id; }
+    TextureHandle GetHandle(const Texture& texture)
+    {
+        auto it = cache.find(texture.id);
+        return (it != cache.end()) ? it->second.handle : NULL;
+    }
+    const std::filesystem::path& GetPath(const Texture& texture)
+    {
+        const auto it = cache.find(texture.id);
+        return (it != cache.end()) ? it->second.path : path_empty;
     }
 
     SDL_GPUTextureFormat TextureFormatToSDL(TextureFormat format)
@@ -331,6 +437,18 @@ namespace Nova::Textures
         }
 
         return levels;
+    }
+
+    Texture RegisterTexture(CachedTexture&& entry)
+    {
+        u32 id = next_id++;
+        entry.metadata.id = id;
+
+        if (!entry.path.empty())
+            path_to_id[entry.path.string()] = id;
+
+        cache.emplace(id, std::move(entry));
+        return cache[id].metadata;
     }
 
     void UploadTexture(SDL_GPUTexture* texture_handle, const u8* image_data, u16 width, u16 height)

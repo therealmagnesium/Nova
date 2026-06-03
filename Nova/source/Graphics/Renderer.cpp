@@ -4,7 +4,6 @@
 #include "Graphics/Model.h"
 #include "Graphics/Pipeline.h"
 #include "Graphics/Shader.h"
-#include "Graphics/Texture.h"
 
 #include "Core/Application.h"
 #include "Core/Base.h"
@@ -17,6 +16,12 @@
 
 namespace Nova::Renderer
 {
+    struct SwapchainTexture
+    {
+        TextureHandle handle = NULL;
+        Texture metadata;
+    };
+
     struct RenderState
     {
         glm::mat4 matrix_view;
@@ -25,8 +30,8 @@ namespace Nova::Renderer
         Shader shader_diffuse;
         Shader shader_pbr;
         Shader shader_compositing;
+        SwapchainTexture texture_swapchain;
         Texture texture_default_white;
-        Texture texture_swapchain;
         Texture texture_depth_stencil;
         RenderPassHandle active_render_pass = NULL;
         Camera3D* primary_camera = NULL;
@@ -119,7 +124,7 @@ namespace Nova::Renderer
         Textures::SetupSamplers();
         state.texture_default_white = Textures::LoadDefaultWhite();
         state.texture_depth_stencil = Textures::CreateFramebufferAttachmentDepth(window.width, window.height);
-        state.texture_swapchain = Stub_Texture; // Gets written in "BeginFrame"
+        state.texture_swapchain.metadata = Stub_Texture; // Gets written in "BeginFrame"
 
         state.mesh_screen = Meshes::GenerateQuad();
         INFO("The renderer initialized successfully with %d graphics pipelines", GPUPipeline::_Length);
@@ -168,9 +173,9 @@ namespace Nova::Renderer
         }
 
         state.texture_swapchain.handle = swapchain_handle;
-        state.texture_swapchain.width = swapchain_width;
-        state.texture_swapchain.height = swapchain_height;
-        state.texture_swapchain.channel_count = 4;
+        state.texture_swapchain.metadata.width = swapchain_width;
+        state.texture_swapchain.metadata.height = swapchain_height;
+        state.texture_swapchain.metadata.channel_count = 4;
 
         return true;
     }
@@ -194,7 +199,7 @@ namespace Nova::Renderer
         Pipelines::Bind(!state.wireframe_enabled ? mesh.pipeline : GPUPipeline::WireframeMeshes, state.active_render_pass);
         Buffers::Bind(mesh.buffer_vertex);
         Buffers::Bind(mesh.buffer_index);
-        Textures::Bind(material.albedo_texture != NULL ? *material.albedo_texture : state.texture_default_white, TextureSampler::PointClamp);
+        Textures::Bind(material.albedo_texture, TextureSampler::PointClamp);
 
         const auto mvp_data = (MVPData){
             .matrix_model = transform,
@@ -252,7 +257,8 @@ namespace Nova::Renderer
     void* GetCommandBuffer() { return state.command_buffer; }
     Camera3D* GetPrimaryCamera() { return state.primary_camera; }
     RenderPassHandle GetActiveRenderPass() { return state.active_render_pass; }
-    const Texture& GetTextureSwapchain() { return state.texture_swapchain; }
+    TextureHandle GetSwapchainHandle() { return state.texture_swapchain.handle; }
+    const Texture& GetTextureSwapchain() { return state.texture_swapchain.metadata; }
     const Texture& GetTextureDepthStencil() { return state.texture_depth_stencil; }
     const glm::mat4& GetMatrixView() { return state.matrix_view; }
     const glm::mat4& GetMatrixProjection() { return state.matrix_projection; }

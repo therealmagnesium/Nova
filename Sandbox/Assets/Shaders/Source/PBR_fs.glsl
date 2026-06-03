@@ -74,7 +74,7 @@ void main()
 {
     const vec3 N = normalize(v_normal);
     const vec3 V = normalize(uniforms.camera_position - v_position_world);
-    const vec3 albedo = uniforms.material.albedo.rgb;
+    const vec3 albedo = texture(texture_albedo, v_uv).rgb * uniforms.material.albedo.rgb;
     const vec3 sun_direction = uniforms.light.direction_intensity.xyz;
     const vec3 sun_color = uniforms.light.color.rgb;
     const float sun_intensity = uniforms.light.direction_intensity.w;

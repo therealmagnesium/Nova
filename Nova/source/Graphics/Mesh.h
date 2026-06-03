@@ -2,13 +2,12 @@
 #include "Core/Base.h"
 #include "Graphics/Buffers.h"
 #include "Graphics/Pipeline.h"
+#include "Graphics/Texture.h"
 
 #include <glm/glm.hpp>
 
 namespace Nova
 {
-    struct Texture;
-
     struct Vertex
     {
         glm::vec3 position; // Attribute 0
@@ -19,7 +18,7 @@ namespace Nova
     struct Material
     {
         glm::vec4 albedo = glm::vec4(1.f);
-        Texture* albedo_texture = NULL;
+        Texture albedo_texture;
         float metallic = 0.f;
         float roughness = 0.f;
     };

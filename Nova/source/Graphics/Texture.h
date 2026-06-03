@@ -26,15 +26,20 @@ namespace Nova
 
     struct Texture
     {
-        TextureHandle handle = NULL;
+        u32 id = 0;
         u16 width = 0;
         u16 height = 0;
         u16 mip_levels = 0;
         u8 channel_count = 0;
         TextureFormat format = TextureFormat::RGBA8;
+
+        inline bool IsValid() const { return id != 0; }
+        inline bool operator==(const Texture& other) const { return id == other.id; }
+        inline bool operator!=(const Texture& other) const { return !(*this == other); }
     };
 
     inline const Texture Stub_Texture;
+    inline constexpr u32 TEXTURE_ID_NULL = 0;
 
     namespace Textures
     {
@@ -44,8 +49,13 @@ namespace Nova
         Texture LoadDefaultWhite();
         Texture CreateFramebufferAttachmentHDR(u16 framebuffer_width, u16 framebuffer_height);
         Texture CreateFramebufferAttachmentDepth(u16 framebuffer_width, u16 framebuffer_height);
+        Texture LoadFromMemory(const u8* data, u32 length, const std::filesystem::path& path = "");
         Texture Load(const std::filesystem::path& path);
         void Unload(Texture& texture);
         void Bind(const Texture& texture, TextureSampler sampler_index, u8 slot = 0);
+
+        u32 GetDefaultWhiteID();
+        TextureHandle GetHandle(const Texture& texture);
+        const std::filesystem::path& GetPath(const Texture& texture);
     }
 }

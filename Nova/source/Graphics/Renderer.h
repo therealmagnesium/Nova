@@ -1,6 +1,8 @@
 #pragma once
 #include "Core/Base.h"
 #include "Graphics/RenderPass.h"
+#include "Graphics/Texture.h"
+
 #include <glm/glm.hpp>
 
 namespace Nova
@@ -9,7 +11,6 @@ namespace Nova
     struct Material;
     struct Mesh;
     struct Model;
-    struct Texture;
     enum class PipelineType : u8;
 
     namespace Renderer
@@ -27,6 +28,7 @@ namespace Nova
         void* GetCommandBuffer();
         Camera3D* GetPrimaryCamera();
         RenderPassHandle GetActiveRenderPass();
+        TextureHandle GetSwapchainHandle();
         const Texture& GetTextureSwapchain();
         const Texture& GetTextureDepthStencil();
         const glm::mat4& GetMatrixView();

@@ -43,8 +43,7 @@ namespace Nova::Models
     void Unload(Model& model)
     {
         for (Material& material : model.materials)
-            if (material.albedo_texture != NULL)
-                Textures::Unload(*material.albedo_texture);
+            Textures::Unload(material.albedo_texture);
 
         for (Mesh& mesh : model.meshes)
             Meshes::Destroy(mesh);
@@ -96,15 +95,6 @@ namespace Nova::Models
             vertex.position.y = ai_mesh->mVertices[i].y;
             vertex.position.z = ai_mesh->mVertices[i].z;
 
-            /*
-            if (ai_mesh->HasVertexColors(0))
-            {
-                vertex.color.r = ai_mesh->mColors[0][i].r;
-                vertex.color.g = ai_mesh->mColors[0][i].g;
-                vertex.color.b = ai_mesh->mColors[0][i].b;
-                vertex.color.a = ai_mesh->mColors[0][i].a;
-            }*/
-
             if (ai_mesh->HasNormals())
             {
                 vertex.normal.x = ai_mesh->mNormals[i].x;
@@ -131,11 +121,11 @@ namespace Nova::Models
         Mesh mesh = Meshes::Create(vertices.data(), vertices.size(), indices.data(), indices.size());
 
         mesh.material_index = ai_mesh->mMaterialIndex;
-        aiMaterial* assimpMaterial = ai_scene->mMaterials[mesh.material_index];
+        aiMaterial* ai_material = ai_scene->mMaterials[mesh.material_index];
         Material& material = model.materials[mesh.material_index];
 
         aiColor4D albedo;
-        if (assimpMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, albedo) == aiReturn_SUCCESS)
+        if (ai_material->Get(AI_MATKEY_COLOR_DIFFUSE, albedo) == aiReturn_SUCCESS)
         {
             material.albedo.r = albedo.r;
             material.albedo.g = albedo.g;
@@ -144,16 +134,37 @@ namespace Nova::Models
         }
 
         float metallic = 0.f;
-        if (assimpMaterial->Get(AI_MATKEY_METALLIC_FACTOR, metallic) == aiReturn_SUCCESS)
+        if (ai_material->Get(AI_MATKEY_METALLIC_FACTOR, metallic) == aiReturn_SUCCESS)
             material.metallic = metallic;
 
         float roughness = 0.f;
-        if (assimpMaterial->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) == aiReturn_SUCCESS)
+        if (ai_material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) == aiReturn_SUCCESS)
             material.roughness = roughness;
 
         const char* mesh_name = ai_mesh->mName.C_Str();
         if (strstr(mesh_name, "(indoor)") != NULL)
             mesh.pipeline = GPUPipeline::IndoorMeshes;
+
+        for (u32 i = 0; i < ai_material->GetTextureCount(aiTextureType_DIFFUSE); i++)
+        {
+            aiString ai_path;
+            ai_material->GetTexture(aiTextureType_DIFFUSE, 0, &ai_path);
+
+            const aiTexture* embedded_texture = ai_scene->GetEmbeddedTexture(ai_path.C_Str());
+            if (embedded_texture != NULL && embedded_texture->mHeight == 0)
+            {
+                const u8* data = reinterpret_cast<const u8*>(embedded_texture->pcData);
+                Texture texture = Textures::LoadFromMemory(data, embedded_texture->mWidth, ai_path.C_Str());
+                if (texture.IsValid())
+                    material.albedo_texture = texture;
+            }
+            else
+            {
+                Texture texture = Textures::Load(ai_path.C_Str());
+                if (texture.IsValid())
+                    material.albedo_texture = texture;
+            }
+        }
 
         return mesh;
     }

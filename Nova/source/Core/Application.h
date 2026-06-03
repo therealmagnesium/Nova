@@ -39,7 +39,7 @@ namespace Nova
 
         u16 GetScreenWidth();
         u16 GetScreenHeight();
-        Window& GetWindow();
+        const Window& GetWindow();
 
         void Quit();
     }

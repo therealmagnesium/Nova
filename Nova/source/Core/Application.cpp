@@ -75,6 +75,6 @@ namespace Nova::Application
 
     u16 GetScreenWidth() { return context->config.screen_width; }
     u16 GetScreenHeight() { return context->config.screen_height; }
-    Window& GetWindow() { return context->window; }
+    const Window& GetWindow() { return context->window; }
     void Quit() { context->is_running = false; }
 }
