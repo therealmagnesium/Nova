@@ -78,30 +78,36 @@ namespace Nova::Pipelines
         vertex_buffer_desc.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
         // Define each attribute (element within a vertex)
-        SDL_GPUVertexAttribute vertex_attributes[3] = {};
+        SDL_GPUVertexAttribute vertex_attributes[4] = {};
 
-        // Attribute 0: position (vec3 = 3 floats)
+        // Attribute 0: position
         vertex_attributes[0].location = 0;
         vertex_attributes[0].buffer_slot = 0;
         vertex_attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
         vertex_attributes[0].offset = offsetof(Vertex, position);
 
-        // Attribute 1: normal (vec3 = 3 floats)
+        // Attribute 1: normal
         vertex_attributes[1].location = 1;
         vertex_attributes[1].buffer_slot = 0;
         vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
         vertex_attributes[1].offset = offsetof(Vertex, normal);
 
-        // Attribute 2: uv (vec2 = 2 floats)
+        // Attribute 2: uv
         vertex_attributes[2].location = 2;
         vertex_attributes[2].buffer_slot = 0;
         vertex_attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
         vertex_attributes[2].offset = offsetof(Vertex, uv);
 
+        // Attribute 3: tangent
+        vertex_attributes[3].location = 3;
+        vertex_attributes[3].buffer_slot = 0;
+        vertex_attributes[3].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
+        vertex_attributes[3].offset = offsetof(Vertex, tangent);
+
         pipeline_info.vertex_input_state.vertex_buffer_descriptions = &vertex_buffer_desc;
         pipeline_info.vertex_input_state.num_vertex_buffers = 1;
         pipeline_info.vertex_input_state.vertex_attributes = vertex_attributes;
-        pipeline_info.vertex_input_state.num_vertex_attributes = 3;
+        pipeline_info.vertex_input_state.num_vertex_attributes = LEN(vertex_attributes);
 
         // --- Primitive Type ---
         pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
@@ -173,7 +179,7 @@ namespace Nova::Pipelines
         vertex_buffer_desc.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
         // Define each attribute (element within a vertex)
-        SDL_GPUVertexAttribute vertex_attributes[3] = {};
+        SDL_GPUVertexAttribute vertex_attributes[4] = {};
 
         // Attribute 0: position (vec3 = 3 floats)
         vertex_attributes[0].location = 0;
@@ -193,10 +199,16 @@ namespace Nova::Pipelines
         vertex_attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
         vertex_attributes[2].offset = offsetof(Vertex, uv);
 
+        // Attribute 3: tangent
+        vertex_attributes[3].location = 3;
+        vertex_attributes[3].buffer_slot = 0;
+        vertex_attributes[3].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
+        vertex_attributes[3].offset = offsetof(Vertex, tangent);
+
         pipeline_info.vertex_input_state.vertex_buffer_descriptions = &vertex_buffer_desc;
         pipeline_info.vertex_input_state.num_vertex_buffers = 1;
         pipeline_info.vertex_input_state.vertex_attributes = vertex_attributes;
-        pipeline_info.vertex_input_state.num_vertex_attributes = 3;
+        pipeline_info.vertex_input_state.num_vertex_attributes = LEN(vertex_attributes);
 
         // --- Primitive Type ---
         pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
@@ -268,7 +280,7 @@ namespace Nova::Pipelines
         vertex_buffer_desc.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
         // Define each attribute (element within a vertex)
-        SDL_GPUVertexAttribute vertex_attributes[3] = {};
+        SDL_GPUVertexAttribute vertex_attributes[4] = {};
 
         // Attribute 0: position (vec3 = 3 floats)
         vertex_attributes[0].location = 0;
@@ -288,10 +300,16 @@ namespace Nova::Pipelines
         vertex_attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
         vertex_attributes[2].offset = offsetof(Vertex, uv);
 
+        // Attribute 3: tangent
+        vertex_attributes[3].location = 3;
+        vertex_attributes[3].buffer_slot = 0;
+        vertex_attributes[3].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
+        vertex_attributes[3].offset = offsetof(Vertex, tangent);
+
         pipeline_info.vertex_input_state.vertex_buffer_descriptions = &vertex_buffer_desc;
         pipeline_info.vertex_input_state.num_vertex_buffers = 1;
         pipeline_info.vertex_input_state.vertex_attributes = vertex_attributes;
-        pipeline_info.vertex_input_state.num_vertex_attributes = 3;
+        pipeline_info.vertex_input_state.num_vertex_attributes = LEN(vertex_attributes);
 
         // --- Primitive Type ---
         pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
@@ -363,7 +381,7 @@ namespace Nova::Pipelines
         vertex_buffer_desc.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
         // Define each attribute (element within a vertex)
-        SDL_GPUVertexAttribute vertex_attributes[3] = {};
+        SDL_GPUVertexAttribute vertex_attributes[4] = {};
 
         // Attribute 0: position (vec3 = 3 floats)
         vertex_attributes[0].location = 0;
@@ -383,10 +401,16 @@ namespace Nova::Pipelines
         vertex_attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
         vertex_attributes[2].offset = offsetof(Vertex, uv);
 
+        // Attribute 3: tangent
+        vertex_attributes[3].location = 3;
+        vertex_attributes[3].buffer_slot = 0;
+        vertex_attributes[3].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
+        vertex_attributes[3].offset = offsetof(Vertex, tangent);
+
         pipeline_info.vertex_input_state.vertex_buffer_descriptions = &vertex_buffer_desc;
         pipeline_info.vertex_input_state.num_vertex_buffers = 1;
         pipeline_info.vertex_input_state.vertex_attributes = vertex_attributes;
-        pipeline_info.vertex_input_state.num_vertex_attributes = 3;
+        pipeline_info.vertex_input_state.num_vertex_attributes = LEN(vertex_attributes);
 
         // --- Primitive Type ---
         pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;

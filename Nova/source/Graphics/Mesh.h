@@ -13,12 +13,14 @@ namespace Nova
         glm::vec3 position; // Attribute 0
         glm::vec3 normal;   // Attribute 1
         glm::vec2 uv;       // Attribute 2
+        glm::vec3 tangent;  // Attribute 3
     };
 
     struct Material
     {
         glm::vec4 albedo = glm::vec4(1.f);
-        Texture albedo_texture;
+        Texture texture_albedo;
+        Texture texture_normal;
         float metallic = 0.f;
         float roughness = 0.f;
     };

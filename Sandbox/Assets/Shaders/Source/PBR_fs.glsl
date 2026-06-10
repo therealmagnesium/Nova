@@ -13,20 +13,23 @@ struct MaterialData
 };
 
 layout(set = 2, binding = 0) uniform sampler2D texture_albedo;
-layout(set = 3, binding = 0) uniform UniformData
+layout(set = 2, binding = 1) uniform sampler2D texture_normal;
+
+layout(std140, set = 3, binding = 0) uniform UniformData
 {
     LightData light;
     MaterialData material;
     vec3 camera_position;
 } uniforms;
 
-layout(location = 0) in vec3 v_position_world;
+layout(location = 0) in vec3 v_position;
 layout(location = 1) in vec3 v_normal;
 layout(location = 2) in vec2 v_uv;
+layout(location = 3) in vec3 v_tangent;
 
 layout(location = 0) out vec4 result;
 
-const float PI = 3.14159265359;
+const float PI = 3.14159265359f;
 
 // ----------------------------------------------------------------------------
 float DistributionGGX(vec3 N, vec3 H, float roughness)
@@ -72,12 +75,21 @@ vec3 FresnelSchlick(float cosTheta, vec3 F0)
 
 void main()
 {
+    const vec3 V = normalize(uniforms.camera_position - v_position);
+
     const vec3 N = normalize(v_normal);
-    const vec3 V = normalize(uniforms.camera_position - v_position_world);
+    const vec3 T = normalize(v_tangent);
+    const vec3 B = cross(N, T);
+    const mat3 TBN = mat3(T, B, N);
+
+    const vec3 normal_tangent = texture(texture_normal, v_uv).rgb * 2.f - 1.f;
+    const vec3 normal_world = normalize(TBN * normal_tangent);
     const vec3 albedo = texture(texture_albedo, v_uv).rgb * uniforms.material.albedo.rgb;
+
     const vec3 sun_direction = uniforms.light.direction_intensity.xyz;
     const vec3 sun_color = uniforms.light.color.rgb;
     const float sun_intensity = uniforms.light.direction_intensity.w;
+
     const float metallic = uniforms.material.pbr.x;
     const float roughness = uniforms.material.pbr.y;
 
@@ -88,19 +100,19 @@ void main()
     const vec3 H = normalize(V + L);
 
     // Cook-Torrance BRDF
-    const float NDF = DistributionGGX(N, H, roughness);   
-    const float G = GeometrySmith(N, V, L, roughness);      
+    const float NDF = DistributionGGX(normal_world, H, roughness);   
+    const float G = GeometrySmith(normal_world, V, L, roughness);      
     const vec3 F = FresnelSchlick(clamp(dot(H, V), 0.0, 1.0), F0);
 
     const vec3 numerator    = NDF * G * F; 
-    const float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
+    const float denominator = 4.0 * max(dot(normal_world, V), 0.0) * max(dot(normal_world, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
     const vec3 specular = numerator / denominator;
 
     const vec3 kS = F;
     vec3 kD = vec3(1.0) - kS;
     kD *= 1.0 - metallic;	  
 
-    const float NdotL = max(dot(N, L), 0.0);        
+    const float NdotL = max(dot(normal_world, L), 0.0);        
     const vec3 Lo = (kD * albedo / PI + specular) * sun_color * NdotL;
     const vec3 ambience = vec3(0.03f) * albedo;
 

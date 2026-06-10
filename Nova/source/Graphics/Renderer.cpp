@@ -27,11 +27,11 @@ namespace Nova::Renderer
         glm::mat4 matrix_view;
         glm::mat4 matrix_projection;
         Mesh mesh_screen;
-        Shader shader_diffuse;
         Shader shader_pbr;
         Shader shader_compositing;
         SwapchainTexture texture_swapchain;
         Texture texture_default_white;
+        Texture texture_default_normal;
         Texture texture_depth_stencil;
         RenderPassHandle active_render_pass = NULL;
         Camera3D* primary_camera = NULL;
@@ -81,7 +81,7 @@ namespace Nova::Renderer
             .storage_texture_count = 0
         };
         const auto info_scene_fragment = (ShaderStorageInfo){
-            .sampler_count = 1,
+            .sampler_count = 2,
             .uniform_buffer_count = 1,
             .storage_buffer_count = 0,
             .storage_texture_count = 0
@@ -100,7 +100,6 @@ namespace Nova::Renderer
             .storage_texture_count = 0
         };
 
-        state.shader_diffuse = Shaders::Load("Assets/Shaders/Compiled/Diffuse_vs.spv", "Assets/Shaders/Compiled/Diffuse_fs.spv", info_scene_vertex, info_scene_fragment);
         state.shader_pbr = Shaders::Load("Assets/Shaders/Compiled/PBR_vs.spv", "Assets/Shaders/Compiled/PBR_fs.spv", info_scene_vertex, info_scene_fragment);
         state.shader_compositing = Shaders::Load("Assets/Shaders/Compiled/Compositing_vs.spv", "Assets/Shaders/Compiled/Compositing_fs.spv", info_compositing_vertex, info_compositing_fragment);
 
@@ -115,7 +114,6 @@ namespace Nova::Renderer
         Pipelines::Init(shader_info);
 
         // Shader resources not needed after the pipelines are initialized
-        Shaders::Unload(state.shader_diffuse);
         Shaders::Unload(state.shader_pbr);
         Shaders::Unload(state.shader_compositing);
 
@@ -123,6 +121,7 @@ namespace Nova::Renderer
         const Window& window = Application::GetWindow();
         Textures::SetupSamplers();
         state.texture_default_white = Textures::LoadDefaultWhite();
+        state.texture_default_normal = Textures::LoadDefaultNormal();
         state.texture_depth_stencil = Textures::CreateFramebufferAttachmentDepth(window.width, window.height);
         state.texture_swapchain.metadata = Stub_Texture; // Gets written in "BeginFrame"
 
@@ -135,6 +134,7 @@ namespace Nova::Renderer
         INFO("%s", "Shutting down the renderer...");
         Meshes::Destroy(state.mesh_screen);
         Textures::Unload(state.texture_default_white);
+        Textures::Unload(state.texture_default_normal);
         Textures::Unload(state.texture_depth_stencil);
         Textures::FreeSamplers();
         Pipelines::Shutdown();
@@ -199,7 +199,8 @@ namespace Nova::Renderer
         Pipelines::Bind(!state.wireframe_enabled ? mesh.pipeline : GPUPipeline::WireframeMeshes, state.active_render_pass);
         Buffers::Bind(mesh.buffer_vertex);
         Buffers::Bind(mesh.buffer_index);
-        Textures::Bind(material.albedo_texture, TextureSampler::PointClamp);
+        Textures::Bind(material.texture_albedo.IsValid() ? material.texture_albedo : state.texture_default_white, TextureSampler::LinearClamp, 0);
+        Textures::Bind(material.texture_normal.IsValid() ? material.texture_normal : state.texture_default_normal, TextureSampler::LinearClamp, 1);
 
         const auto mvp_data = (MVPData){
             .matrix_model = transform,

@@ -178,6 +178,43 @@ namespace Nova::Textures
         return result;
     }
 
+    Texture LoadDefaultNormal()
+    {
+        CachedTexture entry;
+        entry.metadata.width = 1;
+        entry.metadata.height = 1;
+        entry.metadata.mip_levels = 1;
+        entry.metadata.channel_count = 4;
+        entry.metadata.format = TextureFormat::RGBA8;
+        entry.path = "__default_normal__";
+
+        const Window& window = Application::GetWindow();
+        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
+
+        SDL_GPUTextureCreateInfo info = {};
+        info.type = SDL_GPU_TEXTURETYPE_2D;
+        info.format = TextureFormatToSDL(entry.metadata.format);
+        info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        info.width = 1;
+        info.height = 1;
+        info.layer_count_or_depth = 1;
+        info.num_levels = 1;
+
+        entry.handle = SDL_CreateGPUTexture(device, &info);
+        if (entry.handle == NULL)
+        {
+            ERROR("Textures::LoadDefaultNormal - %s", "Failed to create gpu texture!");
+            return Stub_Texture;
+        }
+
+        const u8 color[4] = {128, 128, 255, 255};
+        UploadTexture(static_cast<SDL_GPUTexture*>(entry.handle), color, 1, 1);
+
+        Texture result = RegisterTexture(std::move(entry));
+        default_white_id = result.id;
+        return result;
+    }
+
     Texture CreateFramebufferAttachmentHDR(u16 framebuffer_width, u16 framebuffer_height)
     {
         CachedTexture entry;
@@ -242,7 +279,7 @@ namespace Nova::Textures
         return RegisterTexture(std::move(entry));
     }
 
-    Texture LoadFromMemory(const u8* data, u32 length, const std::filesystem::path& path)
+    Texture LoadFromMemory(const u8* data, u32 buffer_size, TextureFormat format, const std::filesystem::path& path)
     {
         if (!path.empty())
         {
@@ -253,7 +290,7 @@ namespace Nova::Textures
 
         stbi_set_flip_vertically_on_load(true);
         s32 width, height, channels = 0;
-        u8* image_data = stbi_load_from_memory(data, (s32)length, &width, &height, &channels, STBI_rgb_alpha);
+        u8* image_data = stbi_load_from_memory(data, (s32)buffer_size, &width, &height, &channels, STBI_rgb_alpha);
         if (image_data == NULL)
         {
             WARN("Textures::LoadFromMemory - %s", "Failed to load texture from memory!");
@@ -264,8 +301,8 @@ namespace Nova::Textures
         entry.metadata.width = (u16)width;
         entry.metadata.height = (u16)height;
         entry.metadata.channel_count = (u8)channels;
-        entry.metadata.mip_levels = CalculateMipLevels((u16)width, (u16)height);
-        entry.metadata.format = TextureFormat::RGBA8_SRGB;
+        entry.metadata.mip_levels = 1;
+        entry.metadata.format = format;
 
         if (!path.empty())
             entry.path = path;
@@ -296,7 +333,7 @@ namespace Nova::Textures
         return RegisterTexture(std::move(entry));
     }
 
-    Texture Load(const std::filesystem::path& path)
+    Texture Load(const std::filesystem::path& path, TextureFormat format)
     {
         auto it = path_to_id.find(path.string());
         if (it != path_to_id.end())
@@ -317,8 +354,8 @@ namespace Nova::Textures
         entry.metadata.width = (u16)width;
         entry.metadata.height = (u16)height;
         entry.metadata.channel_count = (u8)channels;
-        entry.metadata.mip_levels = CalculateMipLevels((u16)width, (u16)height);
-        entry.metadata.format = TextureFormat::RGBA8_SRGB;
+        entry.metadata.mip_levels = 1;
+        entry.metadata.format = format;
         entry.path = path; // store the relative path as the cache key
 
         const Window& window = Application::GetWindow();
@@ -376,8 +413,7 @@ namespace Nova::Textures
 
     void Bind(const Texture& texture, TextureSampler sampler_index, u8 slot)
     {
-        // Fall back to default white if id is null or not found
-        auto it = cache.find(texture.id != TEXTURE_ID_NULL ? texture.id : path_to_id.at("__default_white__"));
+        auto it = cache.find(texture.id);
         if (it == cache.end())
             return;
 

@@ -22,7 +22,7 @@ namespace Nova::Models
         const std::filesystem::path path_full = path_base / path;
 
         Assimp::Importer importer;
-        const u32 flags = aiProcess_Triangulate | aiProcess_JoinIdenticalVertices;
+        const u32 flags = aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_CalcTangentSpace;
         const aiScene* scene = importer.ReadFile(path_full, flags);
 
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
@@ -43,7 +43,10 @@ namespace Nova::Models
     void Unload(Model& model)
     {
         for (Material& material : model.materials)
-            Textures::Unload(material.albedo_texture);
+        {
+            Textures::Unload(material.texture_albedo);
+            Textures::Unload(material.texture_normal);
+        }
 
         for (Mesh& mesh : model.meshes)
             Meshes::Destroy(mesh);
@@ -108,6 +111,13 @@ namespace Nova::Models
                 vertex.uv.y = ai_mesh->mTextureCoords[0][i].y;
             }
 
+            if (ai_mesh->HasTangentsAndBitangents())
+            {
+                vertex.tangent.x = ai_mesh->mTangents[i].x;
+                vertex.tangent.y = ai_mesh->mTangents[i].y;
+                vertex.tangent.z = ai_mesh->mTangents[i].z;
+            }
+
             vertices.emplace_back(vertex);
         }
 
@@ -154,15 +164,36 @@ namespace Nova::Models
             if (embedded_texture != NULL && embedded_texture->mHeight == 0)
             {
                 const u8* data = reinterpret_cast<const u8*>(embedded_texture->pcData);
-                Texture texture = Textures::LoadFromMemory(data, embedded_texture->mWidth, ai_path.C_Str());
+                Texture texture = Textures::LoadFromMemory(data, embedded_texture->mWidth, TextureFormat::RGBA8_SRGB, ai_path.C_Str());
                 if (texture.IsValid())
-                    material.albedo_texture = texture;
+                    material.texture_albedo = texture;
             }
             else
             {
                 Texture texture = Textures::Load(ai_path.C_Str());
                 if (texture.IsValid())
-                    material.albedo_texture = texture;
+                    material.texture_albedo = texture;
+            }
+        }
+
+        for (u32 i = 0; i < ai_material->GetTextureCount(aiTextureType_NORMALS); i++)
+        {
+            aiString ai_path;
+            ai_material->GetTexture(aiTextureType_NORMALS, 0, &ai_path);
+
+            const aiTexture* embedded_texture = ai_scene->GetEmbeddedTexture(ai_path.C_Str());
+            if (embedded_texture != NULL && embedded_texture->mHeight == 0)
+            {
+                const u8* data = reinterpret_cast<const u8*>(embedded_texture->pcData);
+                Texture texture = Textures::LoadFromMemory(data, embedded_texture->mWidth, TextureFormat::RGBA8, ai_path.C_Str());
+                if (texture.IsValid())
+                    material.texture_normal = texture;
+            }
+            else
+            {
+                Texture texture = Textures::Load(ai_path.C_Str());
+                if (texture.IsValid())
+                    material.texture_normal = texture;
             }
         }
 
