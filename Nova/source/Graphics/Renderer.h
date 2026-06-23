@@ -8,6 +8,7 @@
 namespace Nova
 {
     struct Camera3D;
+    struct EnvironmentMap;
     struct Material;
     struct Mesh;
     struct Model;
@@ -20,6 +21,7 @@ namespace Nova
         bool BeginFrame();
         void EndFrame();
 
+        void DrawSkybox(const EnvironmentMap& environment_map);
         void DrawMesh(const Mesh& mesh, const glm::mat4& transform, const Material& material);
         void DrawModel(const Model& model, const glm::vec3& position = glm::vec3(0.f), const glm::vec3& rotation = glm::vec3(0.f), const glm::vec3& scale = glm::vec3(1.f));
         void DrawTextureCompositing(const Texture& screen_texture);
@@ -33,6 +35,8 @@ namespace Nova
         const Texture& GetTextureDepthStencil();
         const glm::mat4& GetMatrixView();
         const glm::mat4& GetMatrixProjection();
+        const Mesh& GetMeshSkybox();     // TEMPORARY - Bad design!
+        const Mesh& GetMeshScreenQuad(); // TEMPORARY - Bad design!
 
         void SetExposure(float exposure);
         void SetActiveRenderPass(RenderPassHandle render_pass);

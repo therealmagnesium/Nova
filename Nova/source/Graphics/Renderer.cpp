@@ -1,5 +1,6 @@
 #include "Graphics/Renderer.h"
 #include "Graphics/Camera.h"
+#include "Graphics/IBL.h"
 #include "Graphics/Mesh.h"
 #include "Graphics/Model.h"
 #include "Graphics/Pipeline.h"
@@ -27,12 +28,12 @@ namespace Nova::Renderer
         glm::mat4 matrix_view;
         glm::mat4 matrix_projection;
         Mesh mesh_screen;
-        Shader shader_pbr;
-        Shader shader_compositing;
+        Mesh mesh_skybox;
         SwapchainTexture texture_swapchain;
         Texture texture_default_white;
         Texture texture_default_normal;
         Texture texture_depth_stencil;
+        const EnvironmentMap* active_environment_map = NULL;
         RenderPassHandle active_render_pass = NULL;
         Camera3D* primary_camera = NULL;
         SDL_GPUCommandBuffer* command_buffer = NULL;
@@ -81,7 +82,7 @@ namespace Nova::Renderer
             .storage_texture_count = 0
         };
         const auto info_scene_fragment = (ShaderStorageInfo){
-            .sampler_count = 2,
+            .sampler_count = 7,
             .uniform_buffer_count = 1,
             .storage_buffer_count = 0,
             .storage_texture_count = 0
@@ -99,23 +100,56 @@ namespace Nova::Renderer
             .storage_buffer_count = 0,
             .storage_texture_count = 0
         };
+        const auto info_ibl_vertex = (ShaderStorageInfo){
+            .sampler_count = 0,
+            .uniform_buffer_count = 1,
+            .storage_buffer_count = 0,
+            .storage_texture_count = 0
+        };
+        const auto info_ibl_fragment = (ShaderStorageInfo){
+            .sampler_count = 1,
+            .uniform_buffer_count = 0,
+            .storage_buffer_count = 0,
+            .storage_texture_count = 0
+        };
+        const auto info_prefilter_fragment = (ShaderStorageInfo){
+            .sampler_count = 1,
+            .uniform_buffer_count = 1,
+            .storage_buffer_count = 0,
+            .storage_texture_count = 0
+        };
 
-        state.shader_pbr = Shaders::Load("Assets/Shaders/Compiled/PBR_vs.spv", "Assets/Shaders/Compiled/PBR_fs.spv", info_scene_vertex, info_scene_fragment);
-        state.shader_compositing = Shaders::Load("Assets/Shaders/Compiled/Compositing_vs.spv", "Assets/Shaders/Compiled/Compositing_fs.spv", info_compositing_vertex, info_compositing_fragment);
+        Shader shader_pbr = Shaders::Load("Assets/Shaders/Compiled/PBR_vs.spv", "Assets/Shaders/Compiled/PBR_fs.spv", info_scene_vertex, info_scene_fragment);
+        Shader shader_compositing = Shaders::Load("Assets/Shaders/Compiled/Compositing_vs.spv", "Assets/Shaders/Compiled/Compositing_fs.spv", info_compositing_vertex, info_compositing_fragment);
+        Shader shader_hdri_to_cubemap = Shaders::Load("Assets/Shaders/Compiled/Cubemap_vs.spv", "Assets/Shaders/Compiled/EquirectangularToCubemap_fs.spv", info_ibl_vertex, info_ibl_fragment);
+        Shader shader_irradiance = Shaders::Load("Assets/Shaders/Compiled/Cubemap_vs.spv", "Assets/Shaders/Compiled/Irradiance_fs.spv", info_ibl_vertex, info_ibl_fragment);
+        Shader shader_prefilter = Shaders::Load("Assets/Shaders/Compiled/Cubemap_vs.spv", "Assets/Shaders/Compiled/Prefilter_fs.spv", info_ibl_vertex, info_prefilter_fragment);
+        Shader shader_brdf = Shaders::Load("Assets/Shaders/Compiled/BRDF_vs.spv", "Assets/Shaders/Compiled/BRDF_fs.spv");
+        Shader shader_skybox = Shaders::Load("Assets/Shaders/Compiled/Skybox_vs.spv", "Assets/Shaders/Compiled/Skybox_fs.spv", info_ibl_vertex, info_ibl_fragment);
 
         // Initialize all of the graphics pipelines
         const auto shader_info = (PipelineShaderInfo){
-            .outdoor_meshes = &state.shader_pbr,
-            .outdoor_meshes_skinned = &state.shader_pbr,
-            .indoor_meshes = &state.shader_pbr,
-            .wireframe_meshes = &state.shader_pbr,
-            .post_processing = &state.shader_compositing,
+            .outdoor_meshes = &shader_pbr,
+            .outdoor_meshes_skinned = &shader_pbr,
+            .indoor_meshes = &shader_pbr,
+            .wireframe_meshes = &shader_pbr,
+            .post_processing = &shader_compositing,
+            .ibl_equirectangular_to_cubemap = &shader_hdri_to_cubemap,
+            .ibl_irradiance = &shader_irradiance,
+            .ibl_prefilter = &shader_prefilter,
+            .ibl_brdf = &shader_brdf,
+            .ibl_skybox = &shader_skybox
         };
         Pipelines::Init(shader_info);
 
         // Shader resources not needed after the pipelines are initialized
-        Shaders::Unload(state.shader_pbr);
-        Shaders::Unload(state.shader_compositing);
+        Shaders::Unload(shader_pbr);
+        Shaders::Unload(shader_compositing);
+        Shaders::Unload(shader_hdri_to_cubemap);
+        Shaders::Unload(shader_irradiance);
+        Shaders::Unload(shader_prefilter);
+        Shaders::Unload(shader_brdf);
+        Shaders::Unload(shader_skybox);
 
         // Setup texture samplers and default textures
         const Window& window = Application::GetWindow();
@@ -126,6 +160,7 @@ namespace Nova::Renderer
         state.texture_swapchain.metadata = Stub_Texture; // Gets written in "BeginFrame"
 
         state.mesh_screen = Meshes::GenerateQuad();
+        state.mesh_skybox = Meshes::GenerateCube();
         INFO("The renderer initialized successfully with %d graphics pipelines", GPUPipeline::_Length);
     }
 
@@ -133,6 +168,7 @@ namespace Nova::Renderer
     {
         INFO("%s", "Shutting down the renderer...");
         Meshes::Destroy(state.mesh_screen);
+        Meshes::Destroy(state.mesh_skybox);
         Textures::Unload(state.texture_default_white);
         Textures::Unload(state.texture_default_normal);
         Textures::Unload(state.texture_depth_stencil);
@@ -188,6 +224,23 @@ namespace Nova::Renderer
         SDL_SubmitGPUCommandBuffer(state.command_buffer);
     }
 
+    void DrawSkybox(const EnvironmentMap& environment_map)
+    {
+        if (state.active_render_pass == NULL || state.primary_camera == NULL)
+            return;
+
+        state.active_environment_map = &environment_map;
+
+        Pipelines::Bind(GPUPipeline::IBL_Skybox, state.active_render_pass);
+        Buffers::Bind(state.mesh_skybox.buffer_vertex);
+        Buffers::Bind(state.mesh_skybox.buffer_index);
+        Textures::Bind(environment_map.environment);
+
+        const glm::mat4 mvp_data[2] = {state.matrix_view, state.matrix_projection};
+        SDL_PushGPUVertexUniformData(state.command_buffer, 0, mvp_data, sizeof(glm::mat4) * LEN(mvp_data));
+        SDL_DrawGPUIndexedPrimitives(static_cast<SDL_GPURenderPass*>(state.active_render_pass), state.mesh_skybox.index_count, 1, 0, 0, 0);
+    }
+
     void DrawMesh(const Mesh& mesh, const glm::mat4& transform, const Material& material)
     {
         if (mesh.buffer_vertex.handle == NULL || mesh.buffer_index.handle == NULL)
@@ -199,8 +252,23 @@ namespace Nova::Renderer
         Pipelines::Bind(!state.wireframe_enabled ? mesh.pipeline : GPUPipeline::WireframeMeshes, state.active_render_pass);
         Buffers::Bind(mesh.buffer_vertex);
         Buffers::Bind(mesh.buffer_index);
-        Textures::Bind(material.texture_albedo.IsValid() ? material.texture_albedo : state.texture_default_white, TextureSampler::LinearClamp, 0);
-        Textures::Bind(material.texture_normal.IsValid() ? material.texture_normal : state.texture_default_normal, TextureSampler::LinearClamp, 1);
+        Textures::Bind(material.texture_albedo.IsValid() ? material.texture_albedo : state.texture_default_white, 0);
+        Textures::Bind(material.texture_normal.IsValid() ? material.texture_normal : state.texture_default_normal, 1);
+        Textures::Bind(material.texture_metallic.IsValid() ? material.texture_metallic : state.texture_default_white, 2);
+        Textures::Bind(material.texture_roughness.IsValid() ? material.texture_roughness : state.texture_default_white, 3);
+
+        if (state.active_environment_map != NULL && state.active_environment_map->IsValid())
+        {
+            Textures::Bind(state.active_environment_map->irradiance, 4);
+            Textures::Bind(state.active_environment_map->prefilter, 5);
+            Textures::Bind(state.active_environment_map->brdf_lut, 6);
+        }
+        else
+        {
+            Textures::Bind(state.texture_default_white, 4);
+            Textures::Bind(state.texture_default_white, 5);
+            Textures::Bind(state.texture_default_white, 6);
+        }
 
         const auto mvp_data = (MVPData){
             .matrix_model = transform,
@@ -216,7 +284,7 @@ namespace Nova::Renderer
             },
             .data_material = (MaterialData){
                 .albedo = albedo_linear,
-                .pbr = glm::vec4(material.metallic, material.roughness, 0.f, 0.f),
+                .pbr = glm::vec4(material.texture_metallic.IsValid() ? 1.f : material.metallic, material.texture_roughness.IsValid() ? 1.f : material.roughness, 0.f, 0.f),
             },
             .camera_position = state.primary_camera->position,
         };
@@ -247,7 +315,7 @@ namespace Nova::Renderer
         Pipelines::Bind(GPUPipeline::PostProcessing, render_pass);
         Buffers::Bind(state.mesh_screen.buffer_vertex);
         Buffers::Bind(state.mesh_screen.buffer_index);
-        Textures::Bind(screen_texture, TextureSampler::LinearClamp);
+        Textures::Bind(screen_texture);
 
         const float exposure = state.exposure;
         SDL_PushGPUFragmentUniformData(state.command_buffer, 0, &exposure, sizeof(float));
@@ -263,6 +331,8 @@ namespace Nova::Renderer
     const Texture& GetTextureDepthStencil() { return state.texture_depth_stencil; }
     const glm::mat4& GetMatrixView() { return state.matrix_view; }
     const glm::mat4& GetMatrixProjection() { return state.matrix_projection; }
+    const Mesh& GetMeshSkybox() { return state.mesh_skybox; }
+    const Mesh& GetMeshScreenQuad() { return state.mesh_screen; }
 
     void SetExposure(float exposure) { state.exposure = exposure; }
     void SetActiveRenderPass(RenderPassHandle render_pass) { state.active_render_pass = render_pass; }

@@ -13,6 +13,11 @@ namespace Nova
         IndoorMeshes,
         WireframeMeshes,
         PostProcessing,
+        IBL_EquirectangularToCubemap,
+        IBL_Irradiance,
+        IBL_Prefilter,
+        IBL_BRDF_Integration,
+        IBL_Skybox,
         _Length
     };
 
@@ -23,6 +28,11 @@ namespace Nova
         Shader* indoor_meshes = NULL;
         Shader* wireframe_meshes = NULL;
         Shader* post_processing = NULL;
+        Shader* ibl_equirectangular_to_cubemap = NULL;
+        Shader* ibl_irradiance = NULL;
+        Shader* ibl_prefilter = NULL;
+        Shader* ibl_brdf = NULL;
+        Shader* ibl_skybox = NULL;
     };
 
     namespace Pipelines

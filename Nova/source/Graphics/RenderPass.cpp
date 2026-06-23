@@ -1,5 +1,6 @@
 #include "Graphics/RenderPass.h"
 #include "Graphics/Renderer.h"
+#include "Graphics/Pipeline.h"
 
 #include <SDL3/SDL_gpu.h>
 
@@ -25,8 +26,8 @@ namespace Nova::RenderPasses
             info.clear_color = (SDL_FColor){p_info.clear_color.r, p_info.clear_color.g, p_info.clear_color.b, p_info.clear_color.a};
             info.load_op = GPULoadOpToSDL(p_info.load_op);
             info.store_op = GPUStoreOpToSDL(p_info.store_op);
-            info.mip_level = 0;
-            info.layer_or_depth_plane = 0;
+            info.mip_level = p_info.mip_level;
+            info.layer_or_depth_plane = p_info.layer;
             info.cycle = false;
         }
 
@@ -45,7 +46,11 @@ namespace Nova::RenderPasses
         return render_pass;
     }
 
-    void End(RenderPassHandle render_pass) { SDL_EndGPURenderPass(static_cast<SDL_GPURenderPass*>(render_pass)); }
+    void End(RenderPassHandle render_pass)
+    {
+        SDL_EndGPURenderPass(static_cast<SDL_GPURenderPass*>(render_pass));
+        Pipelines::ResetBindingCache();
+    }
 
     SDL_GPULoadOp GPULoadOpToSDL(GPULoadOp load_op)
     {

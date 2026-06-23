@@ -29,6 +29,8 @@ namespace Nova
         TextureHandle texture = NULL;
         GPULoadOp load_op = GPULoadOp::Load;
         GPUStoreOp store_op = GPUStoreOp::Store;
+        u8 layer = 0;
+        u8 mip_level = 0;
     };
 
     struct DepthStencilTargetInfo

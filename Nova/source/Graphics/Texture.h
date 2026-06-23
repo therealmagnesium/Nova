@@ -11,6 +11,8 @@ namespace Nova
         RGBA8 = 0,
         RGBA8_SRGB,
         RGBA16F,
+        RGBA32F,
+        RG16F,
         Depth32F
     };
 
@@ -48,12 +50,14 @@ namespace Nova
 
         Texture LoadDefaultWhite();
         Texture LoadDefaultNormal();
+        Texture LoadFromMemory(const u8* data, u32 buffer_size, TextureFormat format = TextureFormat::RGBA8_SRGB, TextureSampler sampler = TextureSampler::LinearClamp, const std::filesystem::path& path = "");
+        Texture Load(const std::filesystem::path& path, TextureFormat format = TextureFormat::RGBA8_SRGB, TextureSampler sampler = TextureSampler::LinearClamp);
+        Texture LoadHDRI(const std::filesystem::path& path);
         Texture CreateFramebufferAttachmentHDR(u16 framebuffer_width, u16 framebuffer_height);
         Texture CreateFramebufferAttachmentDepth(u16 framebuffer_width, u16 framebuffer_height);
-        Texture LoadFromMemory(const u8* data, u32 buffer_size, TextureFormat format = TextureFormat::RGBA8_SRGB, const std::filesystem::path& path = "");
-        Texture Load(const std::filesystem::path& path, TextureFormat format = TextureFormat::RGBA8_SRGB);
+        Texture CreateCubemap(u16 width, u16 height, u16 mip_levels, TextureFormat format = TextureFormat::RGBA16F);
         void Unload(Texture& texture);
-        void Bind(const Texture& texture, TextureSampler sampler_index, u8 slot = 0);
+        void Bind(const Texture& texture, u8 slot = 0);
 
         u32 GetDefaultWhiteID();
         TextureHandle GetHandle(const Texture& texture);

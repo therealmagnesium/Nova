@@ -19,8 +19,10 @@ namespace Nova
     struct Material
     {
         glm::vec4 albedo = glm::vec4(1.f);
-        Texture texture_albedo;
-        Texture texture_normal;
+        Texture texture_albedo = Stub_Texture;
+        Texture texture_normal = Stub_Texture;
+        Texture texture_metallic = Stub_Texture;
+        Texture texture_roughness = Stub_Texture;
         float metallic = 0.f;
         float roughness = 0.f;
     };
@@ -42,6 +44,7 @@ namespace Nova
     {
         Mesh Create(const Vertex* vertices, u32 vertex_count, const u32* indices, u32 index_count);
         Mesh GenerateQuad();
+        Mesh GenerateCube();
         void Destroy(Mesh& mesh);
     }
 }

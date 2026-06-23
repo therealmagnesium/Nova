@@ -12,3 +12,5 @@ Makefile
 *.spv
 *.blend1
 compile_commands.json
+nova_codebase.txt
+gemini.sh

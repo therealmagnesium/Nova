@@ -1,11 +1,5 @@
 #version 460 core
 
-layout (std140, set = 1, binding = 0) uniform MVP {
-    mat4 model;
-    mat4 view_projection;
-    mat4 normal;
-} mvp;
-
 layout (location = 0) in vec3 a_position;
 layout (location = 1) in vec3 a_normal;
 layout (location = 2) in vec2 a_uv;
@@ -15,6 +9,12 @@ layout (location = 0) out vec3 v_position;
 layout (location = 1) out vec3 v_normal;
 layout (location = 2) out vec2 v_uv;
 layout (location = 3) out vec3 v_tangent;
+
+layout (std140, set = 1, binding = 0) uniform MVP {
+    mat4 model;
+    mat4 view_projection;
+    mat4 normal;
+} mvp;
 
 void main()
 {

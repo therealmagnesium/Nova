@@ -8,6 +8,7 @@ using namespace Nova;
 
 struct GameState
 {
+    EnvironmentMap environment_map;
     Model model_xbot;
     Model model_ybot;
     Model model_boss;
@@ -32,6 +33,9 @@ namespace Game
         state.model_ybot = Models::Load("Assets/Models/Y-Bot.fbx");
         state.model_boss = Models::Load("Assets/Models/Boss.fbx");
         state.model_cube = Models::Load("Assets/Models/Cube.fbx");
+
+        // Bake the environment map
+        state.environment_map = IBL::BakeFromHDRI("Assets/HDRIs/puresky_dusk.hdr");
 
         // Create the HDR framebuffer attachments
         const Window& window = Application::GetWindow();
@@ -91,6 +95,8 @@ namespace Game
         Models::Unload(state.model_ybot);
         Models::Unload(state.model_boss);
         Models::Unload(state.model_cube);
+
+        IBL::Free(state.environment_map); // Unload environment map textures
     }
 
     void ResetEditorCamera()
@@ -107,7 +113,7 @@ namespace Game
     void RenderPass_SceneHDR()
     {
         const auto hdr_info = (ColorTargetInfo){
-            .clear_color = glm::vec4(0.01f, 0.01f, 0.01f, 1.f), // Note: Colors are in linear space
+            .clear_color = glm::vec4(0.01f, 0.01f, 0.01f, 1.f), // Note: Colors are not in linear space after compositing pass
             .texture = Textures::GetHandle(state.attachment_hdr),
             .load_op = GPULoadOp::Clear,
             .store_op = GPUStoreOp::Store,
@@ -126,6 +132,7 @@ namespace Game
         Renderer::DrawModel(state.model_ybot, glm::vec3(1.f, 1.2f, 0.f));
         Renderer::DrawModel(state.model_boss, glm::vec3(0.f, 1.5f, -2.f));
         Renderer::DrawModel(state.model_cube, glm::vec3(0.f), glm::vec3(0.f), glm::vec3(5.f, 0.1f, 5.f));
+        Renderer::DrawSkybox(state.environment_map);
         RenderPasses::End(scene_pass);
     }
 

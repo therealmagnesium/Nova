@@ -13,6 +13,10 @@ namespace Nova::Models
     u32 CountNodeMeshReferences(aiNode* node);
     void ProcessNode(Model& model, aiNode* ai_node, const aiScene* ai_scene);
     Mesh ProcessMesh(Model& model, aiMesh* ai_mesh, const aiScene* ai_scene);
+    void LoadAndStoreMapsAlbedo(Material& material, const aiMaterial* ai_material, const aiScene* ai_scene);
+    void LoadAndStoreMapsNormal(Material& material, const aiMaterial* ai_material, const aiScene* ai_scene);
+    void LoadAndStoreMapsMetallic(Material& material, const aiMaterial* ai_material, const aiScene* ai_scene);
+    void LoadAndStoreMapsRoughness(Material& material, const aiMaterial* ai_material, const aiScene* ai_scene);
 
     Model Load(const std::filesystem::path& path)
     {
@@ -129,9 +133,9 @@ namespace Nova::Models
         }
 
         Mesh mesh = Meshes::Create(vertices.data(), vertices.size(), indices.data(), indices.size());
-
         mesh.material_index = ai_mesh->mMaterialIndex;
-        aiMaterial* ai_material = ai_scene->mMaterials[mesh.material_index];
+
+        const aiMaterial* ai_material = ai_scene->mMaterials[mesh.material_index];
         Material& material = model.materials[mesh.material_index];
 
         aiColor4D albedo;
@@ -155,6 +159,16 @@ namespace Nova::Models
         if (strstr(mesh_name, "(indoor)") != NULL)
             mesh.pipeline = GPUPipeline::IndoorMeshes;
 
+        LoadAndStoreMapsAlbedo(material, ai_material, ai_scene);
+        LoadAndStoreMapsNormal(material, ai_material, ai_scene);
+        LoadAndStoreMapsMetallic(material, ai_material, ai_scene);
+        LoadAndStoreMapsRoughness(material, ai_material, ai_scene);
+
+        return mesh;
+    }
+
+    void LoadAndStoreMapsAlbedo(Material& material, const aiMaterial* ai_material, const aiScene* ai_scene)
+    {
         for (u32 i = 0; i < ai_material->GetTextureCount(aiTextureType_DIFFUSE); i++)
         {
             aiString ai_path;
@@ -164,18 +178,21 @@ namespace Nova::Models
             if (embedded_texture != NULL && embedded_texture->mHeight == 0)
             {
                 const u8* data = reinterpret_cast<const u8*>(embedded_texture->pcData);
-                Texture texture = Textures::LoadFromMemory(data, embedded_texture->mWidth, TextureFormat::RGBA8_SRGB, ai_path.C_Str());
+                Texture texture = Textures::LoadFromMemory(data, embedded_texture->mWidth, TextureFormat::RGBA8_SRGB);
                 if (texture.IsValid())
                     material.texture_albedo = texture;
             }
             else
             {
-                Texture texture = Textures::Load(ai_path.C_Str());
+                Texture texture = Textures::Load(ai_path.C_Str(), TextureFormat::RGBA8_SRGB, TextureSampler::LinearClamp);
                 if (texture.IsValid())
                     material.texture_albedo = texture;
             }
         }
+    }
 
+    void LoadAndStoreMapsNormal(Material& material, const aiMaterial* ai_material, const aiScene* ai_scene)
+    {
         for (u32 i = 0; i < ai_material->GetTextureCount(aiTextureType_NORMALS); i++)
         {
             aiString ai_path;
@@ -185,18 +202,64 @@ namespace Nova::Models
             if (embedded_texture != NULL && embedded_texture->mHeight == 0)
             {
                 const u8* data = reinterpret_cast<const u8*>(embedded_texture->pcData);
-                Texture texture = Textures::LoadFromMemory(data, embedded_texture->mWidth, TextureFormat::RGBA8, ai_path.C_Str());
+                Texture texture = Textures::LoadFromMemory(data, embedded_texture->mWidth, TextureFormat::RGBA8, TextureSampler::LinearClamp);
                 if (texture.IsValid())
                     material.texture_normal = texture;
             }
             else
             {
-                Texture texture = Textures::Load(ai_path.C_Str());
+                Texture texture = Textures::Load(ai_path.C_Str(), TextureFormat::RGBA8, TextureSampler::LinearClamp);
                 if (texture.IsValid())
                     material.texture_normal = texture;
             }
         }
+    }
 
-        return mesh;
+    void LoadAndStoreMapsMetallic(Material& material, const aiMaterial* ai_material, const aiScene* ai_scene)
+    {
+        for (u32 i = 0; i < ai_material->GetTextureCount(aiTextureType_METALNESS); i++)
+        {
+            aiString ai_path;
+            ai_material->GetTexture(aiTextureType_METALNESS, 0, &ai_path);
+
+            const aiTexture* embedded_texture = ai_scene->GetEmbeddedTexture(ai_path.C_Str());
+            if (embedded_texture != NULL && embedded_texture->mHeight == 0)
+            {
+                const u8* data = reinterpret_cast<const u8*>(embedded_texture->pcData);
+                Texture texture = Textures::LoadFromMemory(data, embedded_texture->mWidth, TextureFormat::RGBA8, TextureSampler::LinearClamp);
+                if (texture.IsValid())
+                    material.texture_metallic = texture;
+            }
+            else
+            {
+                Texture texture = Textures::Load(ai_path.C_Str(), TextureFormat::RGBA8, TextureSampler::LinearClamp);
+                if (texture.IsValid())
+                    material.texture_metallic = texture;
+            }
+        }
+    }
+
+    void LoadAndStoreMapsRoughness(Material& material, const aiMaterial* ai_material, const aiScene* ai_scene)
+    {
+        for (u32 i = 0; i < ai_material->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS); i++)
+        {
+            aiString ai_path;
+            ai_material->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &ai_path);
+
+            const aiTexture* embedded_texture = ai_scene->GetEmbeddedTexture(ai_path.C_Str());
+            if (embedded_texture != NULL && embedded_texture->mHeight == 0)
+            {
+                const u8* data = reinterpret_cast<const u8*>(embedded_texture->pcData);
+                Texture texture = Textures::LoadFromMemory(data, embedded_texture->mWidth, TextureFormat::RGBA8, TextureSampler::LinearClamp);
+                if (texture.IsValid())
+                    material.texture_roughness = texture;
+            }
+            else
+            {
+                Texture texture = Textures::Load(ai_path.C_Str(), TextureFormat::RGBA8, TextureSampler::LinearClamp);
+                if (texture.IsValid())
+                    material.texture_roughness = texture;
+            }
+        }
     }
 }

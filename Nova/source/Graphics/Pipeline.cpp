@@ -14,11 +14,106 @@ namespace Nova::Pipelines
     static SDL_GPUGraphicsPipeline* prev_bound_pipeline = NULL;
     static SDL_GPUGraphicsPipeline* pipelines[pipeline_count];
 
-    void InitOutdoorMeshes(const Shader* shader);
-    void InitOutdoorMeshesSkinned(const Shader* shader);
-    void InitIndoorMeshes(const Shader* shader);
-    void InitWireframeMeshes(const Shader* shader);
-    void InitPostProcessing(const Shader* shader);
+    SDL_GPUGraphicsPipeline* CreateGraphicsPipeline(
+        const Shader* shader,
+        SDL_GPUTextureFormat color_target_format,
+        bool enable_depth_test,
+        bool enable_depth_write,
+        SDL_GPUCompareOp depth_compare_op,
+        SDL_GPUCullMode cull_mode,
+        SDL_GPUFillMode fill_mode
+    );
+
+    // --- Pipeline Initialization Functions ---
+
+    void InitOutdoorMeshes(const Shader* shader)
+    {
+        const Window& window = Application::GetWindow();
+        SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat(static_cast<SDL_GPUDevice*>(window.gpu_device), static_cast<SDL_Window*>(window.handle));
+
+        const u8 index = static_cast<u8>(GPUPipeline::OutdoorMeshes);
+        pipelines[index] = CreateGraphicsPipeline(shader, format, true, true, SDL_GPU_COMPAREOP_LESS, SDL_GPU_CULLMODE_BACK, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Outdoor Meshes pipeline!");
+    }
+
+    void InitOutdoorMeshesSkinned(const Shader* shader)
+    {
+        const Window& window = Application::GetWindow();
+        SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat(static_cast<SDL_GPUDevice*>(window.gpu_device), static_cast<SDL_Window*>(window.handle));
+
+        const u8 index = static_cast<u8>(GPUPipeline::OutdoorMeshesSkinned);
+        pipelines[index] = CreateGraphicsPipeline(shader, format, true, true, SDL_GPU_COMPAREOP_LESS, SDL_GPU_CULLMODE_BACK, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Outdoor Skinned Meshes pipeline!");
+    }
+
+    void InitIndoorMeshes(const Shader* shader)
+    {
+        const Window& window = Application::GetWindow();
+        SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat(static_cast<SDL_GPUDevice*>(window.gpu_device), static_cast<SDL_Window*>(window.handle));
+
+        const u8 index = static_cast<u8>(GPUPipeline::IndoorMeshes);
+        pipelines[index] = CreateGraphicsPipeline(shader, format, true, true, SDL_GPU_COMPAREOP_LESS, SDL_GPU_CULLMODE_FRONT, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Indoor Meshes pipeline!");
+    }
+
+    void InitWireframeMeshes(const Shader* shader)
+    {
+        const Window& window = Application::GetWindow();
+        SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat(static_cast<SDL_GPUDevice*>(window.gpu_device), static_cast<SDL_Window*>(window.handle));
+
+        const u8 index = static_cast<u8>(GPUPipeline::WireframeMeshes);
+        pipelines[index] = CreateGraphicsPipeline(shader, format, true, true, SDL_GPU_COMPAREOP_LESS, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_LINE);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Wireframe Meshes pipeline!");
+    }
+
+    void InitPostProcessing(const Shader* shader)
+    {
+        const Window& window = Application::GetWindow();
+        SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat(static_cast<SDL_GPUDevice*>(window.gpu_device), static_cast<SDL_Window*>(window.handle));
+
+        const u8 index = static_cast<u8>(GPUPipeline::PostProcessing);
+        pipelines[index] = CreateGraphicsPipeline(shader, format, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_BACK, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Post Processing pipeline!");
+    }
+
+    void InitEquirectangularToCubemap(const Shader* shader)
+    {
+        const u8 index = static_cast<u8>(GPUPipeline::IBL_EquirectangularToCubemap);
+        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Equirectangular to Cubemap pipeline!");
+    }
+
+    void InitIrradiance(const Shader* shader)
+    {
+        const u8 index = static_cast<u8>(GPUPipeline::IBL_Irradiance);
+        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Irradiance pipeline!");
+    }
+
+    void InitPrefilter(const Shader* shader)
+    {
+        const u8 index = static_cast<u8>(GPUPipeline::IBL_Prefilter);
+        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Prefilter pipeline!");
+    }
+
+    void InitBRDF(const Shader* shader)
+    {
+        const u8 index = static_cast<u8>(GPUPipeline::IBL_BRDF_Integration);
+        // Note: Targeted to RGBA16F because Textures::CreateFramebufferAttachmentHDR defaults to 4 channels
+        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create BRDF pipeline!");
+    }
+
+    void InitSkybox(const Shader* shader)
+    {
+        const u8 index = static_cast<u8>(GPUPipeline::IBL_Skybox);
+        // Rendered to the HDR scene buffer (RGBA16F). Depth testing enabled with LESS_OR_EQUAL for the z=w trick. Depth writes disabled.
+        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, true, false, SDL_GPU_COMPAREOP_LESS_OR_EQUAL, SDL_GPU_CULLMODE_FRONT, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Skybox pipeline!");
+    }
+
+    // --- Core Subsystem Logic ---
 
     void Init(const PipelineShaderInfo& shader_info)
     {
@@ -27,6 +122,11 @@ namespace Nova::Pipelines
         InitIndoorMeshes(shader_info.indoor_meshes);
         InitWireframeMeshes(shader_info.wireframe_meshes);
         InitPostProcessing(shader_info.post_processing);
+        InitEquirectangularToCubemap(shader_info.ibl_equirectangular_to_cubemap);
+        InitIrradiance(shader_info.ibl_irradiance);
+        InitPrefilter(shader_info.ibl_prefilter);
+        InitBRDF(shader_info.ibl_brdf);
+        InitSkybox(shader_info.ibl_skybox);
     }
 
     void Shutdown()
@@ -35,8 +135,10 @@ namespace Nova::Pipelines
         SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
 
         for (u8 i = 0; i < static_cast<u8>(GPUPipeline::_Length); i++)
+        {
             if (pipelines[i] != NULL)
                 SDL_ReleaseGPUGraphicsPipeline(device, pipelines[i]);
+        }
     }
 
     void Bind(GPUPipeline type, const RenderPassHandle render_pass)
@@ -51,33 +153,34 @@ namespace Nova::Pipelines
         }
     }
 
-    void ResetBindingCache() { prev_bound_pipeline = NULL; }
-
-    void InitOutdoorMeshes(const Shader* shader)
+    void ResetBindingCache()
     {
-        if (shader == NULL)
-            return;
+        prev_bound_pipeline = NULL;
+    }
+
+    SDL_GPUGraphicsPipeline* CreateGraphicsPipeline(
+        const Shader* shader,
+        SDL_GPUTextureFormat color_target_format,
+        bool enable_depth_test,
+        bool enable_depth_write,
+        SDL_GPUCompareOp depth_compare_op,
+        SDL_GPUCullMode cull_mode,
+        SDL_GPUFillMode fill_mode
+    )
+    {
+        if (shader == NULL || shader->handle_vertex == NULL || shader->handle_fragment == NULL)
+            return NULL;
 
         SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {};
-
-        // --- Shaders ---
         pipeline_info.vertex_shader = static_cast<SDL_GPUShader*>(shader->handle_vertex);
         pipeline_info.fragment_shader = static_cast<SDL_GPUShader*>(shader->handle_fragment);
 
-        if (pipeline_info.vertex_shader == NULL || pipeline_info.fragment_shader == NULL)
-        {
-            FATAL("Pipelines::Init - %s", "Cannot create the graphics pipeline since its shaders are invalid!");
-            return;
-        }
-
         // --- Vertex Input Layout ---
-        // Describes the memory layout of each vertex in the vertex buffer
         SDL_GPUVertexBufferDescription vertex_buffer_desc = {};
         vertex_buffer_desc.slot = 0;
-        vertex_buffer_desc.pitch = sizeof(Vertex); // bytes per vertex
+        vertex_buffer_desc.pitch = sizeof(Vertex);
         vertex_buffer_desc.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
-        // Define each attribute (element within a vertex)
         SDL_GPUVertexAttribute vertex_attributes[4] = {};
 
         // Attribute 0: position
@@ -109,444 +212,36 @@ namespace Nova::Pipelines
         pipeline_info.vertex_input_state.vertex_attributes = vertex_attributes;
         pipeline_info.vertex_input_state.num_vertex_attributes = LEN(vertex_attributes);
 
-        // --- Primitive Type ---
+        // --- Primitive & Rasterizer ---
         pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
-
-        // --- Rasterizer ---
-        pipeline_info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
-        pipeline_info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_BACK;
+        pipeline_info.rasterizer_state.fill_mode = fill_mode;
+        pipeline_info.rasterizer_state.cull_mode = cull_mode;
         pipeline_info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
 
-        // --- Depth/Stencil  ---
-        pipeline_info.depth_stencil_state.enable_depth_test = true;
-        pipeline_info.depth_stencil_state.enable_depth_write = true;
-        pipeline_info.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS;
+        // --- Depth/Stencil ---
+        pipeline_info.depth_stencil_state.enable_depth_test = enable_depth_test;
+        pipeline_info.depth_stencil_state.enable_depth_write = enable_depth_write;
+        pipeline_info.depth_stencil_state.compare_op = depth_compare_op;
 
         // --- Color Blend ---
         SDL_GPUColorTargetBlendState blend = {};
-        blend.enable_blend = false; // opaque rendering
-        blend.color_write_mask = SDL_GPU_COLORCOMPONENT_R |
-                                 SDL_GPU_COLORCOMPONENT_G |
-                                 SDL_GPU_COLORCOMPONENT_B |
-                                 SDL_GPU_COLORCOMPONENT_A;
+        blend.enable_blend = false;
+        blend.color_write_mask = SDL_GPU_COLORCOMPONENT_R | SDL_GPU_COLORCOMPONENT_G | SDL_GPU_COLORCOMPONENT_B | SDL_GPU_COLORCOMPONENT_A;
 
-        const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
-        SDL_Window* window_handle = static_cast<SDL_Window*>(window.handle);
-
-        // --- Color Target Format (must match swapchain format) ---
         SDL_GPUColorTargetDescription color_target_desc = {};
-        color_target_desc.format = SDL_GetGPUSwapchainTextureFormat(device, window_handle);
+        color_target_desc.format = color_target_format;
         color_target_desc.blend_state = blend;
 
         pipeline_info.target_info.color_target_descriptions = &color_target_desc;
         pipeline_info.target_info.num_color_targets = 1;
-        pipeline_info.target_info.has_depth_stencil_target = true;
-        pipeline_info.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
+        pipeline_info.target_info.has_depth_stencil_target = enable_depth_test;
 
-        // --- Create the pipeline ---
-        const u8 index = static_cast<u8>(GPUPipeline::OutdoorMeshes);
-        pipelines[index] = SDL_CreateGPUGraphicsPipeline(device, &pipeline_info);
-        if (pipelines[index] == NULL)
-        {
-            FATAL("Renderer::Init - %s", "Failed to create the graphics pipeline!");
-            return;
-        }
-    }
-
-    void InitOutdoorMeshesSkinned(const Shader* shader)
-    {
-        if (shader == NULL)
-            return;
-
-        SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {};
-
-        // --- Shaders ---
-        pipeline_info.vertex_shader = static_cast<SDL_GPUShader*>(shader->handle_vertex);
-        pipeline_info.fragment_shader = static_cast<SDL_GPUShader*>(shader->handle_fragment);
-
-        if (pipeline_info.vertex_shader == NULL || pipeline_info.fragment_shader == NULL)
-        {
-            FATAL("Pipelines::Init - %s", "Cannot create the graphics pipeline since its shaders are invalid!");
-            return;
-        }
-
-        // --- Vertex Input Layout ---
-        // Describes the memory layout of each vertex in the vertex buffer
-        SDL_GPUVertexBufferDescription vertex_buffer_desc = {};
-        vertex_buffer_desc.slot = 0;
-        vertex_buffer_desc.pitch = sizeof(Vertex); // bytes per vertex
-        vertex_buffer_desc.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
-
-        // Define each attribute (element within a vertex)
-        SDL_GPUVertexAttribute vertex_attributes[4] = {};
-
-        // Attribute 0: position (vec3 = 3 floats)
-        vertex_attributes[0].location = 0;
-        vertex_attributes[0].buffer_slot = 0;
-        vertex_attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        vertex_attributes[0].offset = offsetof(Vertex, position);
-
-        // Attribute 1: normal (vec3 = 3 floats)
-        vertex_attributes[1].location = 1;
-        vertex_attributes[1].buffer_slot = 0;
-        vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        vertex_attributes[1].offset = offsetof(Vertex, normal);
-
-        // Attribute 2: uv (vec2 = 2 floats)
-        vertex_attributes[2].location = 2;
-        vertex_attributes[2].buffer_slot = 0;
-        vertex_attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
-        vertex_attributes[2].offset = offsetof(Vertex, uv);
-
-        // Attribute 3: tangent
-        vertex_attributes[3].location = 3;
-        vertex_attributes[3].buffer_slot = 0;
-        vertex_attributes[3].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        vertex_attributes[3].offset = offsetof(Vertex, tangent);
-
-        pipeline_info.vertex_input_state.vertex_buffer_descriptions = &vertex_buffer_desc;
-        pipeline_info.vertex_input_state.num_vertex_buffers = 1;
-        pipeline_info.vertex_input_state.vertex_attributes = vertex_attributes;
-        pipeline_info.vertex_input_state.num_vertex_attributes = LEN(vertex_attributes);
-
-        // --- Primitive Type ---
-        pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
-
-        // --- Rasterizer ---
-        pipeline_info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
-        pipeline_info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_BACK;
-        pipeline_info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
-
-        // --- Depth/Stencil  ---
-        pipeline_info.depth_stencil_state.enable_depth_test = true;
-        pipeline_info.depth_stencil_state.enable_depth_write = true;
-        pipeline_info.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS;
-
-        // --- Color Blend ---
-        SDL_GPUColorTargetBlendState blend = {};
-        blend.enable_blend = false; // opaque rendering
-        blend.color_write_mask = SDL_GPU_COLORCOMPONENT_R |
-                                 SDL_GPU_COLORCOMPONENT_G |
-                                 SDL_GPU_COLORCOMPONENT_B |
-                                 SDL_GPU_COLORCOMPONENT_A;
+        if (enable_depth_test)
+            pipeline_info.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
 
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
-        SDL_Window* window_handle = static_cast<SDL_Window*>(window.handle);
 
-        // --- Color Target Format (must match swapchain format) ---
-        SDL_GPUColorTargetDescription color_target_desc = {};
-        color_target_desc.format = SDL_GetGPUSwapchainTextureFormat(device, window_handle);
-        color_target_desc.blend_state = blend;
-
-        pipeline_info.target_info.color_target_descriptions = &color_target_desc;
-        pipeline_info.target_info.num_color_targets = 1;
-        pipeline_info.target_info.has_depth_stencil_target = true;
-        pipeline_info.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
-
-        // --- Create the pipeline ---
-        const u8 index = static_cast<u8>(GPUPipeline::OutdoorMeshesSkinned);
-        pipelines[index] = SDL_CreateGPUGraphicsPipeline(device, &pipeline_info);
-        if (pipelines[index] == NULL)
-        {
-            FATAL("Renderer::Init - %s", "Failed to create the graphics pipeline for outdoor skinned meshes!");
-            return;
-        }
-    }
-
-    void InitIndoorMeshes(const Shader* shader)
-    {
-        if (shader == NULL)
-            return;
-
-        SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {};
-
-        // --- Shaders ---
-        pipeline_info.vertex_shader = static_cast<SDL_GPUShader*>(shader->handle_vertex);
-        pipeline_info.fragment_shader = static_cast<SDL_GPUShader*>(shader->handle_fragment);
-
-        if (pipeline_info.vertex_shader == NULL || pipeline_info.fragment_shader == NULL)
-        {
-            FATAL("Pipelines::Init - %s", "Cannot create the graphics pipeline since its shaders are invalid!");
-            return;
-        }
-
-        // --- Vertex Input Layout ---
-        // Describes the memory layout of each vertex in the vertex buffer
-        SDL_GPUVertexBufferDescription vertex_buffer_desc = {};
-        vertex_buffer_desc.slot = 0;
-        vertex_buffer_desc.pitch = sizeof(Vertex); // bytes per vertex
-        vertex_buffer_desc.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
-
-        // Define each attribute (element within a vertex)
-        SDL_GPUVertexAttribute vertex_attributes[4] = {};
-
-        // Attribute 0: position (vec3 = 3 floats)
-        vertex_attributes[0].location = 0;
-        vertex_attributes[0].buffer_slot = 0;
-        vertex_attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        vertex_attributes[0].offset = offsetof(Vertex, position);
-
-        // Attribute 1: normal (vec3 = 3 floats)
-        vertex_attributes[1].location = 1;
-        vertex_attributes[1].buffer_slot = 0;
-        vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        vertex_attributes[1].offset = offsetof(Vertex, normal);
-
-        // Attribute 2: uv (vec2 = 2 floats)
-        vertex_attributes[2].location = 2;
-        vertex_attributes[2].buffer_slot = 0;
-        vertex_attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
-        vertex_attributes[2].offset = offsetof(Vertex, uv);
-
-        // Attribute 3: tangent
-        vertex_attributes[3].location = 3;
-        vertex_attributes[3].buffer_slot = 0;
-        vertex_attributes[3].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        vertex_attributes[3].offset = offsetof(Vertex, tangent);
-
-        pipeline_info.vertex_input_state.vertex_buffer_descriptions = &vertex_buffer_desc;
-        pipeline_info.vertex_input_state.num_vertex_buffers = 1;
-        pipeline_info.vertex_input_state.vertex_attributes = vertex_attributes;
-        pipeline_info.vertex_input_state.num_vertex_attributes = LEN(vertex_attributes);
-
-        // --- Primitive Type ---
-        pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
-
-        // --- Rasterizer ---
-        pipeline_info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
-        pipeline_info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_FRONT;
-        pipeline_info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
-
-        // --- Depth/Stencil  ---
-        pipeline_info.depth_stencil_state.enable_depth_test = true;
-        pipeline_info.depth_stencil_state.enable_depth_write = true;
-        pipeline_info.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS;
-
-        // --- Color Blend ---
-        SDL_GPUColorTargetBlendState blend = {};
-        blend.enable_blend = false; // opaque rendering
-        blend.color_write_mask = SDL_GPU_COLORCOMPONENT_R |
-                                 SDL_GPU_COLORCOMPONENT_G |
-                                 SDL_GPU_COLORCOMPONENT_B |
-                                 SDL_GPU_COLORCOMPONENT_A;
-
-        const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
-        SDL_Window* window_handle = static_cast<SDL_Window*>(window.handle);
-
-        // --- Color Target Format (must match swapchain format) ---
-        SDL_GPUColorTargetDescription color_target_desc = {};
-        color_target_desc.format = SDL_GetGPUSwapchainTextureFormat(device, window_handle);
-        color_target_desc.blend_state = blend;
-
-        pipeline_info.target_info.color_target_descriptions = &color_target_desc;
-        pipeline_info.target_info.num_color_targets = 1;
-        pipeline_info.target_info.has_depth_stencil_target = true;
-        pipeline_info.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
-
-        // --- Create the pipeline ---
-        const u8 index = static_cast<u8>(GPUPipeline::IndoorMeshes);
-        pipelines[index] = SDL_CreateGPUGraphicsPipeline(device, &pipeline_info);
-        if (pipelines[index] == NULL)
-        {
-            FATAL("Renderer::Init - %s", "Failed to create the graphics pipeline for indoor meshes!");
-            return;
-        }
-    }
-
-    void InitWireframeMeshes(const Shader* shader)
-    {
-        if (shader == NULL)
-            return;
-
-        SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {};
-
-        // --- Shaders ---
-        pipeline_info.vertex_shader = static_cast<SDL_GPUShader*>(shader->handle_vertex);
-        pipeline_info.fragment_shader = static_cast<SDL_GPUShader*>(shader->handle_fragment);
-
-        if (pipeline_info.vertex_shader == NULL || pipeline_info.fragment_shader == NULL)
-        {
-            FATAL("Pipelines::Init - %s", "Cannot create the graphics pipeline since its shaders are invalid!");
-            return;
-        }
-
-        // --- Vertex Input Layout ---
-        // Describes the memory layout of each vertex in the vertex buffer
-        SDL_GPUVertexBufferDescription vertex_buffer_desc = {};
-        vertex_buffer_desc.slot = 0;
-        vertex_buffer_desc.pitch = sizeof(Vertex); // bytes per vertex
-        vertex_buffer_desc.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
-
-        // Define each attribute (element within a vertex)
-        SDL_GPUVertexAttribute vertex_attributes[4] = {};
-
-        // Attribute 0: position (vec3 = 3 floats)
-        vertex_attributes[0].location = 0;
-        vertex_attributes[0].buffer_slot = 0;
-        vertex_attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        vertex_attributes[0].offset = offsetof(Vertex, position);
-
-        // Attribute 1: normal (vec3 = 3 floats)
-        vertex_attributes[1].location = 1;
-        vertex_attributes[1].buffer_slot = 0;
-        vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        vertex_attributes[1].offset = offsetof(Vertex, normal);
-
-        // Attribute 2: uv (vec2 = 2 floats)
-        vertex_attributes[2].location = 2;
-        vertex_attributes[2].buffer_slot = 0;
-        vertex_attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
-        vertex_attributes[2].offset = offsetof(Vertex, uv);
-
-        // Attribute 3: tangent
-        vertex_attributes[3].location = 3;
-        vertex_attributes[3].buffer_slot = 0;
-        vertex_attributes[3].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        vertex_attributes[3].offset = offsetof(Vertex, tangent);
-
-        pipeline_info.vertex_input_state.vertex_buffer_descriptions = &vertex_buffer_desc;
-        pipeline_info.vertex_input_state.num_vertex_buffers = 1;
-        pipeline_info.vertex_input_state.vertex_attributes = vertex_attributes;
-        pipeline_info.vertex_input_state.num_vertex_attributes = LEN(vertex_attributes);
-
-        // --- Primitive Type ---
-        pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
-
-        // --- Rasterizer ---
-        pipeline_info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_LINE;
-        pipeline_info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
-        pipeline_info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
-
-        // --- Depth/Stencil  ---
-        pipeline_info.depth_stencil_state.enable_depth_test = true;
-        pipeline_info.depth_stencil_state.enable_depth_write = true;
-        pipeline_info.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS;
-
-        // --- Color Blend ---
-        SDL_GPUColorTargetBlendState blend = {};
-        blend.enable_blend = false; // opaque rendering
-        blend.color_write_mask = SDL_GPU_COLORCOMPONENT_R |
-                                 SDL_GPU_COLORCOMPONENT_G |
-                                 SDL_GPU_COLORCOMPONENT_B |
-                                 SDL_GPU_COLORCOMPONENT_A;
-
-        const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
-        SDL_Window* window_handle = static_cast<SDL_Window*>(window.handle);
-
-        // --- Color Target Format (must match swapchain format) ---
-        SDL_GPUColorTargetDescription color_target_desc = {};
-        color_target_desc.format = SDL_GetGPUSwapchainTextureFormat(device, window_handle);
-        color_target_desc.blend_state = blend;
-
-        pipeline_info.target_info.color_target_descriptions = &color_target_desc;
-        pipeline_info.target_info.num_color_targets = 1;
-        pipeline_info.target_info.has_depth_stencil_target = true;
-        pipeline_info.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
-
-        // --- Create the pipeline ---
-        const u8 index = static_cast<u8>(GPUPipeline::WireframeMeshes);
-        pipelines[index] = SDL_CreateGPUGraphicsPipeline(device, &pipeline_info);
-        if (pipelines[index] == NULL)
-        {
-            FATAL("Renderer::Init - %s", "Failed to create the graphics pipeline for wireframe meshes!");
-            return;
-        }
-    }
-
-    void InitPostProcessing(const Shader* shader)
-    {
-        if (shader == NULL)
-            return;
-
-        SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {};
-
-        // --- Shaders ---
-        pipeline_info.vertex_shader = static_cast<SDL_GPUShader*>(shader->handle_vertex);
-        pipeline_info.fragment_shader = static_cast<SDL_GPUShader*>(shader->handle_fragment);
-
-        if (pipeline_info.vertex_shader == NULL || pipeline_info.fragment_shader == NULL)
-        {
-            FATAL("Pipelines::Init - %s", "Cannot create the graphics pipeline since its shaders are invalid!");
-            return;
-        }
-
-        // --- Vertex Input Layout ---
-        // Describes the memory layout of each vertex in the vertex buffer
-        SDL_GPUVertexBufferDescription vertex_buffer_desc = {};
-        vertex_buffer_desc.slot = 0;
-        vertex_buffer_desc.pitch = sizeof(Vertex); // bytes per vertex
-        vertex_buffer_desc.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
-
-        // Define each attribute (element within a vertex)
-        SDL_GPUVertexAttribute vertex_attributes[3] = {};
-
-        // Attribute 0: position (vec3 = 3 floats)
-        vertex_attributes[0].location = 0;
-        vertex_attributes[0].buffer_slot = 0;
-        vertex_attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        vertex_attributes[0].offset = offsetof(Vertex, position);
-
-        // Attribute 1: normal (vec3 = 3 floats)
-        vertex_attributes[1].location = 1;
-        vertex_attributes[1].buffer_slot = 0;
-        vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
-        vertex_attributes[1].offset = offsetof(Vertex, normal);
-
-        // Attribute 2: uv (vec2 = 2 floats)
-        vertex_attributes[2].location = 2;
-        vertex_attributes[2].buffer_slot = 0;
-        vertex_attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
-        vertex_attributes[2].offset = offsetof(Vertex, uv);
-
-        pipeline_info.vertex_input_state.vertex_buffer_descriptions = &vertex_buffer_desc;
-        pipeline_info.vertex_input_state.num_vertex_buffers = 1;
-        pipeline_info.vertex_input_state.vertex_attributes = vertex_attributes;
-        pipeline_info.vertex_input_state.num_vertex_attributes = 3;
-
-        // --- Primitive Type ---
-        pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
-
-        // --- Rasterizer ---
-        pipeline_info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
-        pipeline_info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_BACK;
-        pipeline_info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
-
-        // --- Depth/Stencil  ---
-        pipeline_info.depth_stencil_state.enable_depth_test = false;
-        pipeline_info.depth_stencil_state.enable_depth_write = false;
-
-        // --- Color Blend ---
-        SDL_GPUColorTargetBlendState blend = {};
-        blend.enable_blend = false; // opaque rendering
-        blend.color_write_mask = SDL_GPU_COLORCOMPONENT_R |
-                                 SDL_GPU_COLORCOMPONENT_G |
-                                 SDL_GPU_COLORCOMPONENT_B |
-                                 SDL_GPU_COLORCOMPONENT_A;
-
-        const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
-        SDL_Window* window_handle = static_cast<SDL_Window*>(window.handle);
-
-        // --- Color Target Format (must match swapchain format) ---
-        SDL_GPUColorTargetDescription color_target_desc = {};
-        color_target_desc.format = SDL_GetGPUSwapchainTextureFormat(device, window_handle);
-        color_target_desc.blend_state = blend;
-
-        pipeline_info.target_info.color_target_descriptions = &color_target_desc;
-        pipeline_info.target_info.num_color_targets = 1;
-        pipeline_info.target_info.has_depth_stencil_target = false;
-
-        // --- Create the pipeline ---
-        const u8 index = static_cast<u8>(GPUPipeline::PostProcessing);
-        pipelines[index] = SDL_CreateGPUGraphicsPipeline(device, &pipeline_info);
-        if (pipelines[index] == NULL)
-        {
-            FATAL("Renderer::Init - %s", "Failed to create the graphics pipeline for post processing!");
-            return;
-        }
+        return SDL_CreateGPUGraphicsPipeline(device, &pipeline_info);
     }
 }
