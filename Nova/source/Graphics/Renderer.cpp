@@ -298,13 +298,7 @@ namespace Nova::Renderer
     {
         for (const Mesh& mesh : model.meshes)
         {
-            glm::mat4 transform = glm::mat4(1.f);
-            transform = glm::translate(transform, position);
-            transform = glm::rotate(transform, glm::radians(rotation.x), glm::vec3(1.f, 0.f, 0.f));
-            transform = glm::rotate(transform, glm::radians(rotation.y), glm::vec3(0.f, 1.f, 0.f));
-            transform = glm::rotate(transform, glm::radians(rotation.z), glm::vec3(0.f, 0.f, 1.f));
-            transform = glm::scale(transform, scale);
-
+            const glm::mat4 transform = Meshes::CalculateTransform(position, rotation, scale);
             Renderer::DrawMesh(mesh, transform, model.materials[mesh.material_index]);
         }
     }

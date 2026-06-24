@@ -139,8 +139,8 @@ namespace Nova::IBL
                 SDL_GPUViewport viewport = {};
                 viewport.x = 0;
                 viewport.y = 0;
-                viewport.w = map.prefilter.width;
-                viewport.h = map.prefilter.height;
+                viewport.w = map.prefilter.width >> j;
+                viewport.h = map.prefilter.height >> j;
                 viewport.min_depth = 0.0f;
                 viewport.max_depth = 1.0f;
                 SDL_SetGPUViewport(pass, &viewport);
@@ -158,7 +158,7 @@ namespace Nova::IBL
                 Pipelines::ResetBindingCache();
             }
         }
-        SDL_GenerateMipmapsForGPUTexture(command_buffer, handle_prefilter);
+        // SDL_GenerateMipmapsForGPUTexture(command_buffer, handle_prefilter);
 
         // --- 4. BRDF LUT ---
         SDL_GPUColorTargetInfo color_target = {};

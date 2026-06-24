@@ -9,10 +9,8 @@ using namespace Nova;
 struct GameState
 {
     EnvironmentMap environment_map;
-    Model model_xbot;
-    Model model_ybot;
-    Model model_boss;
-    Model model_cube;
+    Mesh mesh_sphere;
+    Material material;
     Camera3D camera;
     Texture attachment_hdr;
     Texture attachment_depth;
@@ -28,14 +26,9 @@ namespace Game
 
     void OnCreate()
     {
-        // Load the models
-        state.model_xbot = Models::Load("Assets/Models/X-Bot.fbx");
-        state.model_ybot = Models::Load("Assets/Models/Y-Bot.fbx");
-        state.model_boss = Models::Load("Assets/Models/Boss.fbx");
-        state.model_cube = Models::Load("Assets/Models/Cube.fbx");
-
-        // Bake the environment map
-        state.environment_map = IBL::BakeFromHDRI("Assets/HDRIs/puresky_dusk.hdr");
+        // Bake the environment and generate sphere mesh
+        state.environment_map = IBL::BakeFromHDRI("Assets/HDRIs/newport_loft.hdr");
+        state.mesh_sphere = Meshes::GenerateSphere(32, 16);
 
         // Create the HDR framebuffer attachments
         const Window& window = Application::GetWindow();
@@ -65,6 +58,12 @@ namespace Game
 
         if (Input::IsKeyPressed(KEY_F2))
             ResetEditorCamera();
+
+        if (Input::IsKeyPressed(KEY_C))
+        {
+            WARN("Position: " V3_FMT, V3_OPEN(state.camera.position));
+            WARN("Yaw - %f, Pitch - %f", state.camera.yaw, state.camera.pitch);
+        }
     }
 
     void OnUpdate()
@@ -73,7 +72,7 @@ namespace Game
         if (Windows::IsMinimized(window))
             return;
 
-        Cameras::UpdateEditor(state.camera, 0.1f, 1.f); // TODO: Add a scene camera to enable switching between editing and runtime
+        Cameras::UpdateEditor(state.camera, 0.2f, 1.f); // TODO: Add a scene camera to enable switching between editing and runtime
     }
 
     void OnRender()
@@ -90,24 +89,19 @@ namespace Game
 
     void OnShutdown()
     {
-        // Unload the models
-        Models::Unload(state.model_xbot);
-        Models::Unload(state.model_ybot);
-        Models::Unload(state.model_boss);
-        Models::Unload(state.model_cube);
-
-        IBL::Free(state.environment_map); // Unload environment map textures
+        Meshes::Destroy(state.mesh_sphere);
+        IBL::Free(state.environment_map);
     }
 
     void ResetEditorCamera()
     {
-        state.camera.position = glm::vec3(0.f, 2.f, 4.f);
+        state.camera.position = glm::vec3(-9.769f, 1.474f, 15.054f);
         state.camera.up = glm::vec3(0.f, 1.f, 0.f);
-        state.camera.yaw = -90.f;
-        state.camera.pitch = -25.f;
+        state.camera.yaw = -63.765625f;
+        state.camera.pitch = -7.187500f;
         state.camera.fov = 75.f;
         state.camera.clip_near = 0.1f;
-        state.camera.clip_far = 100.f;
+        state.camera.clip_far = 50.f;
     }
 
     void RenderPass_SceneHDR()
@@ -128,10 +122,26 @@ namespace Game
 
         // Renders the scene to the HDR framebuffer
         const RenderPassHandle scene_pass = RenderPasses::Begin(&hdr_info, 1, ds_info);
-        Renderer::DrawModel(state.model_xbot, glm::vec3(-1.f, 1.2f, 0.f));
-        Renderer::DrawModel(state.model_ybot, glm::vec3(1.f, 1.2f, 0.f));
-        Renderer::DrawModel(state.model_boss, glm::vec3(0.f, 1.5f, -2.f));
-        Renderer::DrawModel(state.model_cube, glm::vec3(0.f), glm::vec3(0.f), glm::vec3(5.f, 0.1f, 5.f));
+
+        // Render rows * column number of spheres with varying metallic/roughness values scaled by rows and columns respectively
+        const u8 row_count = 7;
+        const u8 column_count = 7;
+        const float spacing = 2.5f;
+        glm::mat4 transform = glm::mat4(1.0f);
+        for (u8 i = 0; i < row_count; i++)
+        {
+            state.material.metallic = static_cast<float>(i) / static_cast<float>(row_count);
+            for (u8 j = 0; j < column_count; j++)
+            {
+                // Clamp the roughness to 0.025 - 1.0 as perfectly smooth surfaces (roughness of 0.0) tend to look a bit off with direct lighting
+                state.material.roughness = glm::clamp(static_cast<float>(j) / static_cast<float>(column_count), 0.025f, 1.f);
+
+                transform = glm::mat4(1.0f);
+                transform = glm::translate(transform, glm::vec3((float)(j - (column_count / 2.f)) * spacing, (float)(i - (row_count / 2.f)) * spacing, -2.0f));
+                Renderer::DrawMesh(state.mesh_sphere, transform, state.material);
+            }
+        }
+
         Renderer::DrawSkybox(state.environment_map);
         RenderPasses::End(scene_pass);
     }

@@ -15,7 +15,7 @@ vec2 SampleSphericalMap(vec3 v)
 
     return vec2(
         phi / (2.0 * PI) + 0.5,
-        1.f - theta/PI
+        theta/PI
     );
 }
 

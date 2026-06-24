@@ -50,6 +50,8 @@ namespace Nova::Models
         {
             Textures::Unload(material.texture_albedo);
             Textures::Unload(material.texture_normal);
+            Textures::Unload(material.texture_metallic);
+            Textures::Unload(material.texture_roughness);
         }
 
         for (Mesh& mesh : model.meshes)
