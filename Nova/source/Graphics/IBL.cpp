@@ -64,15 +64,6 @@ namespace Nova::IBL
             SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(command_buffer, &color_target, 1, NULL);
             Renderer::SetActiveRenderPass(pass);
 
-            SDL_GPUViewport viewport = {};
-            viewport.x = 0;
-            viewport.y = 0;
-            viewport.w = map.environment.width;
-            viewport.h = map.environment.height;
-            viewport.min_depth = 0.0f;
-            viewport.max_depth = 1.0f;
-            SDL_SetGPUViewport(pass, &viewport);
-
             const glm::mat4 view_projection = captureProjection * captureViews[i];
             Pipelines::Bind(GPUPipeline::IBL_EquirectangularToCubemap, pass);
             Buffers::Bind(cube.buffer_vertex);
@@ -98,15 +89,6 @@ namespace Nova::IBL
 
             SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(command_buffer, &color_target, 1, NULL);
             Renderer::SetActiveRenderPass(pass);
-
-            SDL_GPUViewport viewport = {};
-            viewport.x = 0;
-            viewport.y = 0;
-            viewport.w = map.irradiance.width;
-            viewport.h = map.irradiance.height;
-            viewport.min_depth = 0.0f;
-            viewport.max_depth = 1.0f;
-            SDL_SetGPUViewport(pass, &viewport);
 
             const glm::mat4 view_projection = captureProjection * captureViews[i];
             Pipelines::Bind(GPUPipeline::IBL_Irradiance, pass);
@@ -135,15 +117,6 @@ namespace Nova::IBL
                 const float roughness = (float)j / (float)(map.prefilter.mip_levels - 1.f);
                 SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(command_buffer, &color_target, 1, NULL);
                 Renderer::SetActiveRenderPass(pass);
-
-                SDL_GPUViewport viewport = {};
-                viewport.x = 0;
-                viewport.y = 0;
-                viewport.w = map.prefilter.width >> j;
-                viewport.h = map.prefilter.height >> j;
-                viewport.min_depth = 0.0f;
-                viewport.max_depth = 1.0f;
-                SDL_SetGPUViewport(pass, &viewport);
 
                 const glm::mat4 view_projection = captureProjection * captureViews[i];
                 Pipelines::Bind(GPUPipeline::IBL_Prefilter, pass);

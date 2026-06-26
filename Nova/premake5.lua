@@ -19,6 +19,7 @@ includedirs({
     "%{wks.location}/vendor/glm",
     "%{wks.location}/vendor/stb_image/include",
     "%{wks.location}/vendor/assimp/include",
+    "%{wks.location}/vendor/assimp/build/include", -- assimp/config.h
 })
 
 libdirs({

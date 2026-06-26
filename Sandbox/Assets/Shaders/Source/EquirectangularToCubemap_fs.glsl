@@ -1,5 +1,5 @@
 #version 460 core
-layout (location = 0) noperspective in vec3 v_position_local;
+layout (location = 0) in vec3 v_position_local;
 layout (location = 0) out vec4 o_result;
 
 layout (set = 2, binding = 0) uniform sampler2D map_equirectangular;

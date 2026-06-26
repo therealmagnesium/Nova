@@ -79,21 +79,21 @@ namespace Nova::Pipelines
     void InitEquirectangularToCubemap(const Shader* shader)
     {
         const u8 index = static_cast<u8>(GPUPipeline::IBL_EquirectangularToCubemap);
-        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
+        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
         if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Equirectangular to Cubemap pipeline!");
     }
 
     void InitIrradiance(const Shader* shader)
     {
         const u8 index = static_cast<u8>(GPUPipeline::IBL_Irradiance);
-        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
+        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
         if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Irradiance pipeline!");
     }
 
     void InitPrefilter(const Shader* shader)
     {
         const u8 index = static_cast<u8>(GPUPipeline::IBL_Prefilter);
-        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
+        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
         if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Prefilter pipeline!");
     }
 
