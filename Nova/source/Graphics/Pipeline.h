@@ -37,7 +37,7 @@ namespace Nova
 
     namespace Pipelines
     {
-        void Init(const PipelineShaderInfo& shader_info);
+        void Init(const PipelineShaderInfo& shader_info, MSAASamples msaa = MSAASamples::One);
         void Shutdown();
         void Bind(GPUPipeline pipeline, const RenderPassHandle render_pass);
         void ResetBindingCache();

@@ -11,26 +11,26 @@ namespace Nova::Application
     App Create(const AppConfig& config)
     {
         App app;
+        app.config = config;
 
         if (config.callbacks.on_create == NULL || config.callbacks.on_event == NULL ||
             config.callbacks.on_update == NULL || config.callbacks.on_render == NULL ||
             config.callbacks.on_render_ui == NULL || config.callbacks.on_shutdown == NULL)
         {
             FATAL("%s", "Application::Create - The event callbacks are not setup properly!");
-            return app;
+            return Stub_App;
         }
 
         if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
         {
             FATAL("%s", "Application::Create - SDL failed to initialize properly!");
-            return app;
+            return Stub_App;
         }
         context = &app;
 
         app.window = Windows::Create(config.screen_width, config.screen_height, config.name);
         Renderer::Init();
 
-        app.config = config;
         app.is_valid = true;
         context = NULL;
 
@@ -75,6 +75,7 @@ namespace Nova::Application
 
     u16 GetScreenWidth() { return context->config.screen_width; }
     u16 GetScreenHeight() { return context->config.screen_height; }
+    MSAASamples GetMSAASamples() { return context->config.msaa; }
     const Window& GetWindow() { return context->window; }
     void Quit() { context->is_running = false; }
 }

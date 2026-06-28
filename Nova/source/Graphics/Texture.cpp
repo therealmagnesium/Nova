@@ -25,6 +25,7 @@ namespace Nova::Textures
     static const std::filesystem::path path_empty;
 
     SDL_GPUTextureFormat TextureFormatToSDL(TextureFormat format);
+    SDL_GPUSampleCount MSAASamplesToSDL(MSAASamples msaa);
     u32 BytesPerPixel(TextureFormat format);
     u16 CalculateMipLevels(u16 width, u16 height);
     Texture RegisterTexture(CachedTexture&& entry);
@@ -371,7 +372,7 @@ namespace Nova::Textures
         return RegisterTexture(std::move(entry));
     }
 
-    Texture CreateFramebufferAttachmentHDR(u16 framebuffer_width, u16 framebuffer_height)
+    Texture CreateFramebufferAttachmentHDR(u16 framebuffer_width, u16 framebuffer_height, MSAASamples msaa)
     {
         CachedTexture entry;
         entry.metadata.width = framebuffer_width;
@@ -384,12 +385,12 @@ namespace Nova::Textures
         SDL_GPUTextureCreateInfo info = {};
         info.type = SDL_GPU_TEXTURETYPE_2D;
         info.format = TextureFormatToSDL(entry.metadata.format);
-        info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
-        info.width = framebuffer_width;
-        info.height = framebuffer_height;
+        info.usage = msaa == MSAASamples::One ? SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER : SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
+        info.width = entry.metadata.width;
+        info.height = entry.metadata.height;
         info.layer_count_or_depth = 1;
         info.num_levels = 1;
-        info.sample_count = SDL_GPU_SAMPLECOUNT_1;
+        info.sample_count = MSAASamplesToSDL(msaa);
 
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
@@ -404,7 +405,7 @@ namespace Nova::Textures
         return RegisterTexture(std::move(entry));
     }
 
-    Texture CreateFramebufferAttachmentDepth(u16 framebuffer_width, u16 framebuffer_height)
+    Texture CreateFramebufferAttachmentDepth(u16 framebuffer_width, u16 framebuffer_height, MSAASamples msaa)
     {
         CachedTexture entry;
         entry.metadata.width = framebuffer_width;
@@ -417,10 +418,11 @@ namespace Nova::Textures
         info.type = SDL_GPU_TEXTURETYPE_2D;
         info.format = TextureFormatToSDL(entry.metadata.format);
         info.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
-        info.width = framebuffer_width;
-        info.height = framebuffer_height;
+        info.width = entry.metadata.width;
+        info.height = entry.metadata.height;
         info.layer_count_or_depth = 1;
         info.num_levels = 1;
+        info.sample_count = MSAASamplesToSDL(msaa);
 
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
@@ -550,6 +552,22 @@ namespace Nova::Textures
         }
 
         return format_sdl;
+    }
+
+    SDL_GPUSampleCount MSAASamplesToSDL(MSAASamples msaa)
+    {
+        switch (msaa)
+        {
+            case MSAASamples::One:
+                return SDL_GPU_SAMPLECOUNT_1;
+            case MSAASamples::Two:
+                return SDL_GPU_SAMPLECOUNT_2;
+            case MSAASamples::Four:
+                return SDL_GPU_SAMPLECOUNT_4;
+            case MSAASamples::Eight:
+                return SDL_GPU_SAMPLECOUNT_8;
+        }
+        return SDL_GPU_SAMPLECOUNT_1;
     }
 
     u32 BytesPerPixel(TextureFormat format)

@@ -119,7 +119,7 @@ vec4 CalculateIndirectLighting(vec4 F0, vec3 N, vec3 V, vec3 R, vec4 albedo, flo
     // Sample both the pre-filter map and the BRDF lut and combine them together as per the Split-Sum approximation to get the IBL specular part.
     const float MAX_REFLECTION_LOD = 4.0;
     const vec3 prefiltered_color = textureLod(map_prefilter, R, roughness * MAX_REFLECTION_LOD).rgb;    
-    const vec2 brdf  = texture(map_brdf_lut, vec2(max(dot(N, V), 0.0), roughness)).rg;
+    const vec2 brdf = texture(map_brdf_lut, vec2(max(dot(N, V), 0.0), roughness)).rg;
     const vec4 specular = vec4(prefiltered_color, 1.f) * (F * brdf.x + brdf.y);
 
     return kD * diffuse + specular; 

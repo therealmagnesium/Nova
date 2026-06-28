@@ -10,9 +10,11 @@ struct GameState
 {
     EnvironmentMap environment_map;
     Mesh mesh_sphere;
+    Model model_mario;
     Material material;
     Camera3D camera;
     Texture attachment_hdr;
+    Texture attachment_resolve;
     Texture attachment_depth;
 };
 
@@ -26,31 +28,37 @@ namespace Game
 
     void OnCreate()
     {
-        // Bake the environment and generate sphere mesh
+        // Bake the environment and generate meshes
         state.environment_map = IBL::BakeFromHDRI("Assets/HDRIs/newport_loft.hdr");
-        state.mesh_sphere = Meshes::GenerateSphere(32, 16);
+        state.model_mario = Models::Load("Assets/Models/Mario.fbx");
+        state.mesh_sphere = Meshes::GenerateSphere(64, 32);
 
         // Create the HDR framebuffer attachments
         const Window& window = Application::GetWindow();
-        state.attachment_hdr = Textures::CreateFramebufferAttachmentHDR(window.width, window.height);
-        state.attachment_depth = Textures::CreateFramebufferAttachmentDepth(window.width, window.height);
+        const MSAASamples msaa = Application::GetMSAASamples();
+        state.attachment_hdr = Textures::CreateFramebufferAttachmentHDR(window.width, window.height, msaa);
+        state.attachment_resolve = Textures::CreateFramebufferAttachmentHDR(window.width, window.height, MSAASamples::One);
+        state.attachment_depth = Textures::CreateFramebufferAttachmentDepth(window.width, window.height, msaa);
 
         // Setup settings for the scene
         ResetEditorCamera();
         Renderer::SetPrimaryCamera(&state.camera);
-        Renderer::SetExposure(1.f);
+        Renderer::SetExposure(1.5f);
     }
 
     void OnEvent()
     {
         // If the window is resized, recreate the the HDR framebuffer attachments
         const Window& window = Application::GetWindow();
+        const MSAASamples msaa = Application::GetMSAASamples();
         if (Windows::IsResizing(window))
         {
             Textures::Unload(state.attachment_hdr);
+            Textures::Unload(state.attachment_resolve);
             Textures::Unload(state.attachment_depth);
-            state.attachment_hdr = Textures::CreateFramebufferAttachmentHDR(window.width, window.height);
-            state.attachment_depth = Textures::CreateFramebufferAttachmentDepth(window.width, window.height);
+            state.attachment_hdr = Textures::CreateFramebufferAttachmentHDR(window.width, window.height, msaa);
+            state.attachment_resolve = Textures::CreateFramebufferAttachmentHDR(window.width, window.height, MSAASamples::One);
+            state.attachment_depth = Textures::CreateFramebufferAttachmentDepth(window.width, window.height, msaa);
         }
 
         if (Input::IsKeyPressed(KEY_F1))
@@ -89,8 +97,13 @@ namespace Game
 
     void OnShutdown()
     {
+        Models::Unload(state.model_mario);
         Meshes::Destroy(state.mesh_sphere);
         IBL::Free(state.environment_map);
+
+        Textures::Unload(state.attachment_hdr);
+        Textures::Unload(state.attachment_resolve);
+        Textures::Unload(state.attachment_depth);
     }
 
     void ResetEditorCamera()
@@ -109,8 +122,9 @@ namespace Game
         const auto hdr_info = (ColorTargetInfo){
             .clear_color = glm::vec4(0.01f, 0.01f, 0.01f, 1.f), // Note: Colors are not in linear space after compositing pass
             .texture = Textures::GetHandle(state.attachment_hdr),
+            .texture_msaa_resolve = Textures::GetHandle(state.attachment_resolve),
             .load_op = GPULoadOp::Clear,
-            .store_op = GPUStoreOp::Store,
+            .store_op = GPUStoreOp::Resolve,
         };
 
         const auto ds_info = (DepthStencilTargetInfo){
@@ -136,11 +150,15 @@ namespace Game
                 // Clamp the roughness to 0.025 - 1.0 as perfectly smooth surfaces (roughness of 0.0) tend to look a bit off with direct lighting
                 state.material.roughness = glm::clamp(static_cast<float>(j) / static_cast<float>(column_count), 0.025f, 1.f);
 
+                const float position_x = (float)(j - (column_count * 0.5f)) * spacing;
+                const float position_y = (float)(i - (row_count * 0.5f)) * spacing;
                 transform = glm::mat4(1.0f);
-                transform = glm::translate(transform, glm::vec3((float)(j - (column_count / 2.f)) * spacing, (float)(i - (row_count / 2.f)) * spacing, -2.0f));
+                transform = glm::translate(transform, glm::vec3(position_x, position_y, 0.f));
                 Renderer::DrawMesh(state.mesh_sphere, transform, state.material);
             }
         }
+
+        Renderer::DrawModel(state.model_mario, glm::vec3(-2.f, 0.f, 2.f));
 
         Renderer::DrawSkybox(state.environment_map);
         RenderPasses::End(scene_pass);
@@ -164,7 +182,7 @@ namespace Game
 
         // Renders the HDR framebuffer onto a fullscreen quad and applies post-processing effects
         const RenderPassHandle post_processing_pass = RenderPasses::Begin(&swapchain_info, 1, ds_info);
-        Renderer::DrawTextureCompositing(state.attachment_hdr);
+        Renderer::DrawTextureCompositing(state.attachment_resolve);
         RenderPasses::End(post_processing_pass);
     }
 }

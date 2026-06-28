@@ -55,7 +55,7 @@ namespace Nova::IBL
         for (u8 i = 0; i < face_count; i++)
         {
             SDL_GPUColorTargetInfo color_target = {};
-            color_target.texture = static_cast<SDL_GPUTexture*>(Textures::GetHandle(map.environment));
+            color_target.texture = handle_environment;
             color_target.layer_or_depth_plane = i;
             color_target.mip_level = 0;
             color_target.load_op = SDL_GPU_LOADOP_CLEAR;
@@ -81,7 +81,7 @@ namespace Nova::IBL
         for (u8 i = 0; i < face_count; i++)
         {
             SDL_GPUColorTargetInfo color_target = {};
-            color_target.texture = static_cast<SDL_GPUTexture*>(Textures::GetHandle(map.irradiance));
+            color_target.texture = handle_irradiance;
             color_target.layer_or_depth_plane = i;
             color_target.mip_level = 0;
             color_target.load_op = SDL_GPU_LOADOP_CLEAR;
@@ -108,7 +108,7 @@ namespace Nova::IBL
             for (u8 j = 0; j < map.prefilter.mip_levels; j++)
             {
                 SDL_GPUColorTargetInfo color_target = {};
-                color_target.texture = static_cast<SDL_GPUTexture*>(Textures::GetHandle(map.prefilter));
+                color_target.texture = handle_prefilter;
                 color_target.layer_or_depth_plane = i;
                 color_target.mip_level = j;
                 color_target.load_op = SDL_GPU_LOADOP_CLEAR;
@@ -135,7 +135,7 @@ namespace Nova::IBL
 
         // --- 4. BRDF LUT ---
         SDL_GPUColorTargetInfo color_target = {};
-        color_target.texture = static_cast<SDL_GPUTexture*>(Textures::GetHandle(map.brdf_lut));
+        color_target.texture = handle_brdf;
         color_target.layer_or_depth_plane = 0;
         color_target.mip_level = 0;
         color_target.load_op = SDL_GPU_LOADOP_CLEAR;

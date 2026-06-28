@@ -1,6 +1,7 @@
 #pragma once
 #include "Core/Base.h"
 #include "Graphics/Window.h"
+#include "Graphics/Texture.h"
 
 namespace Nova
 {
@@ -21,6 +22,7 @@ namespace Nova
         EventCallbacks callbacks;
         u16 screen_width = 0;
         u16 screen_height = 0;
+        MSAASamples msaa = MSAASamples::One;
     };
 
     struct App
@@ -31,6 +33,9 @@ namespace Nova
         bool is_valid = false;
     };
 
+    inline const App Stub_App;
+    inline const EventCallbacks Stub_EventCallbacks;
+
     namespace Application
     {
         App Create(const AppConfig& config);
@@ -39,6 +44,7 @@ namespace Nova
 
         u16 GetScreenWidth();
         u16 GetScreenHeight();
+        MSAASamples GetMSAASamples();
         const Window& GetWindow();
 
         void Quit();

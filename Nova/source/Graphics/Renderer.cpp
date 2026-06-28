@@ -140,7 +140,9 @@ namespace Nova::Renderer
             .ibl_brdf = &shader_brdf,
             .ibl_skybox = &shader_skybox
         };
-        Pipelines::Init(shader_info);
+
+        const MSAASamples msaa = Application::GetMSAASamples();
+        Pipelines::Init(shader_info, msaa);
 
         // Shader resources not needed after the pipelines are initialized
         Shaders::Unload(shader_pbr);
@@ -221,7 +223,9 @@ namespace Nova::Renderer
         Pipelines::ResetBindingCache();
         state.matrix_view = glm::mat4(1.f);
         state.matrix_projection = glm::mat4(1.f);
+
         SDL_SubmitGPUCommandBuffer(state.command_buffer);
+        state.command_buffer = NULL;
     }
 
     void DrawSkybox(const EnvironmentMap& environment_map)

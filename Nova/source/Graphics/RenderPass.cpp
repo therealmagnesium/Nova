@@ -23,6 +23,9 @@ namespace Nova::RenderPasses
             SDL_GPUColorTargetInfo& info = color_infos[i];
             info = {};
             info.texture = p_info.texture != NULL ? static_cast<SDL_GPUTexture*>(p_info.texture) : static_cast<SDL_GPUTexture*>(Renderer::GetSwapchainHandle());
+            info.resolve_texture = p_info.texture_msaa_resolve != NULL ? static_cast<SDL_GPUTexture*>(p_info.texture_msaa_resolve) : NULL;
+            info.resolve_mip_level = 0;
+            info.resolve_layer = 0;
             info.clear_color = (SDL_FColor){p_info.clear_color.r, p_info.clear_color.g, p_info.clear_color.b, p_info.clear_color.a};
             info.load_op = GPULoadOpToSDL(p_info.load_op);
             info.store_op = GPUStoreOpToSDL(p_info.store_op);

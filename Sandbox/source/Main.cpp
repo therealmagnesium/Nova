@@ -9,6 +9,7 @@ int main(int argc, char** argv)
     config.name = "Sandbox Project";
     config.screen_width = 960;
     config.screen_height = 540;
+    config.msaa = MSAASamples::Four;
     config.callbacks.on_create = Game::OnCreate;
     config.callbacks.on_event = Game::OnEvent;
     config.callbacks.on_update = Game::OnUpdate;

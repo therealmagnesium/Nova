@@ -26,6 +26,14 @@ namespace Nova
         AnisotropicClamp,
     };
 
+    enum class MSAASamples
+    {
+        One = 0,
+        Two,
+        Four,
+        Eight,
+    };
+
     struct Texture
     {
         u32 id = 0;
@@ -53,8 +61,8 @@ namespace Nova
         Texture LoadFromMemory(const u8* data, u32 buffer_size, TextureFormat format = TextureFormat::RGBA8_SRGB, TextureSampler sampler = TextureSampler::LinearClamp, const std::filesystem::path& path = "");
         Texture Load(const std::filesystem::path& path, TextureFormat format = TextureFormat::RGBA8_SRGB, TextureSampler sampler = TextureSampler::LinearClamp);
         Texture LoadHDRI(const std::filesystem::path& path);
-        Texture CreateFramebufferAttachmentHDR(u16 framebuffer_width, u16 framebuffer_height);
-        Texture CreateFramebufferAttachmentDepth(u16 framebuffer_width, u16 framebuffer_height);
+        Texture CreateFramebufferAttachmentHDR(u16 framebuffer_width, u16 framebuffer_height, MSAASamples msaa = MSAASamples::One);
+        Texture CreateFramebufferAttachmentDepth(u16 framebuffer_width, u16 framebuffer_height, MSAASamples msaa = MSAASamples::One);
         Texture CreateCubemap(u16 width, u16 height, u16 mip_levels, TextureFormat format = TextureFormat::RGBA16F);
         void Unload(Texture& texture);
         void Bind(const Texture& texture, u8 slot = 0);

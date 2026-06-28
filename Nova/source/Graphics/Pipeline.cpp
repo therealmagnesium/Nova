@@ -1,6 +1,7 @@
 #include "Graphics/Pipeline.h"
 #include "Graphics/Mesh.h"
 #include "Graphics/Shader.h"
+#include "Graphics/Texture.h"
 #include "Graphics/Window.h"
 
 #include "Core/Application.h"
@@ -14,8 +15,21 @@ namespace Nova::Pipelines
     static SDL_GPUGraphicsPipeline* prev_bound_pipeline = NULL;
     static SDL_GPUGraphicsPipeline* pipelines[pipeline_count];
 
+    SDL_GPUSampleCount MSAASamplesToSDL(MSAASamples msaa); // TODO: Remove this, already defined in Texture.cpp, just not exposed in a clean way yet
+    void InitOutdoorMeshes(const Shader* shader, MSAASamples msaa = MSAASamples::One);
+    void InitOutdoorMeshesSkinned(const Shader* shader, MSAASamples msaa = MSAASamples::One);
+    void InitIndoorMeshes(const Shader* shader, MSAASamples msaa = MSAASamples::One);
+    void InitWireframeMeshes(const Shader* shader, MSAASamples msaa = MSAASamples::One);
+    void InitPostProcessing(const Shader* shader, MSAASamples msaa = MSAASamples::One);
+    void InitEquirectangularToCubemap(const Shader* shader, MSAASamples msaa = MSAASamples::One);
+    void InitIrradiance(const Shader* shader, MSAASamples msaa = MSAASamples::One);
+    void InitPrefilter(const Shader* shader, MSAASamples msaa = MSAASamples::One);
+    void InitBRDF(const Shader* shader, MSAASamples msaa = MSAASamples::One);
+    void InitSkybox(const Shader* shader, MSAASamples msaa = MSAASamples::One);
+
     SDL_GPUGraphicsPipeline* CreateGraphicsPipeline(
         const Shader* shader,
+        MSAASamples msaa,
         SDL_GPUTextureFormat color_target_format,
         bool enable_depth_test,
         bool enable_depth_write,
@@ -24,109 +38,18 @@ namespace Nova::Pipelines
         SDL_GPUFillMode fill_mode
     );
 
-    // --- Pipeline Initialization Functions ---
-
-    void InitOutdoorMeshes(const Shader* shader)
+    void Init(const PipelineShaderInfo& shader_info, MSAASamples msaa)
     {
-        const Window& window = Application::GetWindow();
-        SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat(static_cast<SDL_GPUDevice*>(window.gpu_device), static_cast<SDL_Window*>(window.handle));
-
-        const u8 index = static_cast<u8>(GPUPipeline::OutdoorMeshes);
-        pipelines[index] = CreateGraphicsPipeline(shader, format, true, true, SDL_GPU_COMPAREOP_LESS, SDL_GPU_CULLMODE_BACK, SDL_GPU_FILLMODE_FILL);
-        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Outdoor Meshes pipeline!");
-    }
-
-    void InitOutdoorMeshesSkinned(const Shader* shader)
-    {
-        const Window& window = Application::GetWindow();
-        SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat(static_cast<SDL_GPUDevice*>(window.gpu_device), static_cast<SDL_Window*>(window.handle));
-
-        const u8 index = static_cast<u8>(GPUPipeline::OutdoorMeshesSkinned);
-        pipelines[index] = CreateGraphicsPipeline(shader, format, true, true, SDL_GPU_COMPAREOP_LESS, SDL_GPU_CULLMODE_BACK, SDL_GPU_FILLMODE_FILL);
-        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Outdoor Skinned Meshes pipeline!");
-    }
-
-    void InitIndoorMeshes(const Shader* shader)
-    {
-        const Window& window = Application::GetWindow();
-        SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat(static_cast<SDL_GPUDevice*>(window.gpu_device), static_cast<SDL_Window*>(window.handle));
-
-        const u8 index = static_cast<u8>(GPUPipeline::IndoorMeshes);
-        pipelines[index] = CreateGraphicsPipeline(shader, format, true, true, SDL_GPU_COMPAREOP_LESS, SDL_GPU_CULLMODE_FRONT, SDL_GPU_FILLMODE_FILL);
-        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Indoor Meshes pipeline!");
-    }
-
-    void InitWireframeMeshes(const Shader* shader)
-    {
-        const Window& window = Application::GetWindow();
-        SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat(static_cast<SDL_GPUDevice*>(window.gpu_device), static_cast<SDL_Window*>(window.handle));
-
-        const u8 index = static_cast<u8>(GPUPipeline::WireframeMeshes);
-        pipelines[index] = CreateGraphicsPipeline(shader, format, true, true, SDL_GPU_COMPAREOP_LESS, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_LINE);
-        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Wireframe Meshes pipeline!");
-    }
-
-    void InitPostProcessing(const Shader* shader)
-    {
-        const Window& window = Application::GetWindow();
-        SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat(static_cast<SDL_GPUDevice*>(window.gpu_device), static_cast<SDL_Window*>(window.handle));
-
-        const u8 index = static_cast<u8>(GPUPipeline::PostProcessing);
-        pipelines[index] = CreateGraphicsPipeline(shader, format, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_BACK, SDL_GPU_FILLMODE_FILL);
-        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Post Processing pipeline!");
-    }
-
-    void InitEquirectangularToCubemap(const Shader* shader)
-    {
-        const u8 index = static_cast<u8>(GPUPipeline::IBL_EquirectangularToCubemap);
-        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
-        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Equirectangular to Cubemap pipeline!");
-    }
-
-    void InitIrradiance(const Shader* shader)
-    {
-        const u8 index = static_cast<u8>(GPUPipeline::IBL_Irradiance);
-        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
-        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Irradiance pipeline!");
-    }
-
-    void InitPrefilter(const Shader* shader)
-    {
-        const u8 index = static_cast<u8>(GPUPipeline::IBL_Prefilter);
-        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
-        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Prefilter pipeline!");
-    }
-
-    void InitBRDF(const Shader* shader)
-    {
-        const u8 index = static_cast<u8>(GPUPipeline::IBL_BRDF_Integration);
-        // Note: Targeted to RGBA16F because Textures::CreateFramebufferAttachmentHDR defaults to 4 channels
-        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
-        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create BRDF pipeline!");
-    }
-
-    void InitSkybox(const Shader* shader)
-    {
-        const u8 index = static_cast<u8>(GPUPipeline::IBL_Skybox);
-        // Rendered to the HDR scene buffer (RGBA16F). Depth testing enabled with LESS_OR_EQUAL for the z=w trick. Depth writes disabled.
-        pipelines[index] = CreateGraphicsPipeline(shader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, true, false, SDL_GPU_COMPAREOP_LESS_OR_EQUAL, SDL_GPU_CULLMODE_FRONT, SDL_GPU_FILLMODE_FILL);
-        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Skybox pipeline!");
-    }
-
-    // --- Core Subsystem Logic ---
-
-    void Init(const PipelineShaderInfo& shader_info)
-    {
-        InitOutdoorMeshes(shader_info.outdoor_meshes);
-        InitOutdoorMeshesSkinned(shader_info.outdoor_meshes_skinned);
-        InitIndoorMeshes(shader_info.indoor_meshes);
-        InitWireframeMeshes(shader_info.wireframe_meshes);
+        InitOutdoorMeshes(shader_info.outdoor_meshes, msaa);
+        InitOutdoorMeshesSkinned(shader_info.outdoor_meshes_skinned, msaa);
+        InitIndoorMeshes(shader_info.indoor_meshes, msaa);
+        InitWireframeMeshes(shader_info.wireframe_meshes, msaa);
         InitPostProcessing(shader_info.post_processing);
         InitEquirectangularToCubemap(shader_info.ibl_equirectangular_to_cubemap);
         InitIrradiance(shader_info.ibl_irradiance);
         InitPrefilter(shader_info.ibl_prefilter);
         InitBRDF(shader_info.ibl_brdf);
-        InitSkybox(shader_info.ibl_skybox);
+        InitSkybox(shader_info.ibl_skybox, msaa);
     }
 
     void Shutdown()
@@ -160,6 +83,7 @@ namespace Nova::Pipelines
 
     SDL_GPUGraphicsPipeline* CreateGraphicsPipeline(
         const Shader* shader,
+        MSAASamples msaa,
         SDL_GPUTextureFormat color_target_format,
         bool enable_depth_test,
         bool enable_depth_write,
@@ -223,6 +147,9 @@ namespace Nova::Pipelines
         pipeline_info.depth_stencil_state.enable_depth_write = enable_depth_write;
         pipeline_info.depth_stencil_state.compare_op = depth_compare_op;
 
+        // -- Multisampling --
+        pipeline_info.multisample_state.sample_count = MSAASamplesToSDL(msaa);
+
         // --- Color Blend ---
         SDL_GPUColorTargetBlendState blend = {};
         blend.enable_blend = false;
@@ -243,5 +170,102 @@ namespace Nova::Pipelines
         SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
 
         return SDL_CreateGPUGraphicsPipeline(device, &pipeline_info);
+    }
+
+    SDL_GPUSampleCount MSAASamplesToSDL(MSAASamples msaa)
+    {
+        switch (msaa)
+        {
+            case MSAASamples::One:
+                return SDL_GPU_SAMPLECOUNT_1;
+            case MSAASamples::Two:
+                return SDL_GPU_SAMPLECOUNT_2;
+            case MSAASamples::Four:
+                return SDL_GPU_SAMPLECOUNT_4;
+            case MSAASamples::Eight:
+                return SDL_GPU_SAMPLECOUNT_8;
+        }
+        return SDL_GPU_SAMPLECOUNT_1;
+    }
+
+    // --- Pipeline Initialization Functions ---
+
+    void InitOutdoorMeshes(const Shader* shader, MSAASamples msaa)
+    {
+        const Window& window = Application::GetWindow();
+        const u8 index = static_cast<u8>(GPUPipeline::OutdoorMeshes);
+        pipelines[index] = CreateGraphicsPipeline(shader, msaa, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, true, true, SDL_GPU_COMPAREOP_LESS, SDL_GPU_CULLMODE_BACK, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Outdoor Meshes pipeline!");
+    }
+
+    void InitOutdoorMeshesSkinned(const Shader* shader, MSAASamples msaa)
+    {
+        const Window& window = Application::GetWindow();
+        const u8 index = static_cast<u8>(GPUPipeline::OutdoorMeshesSkinned);
+        pipelines[index] = CreateGraphicsPipeline(shader, msaa, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, true, true, SDL_GPU_COMPAREOP_LESS, SDL_GPU_CULLMODE_BACK, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Outdoor Skinned Meshes pipeline!");
+    }
+
+    void InitIndoorMeshes(const Shader* shader, MSAASamples msaa)
+    {
+        const Window& window = Application::GetWindow();
+        const u8 index = static_cast<u8>(GPUPipeline::IndoorMeshes);
+        pipelines[index] = CreateGraphicsPipeline(shader, msaa, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, true, true, SDL_GPU_COMPAREOP_LESS, SDL_GPU_CULLMODE_FRONT, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Indoor Meshes pipeline!");
+    }
+
+    void InitWireframeMeshes(const Shader* shader, MSAASamples msaa)
+    {
+        const Window& window = Application::GetWindow();
+        const u8 index = static_cast<u8>(GPUPipeline::WireframeMeshes);
+        pipelines[index] = CreateGraphicsPipeline(shader, msaa, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, true, true, SDL_GPU_COMPAREOP_LESS, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_LINE);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Wireframe Meshes pipeline!");
+    }
+
+    void InitPostProcessing(const Shader* shader, MSAASamples msaa)
+    {
+        const Window& window = Application::GetWindow();
+        SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat(static_cast<SDL_GPUDevice*>(window.gpu_device), static_cast<SDL_Window*>(window.handle));
+
+        const u8 index = static_cast<u8>(GPUPipeline::PostProcessing);
+        pipelines[index] = CreateGraphicsPipeline(shader, msaa, format, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_BACK, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Post Processing pipeline!");
+    }
+
+    void InitEquirectangularToCubemap(const Shader* shader, MSAASamples msaa)
+    {
+        const u8 index = static_cast<u8>(GPUPipeline::IBL_EquirectangularToCubemap);
+        pipelines[index] = CreateGraphicsPipeline(shader, msaa, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Equirectangular to Cubemap pipeline!");
+    }
+
+    void InitIrradiance(const Shader* shader, MSAASamples msaa)
+    {
+        const u8 index = static_cast<u8>(GPUPipeline::IBL_Irradiance);
+        pipelines[index] = CreateGraphicsPipeline(shader, msaa, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Irradiance pipeline!");
+    }
+
+    void InitPrefilter(const Shader* shader, MSAASamples msaa)
+    {
+        const u8 index = static_cast<u8>(GPUPipeline::IBL_Prefilter);
+        pipelines[index] = CreateGraphicsPipeline(shader, msaa, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Prefilter pipeline!");
+    }
+
+    void InitBRDF(const Shader* shader, MSAASamples msaa)
+    {
+        const u8 index = static_cast<u8>(GPUPipeline::IBL_BRDF_Integration);
+        // Note: Targeted to RGBA16F because Textures::CreateFramebufferAttachmentHDR defaults to 4 channels
+        pipelines[index] = CreateGraphicsPipeline(shader, msaa, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false, false, SDL_GPU_COMPAREOP_NEVER, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create BRDF pipeline!");
+    }
+
+    void InitSkybox(const Shader* shader, MSAASamples msaa)
+    {
+        const u8 index = static_cast<u8>(GPUPipeline::IBL_Skybox);
+        // Rendered to the HDR scene buffer (RGBA16F). Depth testing enabled with LESS_OR_EQUAL for the z=w trick. Depth writes disabled.
+        pipelines[index] = CreateGraphicsPipeline(shader, msaa, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, true, false, SDL_GPU_COMPAREOP_LESS_OR_EQUAL, SDL_GPU_CULLMODE_FRONT, SDL_GPU_FILLMODE_FILL);
+        if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Skybox pipeline!");
     }
 }

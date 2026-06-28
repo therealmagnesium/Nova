@@ -27,6 +27,7 @@ namespace Nova
     {
         glm::vec4 clear_color = glm::vec4(0.f, 0.f, 0.f, 1.f);
         TextureHandle texture = NULL;
+        TextureHandle texture_msaa_resolve = NULL;
         GPULoadOp load_op = GPULoadOp::Load;
         GPUStoreOp store_op = GPUStoreOp::Store;
         u8 layer = 0;
