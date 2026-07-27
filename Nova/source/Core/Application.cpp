@@ -55,10 +55,15 @@ namespace Nova::Application
 
         context = &app;
         app.is_running = true;
-
         app.config.callbacks.on_create();
+
+        u64 ticks_previous = SDL_GetTicksNS();
         while (app.is_running)
         {
+            const u64 ticks_current = SDL_GetTicksNS();
+            app.delta_time = static_cast<float>(ticks_current - ticks_previous) / 1e9f;
+            ticks_previous = ticks_current;
+
             Windows::HandleEvents(app.window);
             app.config.callbacks.on_event();
             app.config.callbacks.on_update();
@@ -73,6 +78,7 @@ namespace Nova::Application
         app.config.callbacks.on_shutdown();
     }
 
+    float GetDeltaTime() { return context->delta_time; }
     u16 GetScreenWidth() { return context->config.screen_width; }
     u16 GetScreenHeight() { return context->config.screen_height; }
     MSAASamples GetMSAASamples() { return context->config.msaa; }

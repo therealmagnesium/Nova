@@ -27,8 +27,9 @@ namespace Nova
 
     struct App
     {
-        Window window;
         AppConfig config;
+        Window window;
+        float delta_time = 0.f;
         bool is_running = false;
         bool is_valid = false;
     };
@@ -42,6 +43,7 @@ namespace Nova
         void Run(App& app);
         void Shutdown(App& app);
 
+        float GetDeltaTime();
         u16 GetScreenWidth();
         u16 GetScreenHeight();
         MSAASamples GetMSAASamples();

@@ -5,6 +5,8 @@
 #include "Core/KeyCodes.h"
 #include "Core/Log.h"
 
+#include "Graphics/Animation.h"
+#include "Graphics/Animator.h"
 #include "Graphics/Buffers.h"
 #include "Graphics/Camera.h"
 #include "Graphics/IBL.h"

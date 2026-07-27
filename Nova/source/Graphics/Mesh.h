@@ -16,6 +16,16 @@ namespace Nova
         glm::vec3 tangent;  // Attribute 3
     };
 
+    struct VertexSkinned
+    {
+        glm::vec3 position;                      // Attribute 0
+        glm::vec3 normal;                        // Attribute 1
+        glm::vec2 uv;                            // Attribute 2
+        glm::vec3 tangent;                       // Attribute 3
+        glm::uvec4 bone_ids = glm::uvec4(0);     // Attribute 4
+        glm::vec4 bone_weights = glm::vec4(0.f); // Attribute 5
+    };
+
     struct Material
     {
         glm::vec4 albedo = glm::vec4(1.f);
@@ -43,6 +53,7 @@ namespace Nova
     namespace Meshes
     {
         Mesh Create(const Vertex* vertices, u32 vertex_count, const u32* indices, u32 index_count);
+        Mesh CreateSkinned(const VertexSkinned* vertices, u32 vertex_count, const u32* indices, u32 index_count);
         Mesh GenerateQuad();
         Mesh GenerateCube();
         Mesh GenerateSphere(u32 segment_count, u32 ring_count);

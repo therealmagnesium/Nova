@@ -1,31 +1,34 @@
 #pragma once
+#include "Graphics/Animation.h"
+#include "Graphics/Mesh.h"
+
 #include <filesystem>
 #include <vector>
 
 namespace Nova
 {
-    struct Material;
-    struct Mesh;
-    struct Texture;
-
     struct Model
     {
-        std::vector<Material> materials;
         std::vector<Mesh> meshes;
+        std::vector<Material> materials;
+    };
 
-        /*
-        Model() = default;
-        Model(const Model&) = delete;
-        Model& operator=(const Model&) = delete;
-        Model(Model&&) = default;
-        Model& operator=(Model&&) = default;*/
+    struct AnimatedModel
+    {
+        Skeleton skeleton;
+        std::vector<Mesh> meshes;
+        std::vector<Material> materials;
     };
 
     inline const Model Stub_Model;
+    inline const AnimatedModel Stub_AnimatedModel;
 
     namespace Models
     {
         Model Load(const std::filesystem::path& path);
         void Unload(Model& model);
+
+        AnimatedModel LoadAnimated(const std::filesystem::path& path);
+        void UnloadAnimated(AnimatedModel& model);
     }
 }

@@ -1,4 +1,5 @@
 #include "Graphics/Renderer.h"
+#include "Graphics/Animator.h"
 #include "Graphics/Camera.h"
 #include "Graphics/IBL.h"
 #include "Graphics/Mesh.h"
@@ -17,10 +18,23 @@
 
 namespace Nova::Renderer
 {
+    static constexpr u32 MAX_ANIMATED_DRAWS_PER_FRAME = 64;
+
     struct SwapchainTexture
     {
         TextureHandle handle = NULL;
         Texture metadata;
+    };
+
+    // A fixed pool of pre-allocated SSBOs for skinning matrices, one slot per animated draw
+    // call in a frame. Pre-allocating avoids creating/destroying a GPU buffer on every single
+    // DrawAnimatedModel call; BeginFrame just rewinds next_slot back to 0. If a scene needs
+    // more than MAX_ANIMATED_DRAWS_PER_FRAME simultaneous animated draws, bump the constant -
+    // it's a small, fixed amount of VRAM (MAX_ANIMATED_DRAWS_PER_FRAME * MAX_BONES * 64 bytes).
+    struct BoneMatrixPool
+    {
+        GPUBuffer buffers[MAX_ANIMATED_DRAWS_PER_FRAME];
+        u32 next_slot = 0;
     };
 
     struct RenderState
@@ -37,6 +51,7 @@ namespace Nova::Renderer
         RenderPassHandle active_render_pass = NULL;
         Camera3D* primary_camera = NULL;
         SDL_GPUCommandBuffer* command_buffer = NULL;
+        BoneMatrixPool bone_matrix_pool;
         u32 vertex_buffer_count = 0;
         u32 index_buffer_count = 0;
         u32 storage_buffer_count = 0;
@@ -68,10 +83,12 @@ namespace Nova::Renderer
     {
         LightData data_light;
         MaterialData data_material;
-        glm::vec3 camera_position;
+        glm::vec4 camera_position;
     };
 
     static RenderState state;
+
+    void DrawSkinnedMesh(const Mesh& mesh, const glm::mat4& transform, const Material& material, const GPUBuffer& bone_matrix_buffer);
 
     void Init()
     {
@@ -81,6 +98,14 @@ namespace Nova::Renderer
             .storage_buffer_count = 0,
             .storage_texture_count = 0
         };
+
+        const auto info_skinned_scene_vertex = (ShaderStorageInfo){
+            .sampler_count = 0,
+            .uniform_buffer_count = 1,
+            .storage_buffer_count = 1, // Bone matrices SSBO
+            .storage_texture_count = 0
+        };
+
         const auto info_scene_fragment = (ShaderStorageInfo){
             .sampler_count = 7,
             .uniform_buffer_count = 1,
@@ -120,6 +145,7 @@ namespace Nova::Renderer
         };
 
         Shader shader_pbr = Shaders::Load("Assets/Shaders/Compiled/PBR_vs.spv", "Assets/Shaders/Compiled/PBR_fs.spv", info_scene_vertex, info_scene_fragment);
+        Shader shader_pbr_skinned = Shaders::Load("Assets/Shaders/Compiled/SkinnedPBR_vs.spv", "Assets/Shaders/Compiled/PBR_fs.spv", info_skinned_scene_vertex, info_scene_fragment);
         Shader shader_compositing = Shaders::Load("Assets/Shaders/Compiled/Compositing_vs.spv", "Assets/Shaders/Compiled/Compositing_fs.spv", info_compositing_vertex, info_compositing_fragment);
         Shader shader_hdri_to_cubemap = Shaders::Load("Assets/Shaders/Compiled/Cubemap_vs.spv", "Assets/Shaders/Compiled/EquirectangularToCubemap_fs.spv", info_ibl_vertex, info_ibl_fragment);
         Shader shader_irradiance = Shaders::Load("Assets/Shaders/Compiled/Cubemap_vs.spv", "Assets/Shaders/Compiled/Irradiance_fs.spv", info_ibl_vertex, info_ibl_fragment);
@@ -130,7 +156,7 @@ namespace Nova::Renderer
         // Initialize all of the graphics pipelines
         const auto shader_info = (PipelineShaderInfo){
             .outdoor_meshes = &shader_pbr,
-            .outdoor_meshes_skinned = &shader_pbr,
+            .outdoor_meshes_skinned = &shader_pbr_skinned,
             .indoor_meshes = &shader_pbr,
             .wireframe_meshes = &shader_pbr,
             .post_processing = &shader_compositing,
@@ -146,6 +172,7 @@ namespace Nova::Renderer
 
         // Shader resources not needed after the pipelines are initialized
         Shaders::Unload(shader_pbr);
+        Shaders::Unload(shader_pbr_skinned);
         Shaders::Unload(shader_compositing);
         Shaders::Unload(shader_hdri_to_cubemap);
         Shaders::Unload(shader_irradiance);
@@ -163,6 +190,12 @@ namespace Nova::Renderer
 
         state.mesh_screen = Meshes::GenerateQuad();
         state.mesh_skybox = Meshes::GenerateCube();
+
+        // Pre-allocate every bone matrix pool slot up front - see BoneMatrixPool's comment above.
+        const u32 bone_buffer_size = static_cast<u32>(sizeof(glm::mat4) * MAX_BONES);
+        for (u32 i = 0; i < MAX_ANIMATED_DRAWS_PER_FRAME; i++)
+            state.bone_matrix_pool.buffers[i] = Buffers::Create(GPUBufferType::Storage, bone_buffer_size);
+
         INFO("The renderer initialized successfully with %d graphics pipelines", GPUPipeline::_Length);
     }
 
@@ -175,6 +208,10 @@ namespace Nova::Renderer
         Textures::Unload(state.texture_default_normal);
         Textures::Unload(state.texture_depth_stencil);
         Textures::FreeSamplers();
+
+        for (u32 i = 0; i < MAX_ANIMATED_DRAWS_PER_FRAME; i++)
+            Buffers::Destroy(state.bone_matrix_pool.buffers[i]);
+
         Pipelines::Shutdown();
     }
 
@@ -214,6 +251,7 @@ namespace Nova::Renderer
         state.texture_swapchain.metadata.width = swapchain_width;
         state.texture_swapchain.metadata.height = swapchain_height;
         state.texture_swapchain.metadata.channel_count = 4;
+        state.bone_matrix_pool.next_slot = 0;
 
         return true;
     }
@@ -290,7 +328,7 @@ namespace Nova::Renderer
                 .albedo = albedo_linear,
                 .pbr = glm::vec4(material.texture_metallic.IsValid() ? 1.f : material.metallic, material.texture_roughness.IsValid() ? 1.f : material.roughness, 0.f, 0.f),
             },
-            .camera_position = state.primary_camera->position,
+            .camera_position = glm::vec4(state.primary_camera->position, 0.f),
         };
 
         SDL_PushGPUVertexUniformData(state.command_buffer, 0, &mvp_data, sizeof(MVPData));
@@ -307,6 +345,80 @@ namespace Nova::Renderer
         }
     }
 
+    void DrawAnimatedModel(const AnimatedModel& model, const Animator& animator, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
+    {
+        if (state.active_render_pass == NULL || state.primary_camera == NULL || !animator.IsValid())
+            return;
+
+        if (state.bone_matrix_pool.next_slot >= MAX_ANIMATED_DRAWS_PER_FRAME)
+        {
+            WARN("%s", "Renderer::DrawAnimatedModel - Exceeded MAX_ANIMATED_DRAWS_PER_FRAME, dropping draw call! Consider raising the pool size.");
+            return;
+        }
+
+        GPUBuffer& bone_matrix_buffer = state.bone_matrix_pool.buffers[state.bone_matrix_pool.next_slot++];
+        Buffers::Upload(bone_matrix_buffer, animator.bone_matrices, static_cast<u32>(sizeof(glm::mat4) * MAX_BONES));
+
+        const glm::mat4 transform = Meshes::CalculateTransform(position, rotation, scale);
+        for (const Mesh& mesh : model.meshes)
+            DrawSkinnedMesh(mesh, transform, model.materials[mesh.material_index], bone_matrix_buffer);
+    }
+
+    void DrawSkinnedMesh(const Mesh& mesh, const glm::mat4& transform, const Material& material, const GPUBuffer& bone_matrix_buffer)
+    {
+        if (mesh.buffer_vertex.handle == NULL || mesh.buffer_index.handle == NULL)
+            return;
+
+        // NOTE: Skinned meshes always use their assigned pipeline (GPUPipeline::OutdoorMeshesSkinned),
+        // ignoring ToggleWireframeMode() - the static WireframeMeshes pipeline expects the 4-attribute
+        // static Vertex layout and would read garbage from a 6-attribute SkinnedVertex buffer. Add a
+        // WireframeMeshesSkinned pipeline (mirroring InitOutdoorMeshesSkinned) if wireframe support is needed here.
+        Pipelines::Bind(mesh.pipeline, state.active_render_pass);
+        Buffers::Bind(mesh.buffer_vertex);
+        Buffers::Bind(mesh.buffer_index);
+        Buffers::Bind(bone_matrix_buffer, 0);
+
+        Textures::Bind(material.texture_albedo.IsValid() ? material.texture_albedo : state.texture_default_white, 0);
+        Textures::Bind(material.texture_normal.IsValid() ? material.texture_normal : state.texture_default_normal, 1);
+        Textures::Bind(material.texture_metallic.IsValid() ? material.texture_metallic : state.texture_default_white, 2);
+        Textures::Bind(material.texture_roughness.IsValid() ? material.texture_roughness : state.texture_default_white, 3);
+
+        if (state.active_environment_map != NULL && state.active_environment_map->IsValid())
+        {
+            Textures::Bind(state.active_environment_map->irradiance, 4);
+            Textures::Bind(state.active_environment_map->prefilter, 5);
+            Textures::Bind(state.active_environment_map->brdf_lut, 6);
+        }
+        else
+        {
+            Textures::Bind(state.texture_default_white, 4);
+            Textures::Bind(state.texture_default_white, 5);
+            Textures::Bind(state.texture_default_white, 6);
+        }
+
+        const auto mvp_data = (MVPData){
+            .matrix_model = transform,
+            .matrix_view_projection = state.matrix_projection * state.matrix_view,
+            .matrix_normal = glm::transpose(glm::inverse(transform))
+        };
+
+        const auto albedo_linear = glm::vec4(powf(material.albedo.r, 2.2f), powf(material.albedo.g, 2.2f), powf(material.albedo.b, 2.2f), powf(material.albedo.a, 2.2f));
+        const auto frag_data = (FragmentData){
+            .data_light = (LightData){
+                .direction_intensity = glm::vec4(-0.4f, -1.f, -0.8f, 4.f),
+                .color = glm::vec4(0.98f, 0.96f, 0.92f, 1.f),
+            },
+            .data_material = (MaterialData){
+                .albedo = albedo_linear,
+                .pbr = glm::vec4(material.texture_metallic.IsValid() ? 1.f : material.metallic, material.texture_roughness.IsValid() ? 1.f : material.roughness, 0.f, 0.f),
+            },
+            .camera_position = glm::vec4(state.primary_camera->position, 0.f),
+        };
+
+        SDL_PushGPUVertexUniformData(state.command_buffer, 0, &mvp_data, sizeof(MVPData));
+        SDL_PushGPUFragmentUniformData(state.command_buffer, 0, &frag_data, sizeof(FragmentData));
+        SDL_DrawGPUIndexedPrimitives(static_cast<SDL_GPURenderPass*>(state.active_render_pass), mesh.index_count, 1, 0, 0, 0);
+    }
     void DrawTextureCompositing(const Texture& screen_texture)
     {
         const RenderPassHandle render_pass = Renderer::GetActiveRenderPass();

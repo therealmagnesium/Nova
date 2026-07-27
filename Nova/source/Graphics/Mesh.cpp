@@ -22,6 +22,30 @@ namespace Nova::Meshes
 
         mesh.vertex_count = vertex_count;
         mesh.index_count = index_count;
+        mesh.pipeline = GPUPipeline::OutdoorMeshes;
+
+        return mesh;
+    }
+
+    Mesh CreateSkinned(const VertexSkinned* vertices, u32 vertex_count, const u32* indices, u32 index_count)
+    {
+        if (vertices == NULL || indices == NULL)
+            return Stub_Mesh;
+
+        const u64 size_vertex_buffer = sizeof(VertexSkinned) * vertex_count;
+        const u64 size_index_buffer = sizeof(u32) * index_count;
+
+        Mesh mesh;
+
+        mesh.buffer_vertex = Buffers::Create(GPUBufferType::Vertex, size_vertex_buffer);
+        mesh.buffer_index = Buffers::Create(GPUBufferType::Index, size_index_buffer);
+
+        Buffers::Upload(mesh.buffer_vertex, vertices, size_vertex_buffer);
+        Buffers::Upload(mesh.buffer_index, indices, size_index_buffer);
+
+        mesh.vertex_count = vertex_count;
+        mesh.index_count = index_count;
+        mesh.pipeline = GPUPipeline::OutdoorMeshesSkinned;
 
         return mesh;
     }

@@ -63,14 +63,24 @@ namespace Nova::Buffers
     void Bind(const GPUBuffer& buffer, u32 slot)
     {
         SDL_GPURenderPass* render_pass = static_cast<SDL_GPURenderPass*>(Renderer::GetActiveRenderPass());
-        SDL_GPUBufferBinding binding = {};
-        binding.buffer = static_cast<SDL_GPUBuffer*>(buffer.handle);
-        binding.offset = 0;
+        SDL_GPUBuffer* handle = static_cast<SDL_GPUBuffer*>(buffer.handle);
+        const auto binding = (SDL_GPUBufferBinding){
+            .buffer = handle,
+            .offset = 0
+        };
 
-        if (buffer.type == GPUBufferType::Vertex)
-            SDL_BindGPUVertexBuffers(render_pass, slot, &binding, 1);
-        else
-            SDL_BindGPUIndexBuffer(render_pass, &binding, SDL_GPU_INDEXELEMENTSIZE_32BIT);
+        switch (buffer.type)
+        {
+            case GPUBufferType::Vertex:
+                SDL_BindGPUVertexBuffers(render_pass, slot, &binding, 1);
+                break;
+            case GPUBufferType::Index:
+                SDL_BindGPUIndexBuffer(render_pass, &binding, SDL_GPU_INDEXELEMENTSIZE_32BIT);
+                break;
+            case GPUBufferType::Storage:
+                SDL_BindGPUVertexStorageBuffers(render_pass, slot, &handle, 1);
+                break;
+        }
     }
 
     void Upload(GPUBuffer& buffer, const void* data, u32 size)
