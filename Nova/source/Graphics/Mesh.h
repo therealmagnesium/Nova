@@ -8,6 +8,17 @@
 
 namespace Nova
 {
+    enum class PrimitiveMesh : u8
+    {
+        None = 0,
+        Cube,
+        Sphere,
+        Plane,
+        Cone,
+        Pyramid,
+        Torus,
+    };
+
     struct Vertex
     {
         glm::vec3 position; // Attribute 0
@@ -47,7 +58,6 @@ namespace Nova
         GPUPipeline pipeline = GPUPipeline::OutdoorMeshes;
     };
 
-    inline const Mesh Stub_Mesh;
     inline const Material Stub_Material;
 
     namespace Meshes

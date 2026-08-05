@@ -40,7 +40,7 @@ namespace Nova::Models
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
         {
             ERROR("Models::Load - Failed to load model \"%s\" and gave an Assimp error: \"%s\"!", path_full.c_str(), importer.GetErrorString());
-            return Stub_Model;
+            return {};
         }
 
         const u32 mesh_count = CountNodeMeshReferences(scene->mRootNode);
@@ -84,7 +84,7 @@ namespace Nova::Models
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
         {
             ERROR("Models::LoadAnimated - Failed to load animated model \"%s\" and gave an Assimp error: \"%s\"!", path_full.c_str(), importer.GetErrorString());
-            return Stub_AnimatedModel;
+            return {};
         }
 
         model.skeleton.global_inverse_transform = glm::inverse(AssimpToGLMMat4(scene->mRootNode->mTransformation));
@@ -248,7 +248,7 @@ namespace Nova::Models
         for (u32 i = 0; i < ai_material->GetTextureCount(aiTextureType_DIFFUSE); i++)
         {
             aiString ai_path;
-            ai_material->GetTexture(aiTextureType_DIFFUSE, 0, &ai_path);
+            ai_material->GetTexture(aiTextureType_DIFFUSE, i, &ai_path);
 
             const aiTexture* embedded_texture = ai_scene->GetEmbeddedTexture(ai_path.C_Str());
             if (embedded_texture != NULL && embedded_texture->mHeight == 0)
@@ -272,7 +272,7 @@ namespace Nova::Models
         for (u32 i = 0; i < ai_material->GetTextureCount(aiTextureType_NORMALS); i++)
         {
             aiString ai_path;
-            ai_material->GetTexture(aiTextureType_NORMALS, 0, &ai_path);
+            ai_material->GetTexture(aiTextureType_NORMALS, i, &ai_path);
 
             const aiTexture* embedded_texture = ai_scene->GetEmbeddedTexture(ai_path.C_Str());
             if (embedded_texture != NULL && embedded_texture->mHeight == 0)
@@ -296,7 +296,7 @@ namespace Nova::Models
         for (u32 i = 0; i < ai_material->GetTextureCount(aiTextureType_METALNESS); i++)
         {
             aiString ai_path;
-            ai_material->GetTexture(aiTextureType_METALNESS, 0, &ai_path);
+            ai_material->GetTexture(aiTextureType_METALNESS, i, &ai_path);
 
             const aiTexture* embedded_texture = ai_scene->GetEmbeddedTexture(ai_path.C_Str());
             if (embedded_texture != NULL && embedded_texture->mHeight == 0)
@@ -320,7 +320,7 @@ namespace Nova::Models
         for (u32 i = 0; i < ai_material->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS); i++)
         {
             aiString ai_path;
-            ai_material->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &ai_path);
+            ai_material->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, i, &ai_path);
 
             const aiTexture* embedded_texture = ai_scene->GetEmbeddedTexture(ai_path.C_Str());
             if (embedded_texture != NULL && embedded_texture->mHeight == 0)

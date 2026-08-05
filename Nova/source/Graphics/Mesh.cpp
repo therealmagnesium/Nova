@@ -7,7 +7,7 @@ namespace Nova::Meshes
     Mesh Create(const Vertex* vertices, u32 vertex_count, const u32* indices, u32 index_count)
     {
         if (vertices == NULL || indices == NULL)
-            return Stub_Mesh;
+            return {};
 
         const u64 size_vertex_buffer = sizeof(Vertex) * vertex_count;
         const u64 size_index_buffer = sizeof(u32) * index_count;
@@ -30,7 +30,7 @@ namespace Nova::Meshes
     Mesh CreateSkinned(const VertexSkinned* vertices, u32 vertex_count, const u32* indices, u32 index_count)
     {
         if (vertices == NULL || indices == NULL)
-            return Stub_Mesh;
+            return {};
 
         const u64 size_vertex_buffer = sizeof(VertexSkinned) * vertex_count;
         const u64 size_index_buffer = sizeof(u32) * index_count;
@@ -125,7 +125,7 @@ namespace Nova::Meshes
     {
         // Sanity bounds check for topology generation
         if (segment_count < 3 || ring_count < 2)
-            return Stub_Mesh;
+            return {};
 
         std::vector<Vertex> vertices;
         std::vector<u32> indices;

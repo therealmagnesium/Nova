@@ -1,4 +1,5 @@
 #pragma once
+#include "Core/AssetManager.h"
 #include "Core/Base.h"
 #include "Graphics/Window.h"
 #include "Graphics/Texture.h"
@@ -28,6 +29,7 @@ namespace Nova
     struct App
     {
         AppConfig config;
+        AssetCollection assets;
         Window window;
         float delta_time = 0.f;
         bool is_running = false;

@@ -11,16 +11,15 @@ namespace PlayerAnimations
     enum : u8
     {
         Idle = 0,
-        Run,
-        Dancing,
-        Flair,
+        Walking,
+        Running,
         _Length
     };
 }
 
 struct GameState
 {
-    AnimatedModel model_man;
+    AnimatedModel model_xbot;
     AnimationClip clips[PlayerAnimations::_Length];
     Animator animator;
     u8 clip_index = PlayerAnimations::Idle;
@@ -30,6 +29,7 @@ struct GameState
     Model model_mario;
 
     EnvironmentMap environment_map;
+    DirectionalLight sun;
     Camera3D camera;
     Texture attachment_hdr;
     Texture attachment_resolve;
@@ -47,22 +47,26 @@ namespace Game
     void OnCreate()
     {
         // Bake the environment and generate meshes
-        state.environment_map = IBL::BakeFromHDRI("Assets/HDRIs/puresky_cloudy.hdr");
+        state.environment_map = IBL::BakeFromHDRI("Assets/HDRIs/puresky_citrus.hdr");
         state.model_mario = Models::Load("Assets/Models/Mario.fbx");
         state.mesh_sphere = Meshes::GenerateSphere(64, 32);
-        state.material.albedo = glm::vec4(1.f, 0.f, 0.f, 1.f);
 
-        state.model_man = Models::LoadAnimated("Assets/Models/Man.fbx");
+        state.model_xbot = Models::LoadAnimated("Assets/Models/X-Bot.fbx");
         state.clips[PlayerAnimations::Idle] = Animations::Load("Assets/Animations/Idle.fbx");
-        state.clips[PlayerAnimations::Run] = Animations::Load("Assets/Animations/Run.fbx");
-        state.clips[PlayerAnimations::Dancing] = Animations::Load("Assets/Animations/Dancing.fbx");
-        state.clips[PlayerAnimations::Flair] = Animations::Load("Assets/Animations/Flair.fbx");
+        state.clips[PlayerAnimations::Walking] = Animations::Load("Assets/Animations/Walking.fbx");
+        state.clips[PlayerAnimations::Running] = Animations::Load("Assets/Animations/Running.fbx");
+
+        state.animator = Animators::Create(state.model_xbot.skeleton);
 
         for (const AnimationClip& clip : state.clips)
-            Animations::Bind(clip, state.model_man.skeleton);
+            Animations::Bind(clip, state.model_xbot.skeleton);
 
-        state.animator = Animators::Create(state.model_man.skeleton);
         Animators::Play(state.animator, state.clips[state.clip_index]);
+
+        state.sun.direction = glm::vec3(-0.7f, -1.f, -0.25f);
+        state.sun.color = glm::vec4(1.f, 0.92f, 0.86f, 1.f);
+        state.sun.intensity = 2.f;
+        Renderer::SetSun(state.sun);
 
         // Create the HDR framebuffer attachments
         const Window& window = Application::GetWindow();
@@ -101,12 +105,12 @@ namespace Game
         if (Input::IsKeyPressed(KEY_C))
         {
             WARN("Position: " V3_FMT, V3_OPEN(state.camera.position));
-            WARN("Yaw - %f, Pitch - %f", state.camera.yaw, state.camera.pitch);
+            WARN("Target: " V3_FMT, V3_OPEN(state.camera.target));
         }
 
         if (Input::IsKeyPressed(KEY_N))
         {
-            const float transition_duration = 0.2f;
+            const float transition_duration = 0.25f;
             state.clip_index = (state.clip_index + 1) % PlayerAnimations::_Length;
             Animators::CrossfadeTo(state.animator, state.clips[state.clip_index], transition_duration);
         }
@@ -118,7 +122,7 @@ namespace Game
         if (Windows::IsMinimized(window))
             return;
 
-        Cameras::UpdateEditor(state.camera, 0.2f, 1.f); // TODO: Add a scene camera to enable switching between editing and runtime
+        Cameras::UpdateEditor(state.camera, 2.f, 12.f); // TODO: Add a scene camera to enable switching between editing and runtime
         Animators::Update(state.animator, Application::GetDeltaTime());
     }
 
@@ -139,7 +143,7 @@ namespace Game
         for (AnimationClip& clip : state.clips)
             Animations::Unload(clip);
 
-        Models::UnloadAnimated(state.model_man);
+        Models::UnloadAnimated(state.model_xbot);
 
         Models::Unload(state.model_mario);
         Meshes::Destroy(state.mesh_sphere);
@@ -153,9 +157,7 @@ namespace Game
     void ResetEditorCamera()
     {
         state.camera.position = glm::vec3(-9.769f, 1.474f, 15.054f);
-        state.camera.up = glm::vec3(0.f, 1.f, 0.f);
-        state.camera.yaw = -63.765625f;
-        state.camera.pitch = -7.187500f;
+        state.camera.target = glm::vec3(-5.383f, 0.223f, 6.155f);
         state.camera.fov = 75.f;
         state.camera.clip_near = 0.1f;
         state.camera.clip_far = 50.f;
@@ -203,7 +205,7 @@ namespace Game
         }
 
         Renderer::DrawModel(state.model_mario, glm::vec3(-2.f, 0.f, 4.f));
-        Renderer::DrawAnimatedModel(state.model_man, state.animator, glm::vec3(2.f, 0.f, 4.f));
+        Renderer::DrawAnimatedModel(state.model_xbot, state.animator, glm::vec3(2.f, 0.f, 4.f));
 
         Renderer::DrawSkybox(state.environment_map);
         RenderPasses::End(scene_pass);

@@ -1,4 +1,5 @@
 #pragma once
+#include "Core/Asset.h"
 #include "Core/Base.h"
 
 #include <glm/glm.hpp>
@@ -90,7 +91,7 @@ namespace Nova
     };
 
     // A reusable animation asset, independent of any specific skeleton.
-    struct AnimationClip
+    struct AnimationClip : public Asset
     {
         std::string name;
         float duration = 0.f; // In ticks

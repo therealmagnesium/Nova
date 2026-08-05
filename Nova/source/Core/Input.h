@@ -30,10 +30,11 @@ namespace Nova
         void Reset();
         void Capture(bool shouldCapture);
 
-        void Callback_OnKeyHeld(void* event);
-        void Callback_OnKeyReleased(void* event);
-        void Callback_OnMouseMove(void* event);
-        void Callback_OnMouseButtonHeld(void* event);
-        void Callback_OnMouseButtonReleased(void* event);
+        void Callback_OnKeyHeld(const void* event);
+        void Callback_OnKeyReleased(const void* event);
+        void Callback_OnMouseMove(const void* event);
+        void Callback_OnMouseButtonHeld(const void* event);
+        void Callback_OnMouseButtonReleased(const void* event);
+        void Callback_OnMouseScroll(const void* event);
     }
 }

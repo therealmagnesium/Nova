@@ -105,44 +105,51 @@ namespace Nova::Input
 
     void Capture(bool shouldCapture) { state.shouldCapture = shouldCapture; }
 
-    void Callback_OnKeyHeld(void* event)
+    void Callback_OnKeyHeld(const void* event)
     {
-        SDL_Event* sdl_event = (SDL_Event*)event;
+        const SDL_Event* sdl_event = (SDL_Event*)event;
         state.keyboard.keysPressed[sdl_event->key.scancode] = !state.keyboard.keysHeld[sdl_event->key.scancode];
         state.keyboard.keysHeld[sdl_event->key.scancode] = true;
         state.keyboard.keysReleased[sdl_event->key.scancode] = false;
     }
 
-    void Callback_OnKeyReleased(void* event)
+    void Callback_OnKeyReleased(const void* event)
     {
-        SDL_Event* sdl_event = (SDL_Event*)event;
+        const SDL_Event* sdl_event = (SDL_Event*)event;
         state.keyboard.keysPressed[sdl_event->key.scancode] = false;
         state.keyboard.keysHeld[sdl_event->key.scancode] = false;
         state.keyboard.keysReleased[sdl_event->key.scancode] = true;
     }
 
-    void Callback_OnMouseMove(void* event)
+    void Callback_OnMouseMove(const void* event)
     {
-        SDL_Event* sdl_event = (SDL_Event*)event;
+        const SDL_Event* sdl_event = (SDL_Event*)event;
         state.mouse.position.x = sdl_event->motion.x;
         state.mouse.position.y = sdl_event->motion.y;
         state.mouse.relative.x = sdl_event->motion.xrel;
         state.mouse.relative.y = sdl_event->motion.yrel;
     }
 
-    void Callback_OnMouseButtonHeld(void* event)
+    void Callback_OnMouseButtonHeld(const void* event)
     {
-        SDL_Event* sdl_event = (SDL_Event*)event;
+        const SDL_Event* sdl_event = (SDL_Event*)event;
         state.mouse.buttonsClicked[sdl_event->button.button] = !state.mouse.buttonsHeld[sdl_event->button.button];
         state.mouse.buttonsHeld[sdl_event->button.button] = true;
         state.mouse.buttonsReleased[sdl_event->button.button] = false;
     }
 
-    void Callback_OnMouseButtonReleased(void* event)
+    void Callback_OnMouseButtonReleased(const void* event)
     {
-        SDL_Event* sdl_event = (SDL_Event*)event;
+        const SDL_Event* sdl_event = (SDL_Event*)event;
         state.mouse.buttonsClicked[sdl_event->button.button] = false;
         state.mouse.buttonsHeld[sdl_event->button.button] = false;
         state.mouse.buttonsReleased[sdl_event->button.button] = true;
+    }
+
+    void Callback_OnMouseScroll(const void* event)
+    {
+        const SDL_Event* sdl_event = (SDL_Event*)event;
+        state.mouse.scroll.x = sdl_event->wheel.x;
+        state.mouse.scroll.y = sdl_event->wheel.y;
     }
 }

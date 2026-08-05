@@ -10,6 +10,7 @@ namespace Nova
     struct AnimatedModel;
     struct Animator;
     struct Camera3D;
+    struct DirectionalLight;
     struct EnvironmentMap;
     struct Material;
     struct Mesh;
@@ -41,6 +42,7 @@ namespace Nova
         const Mesh& GetMeshSkybox();     // TEMPORARY - Bad design!
         const Mesh& GetMeshScreenQuad(); // TEMPORARY - Bad design!
 
+        void SetSun(const DirectionalLight& sun);
         void SetExposure(float exposure);
         void SetActiveRenderPass(RenderPassHandle render_pass);
         void SetPrimaryCamera(Camera3D* camera);

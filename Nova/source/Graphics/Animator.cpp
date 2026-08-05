@@ -14,8 +14,8 @@ namespace Nova::Animators
 
     const BoundAnimationClip* ResolveBinding(Animator& animator, const AnimationClip& clip);
     void AdvanceTrackTime(AnimationTrack& track, float delta_time);
-    glm::vec3 SampleVec3Keys(const std::vector<Vec3Key>& keys, float time);
-    glm::quat SampleQuatKeys(const std::vector<QuatKey>& keys, float time);
+    glm::vec3 SampleVec3Keys(const std::vector<Vec3Key>& keys, float time, float duration, bool loop);
+    glm::quat SampleQuatKeys(const std::vector<QuatKey>& keys, float time, float duration, bool loop);
     void SampleTrackIntoLocalTRS(const AnimationTrack& track, BoneLocalTRS* out_local_trs, u32 bone_count);
     void ResetToBindPose(const Skeleton& skeleton, BoneLocalTRS* out_local_trs);
     glm::mat4 ResolveBoneWorldTransform(u32 bone_index, const Skeleton& skeleton, const glm::mat4* local_transforms, glm::mat4* world_transforms, bool* resolved, const glm::mat4& root_motion_transform, bool has_root_motion);
@@ -96,9 +96,11 @@ namespace Nova::Animators
         {
             const AnimationTrack& track = animator.track_current;
             const BoneChannel& root_motion_channel = track.binding->clip->channels[track.binding->root_motion_channel_index];
-            const glm::vec3 root_motion_translation = SampleVec3Keys(root_motion_channel.position_keys, track.time);
-            const glm::quat root_motion_rotation = SampleQuatKeys(root_motion_channel.rotation_keys, track.time);
-            const glm::vec3 root_motion_scale = SampleVec3Keys(root_motion_channel.scale_keys, track.time);
+
+            const glm::vec3 root_motion_translation = SampleVec3Keys(root_motion_channel.position_keys, track.time, track.binding->clip->duration, track.loop);
+            const glm::quat root_motion_rotation = SampleQuatKeys(root_motion_channel.rotation_keys, track.time, track.binding->clip->duration, track.loop);
+            const glm::vec3 root_motion_scale = SampleVec3Keys(root_motion_channel.scale_keys, track.time, track.binding->clip->duration, track.loop);
+
             root_motion_transform = glm::translate(glm::mat4(1.f), root_motion_translation) *
                                     glm::mat4_cast(root_motion_rotation) *
                                     glm::scale(glm::mat4(1.f), root_motion_scale);
@@ -201,12 +203,97 @@ namespace Nova::Animators
                 continue; // Channel targets a bone this skeleton doesn't have - see Animations::Bind
 
             const BoneChannel& channel = clip.channels[c];
-            out_local_trs[bone_index].translation = SampleVec3Keys(channel.position_keys, track.time);
-            out_local_trs[bone_index].rotation = SampleQuatKeys(channel.rotation_keys, track.time);
-            out_local_trs[bone_index].scale = SampleVec3Keys(channel.scale_keys, track.time);
+            out_local_trs[bone_index].translation = SampleVec3Keys(channel.position_keys, track.time, clip.duration, track.loop);
+            out_local_trs[bone_index].rotation = SampleQuatKeys(channel.rotation_keys, track.time, clip.duration, track.loop);
+            out_local_trs[bone_index].scale = SampleVec3Keys(channel.scale_keys, track.time, clip.duration, track.loop);
         }
     }
 
+    glm::vec3 SampleVec3Keys(const std::vector<Vec3Key>& keys, float time, float duration, bool loop)
+    {
+        if (keys.empty())
+            return glm::vec3(0.f);
+        if (keys.size() == 1)
+            return keys.front().value;
+
+        if (loop && (time >= keys.back().time || time <= keys.front().time))
+        {
+            // Looping clips wrap the seam between the LAST keyframe and the FIRST keyframe as if
+            // they were two consecutive keys spanning [keys.back().time, duration + keys.front().time].
+            // Without this, sampling holds still on the last key's value until the tick counter wraps
+            // past 'duration', then snaps instantly to the first key's value - visible as a one-frame
+            // pop at the loop point on any clip whose last keyframe isn't an exact duplicate of its
+            // first (e.g. Idle.fbx).
+            const float wrapped_span = (duration - keys.back().time) + keys.front().time;
+            if (wrapped_span > 0.f)
+            {
+                const float time_since_last_key = time >= keys.back().time
+                                                      ? (time - keys.back().time)
+                                                      : (time + duration - keys.back().time);
+                const float t = glm::clamp(time_since_last_key / wrapped_span, 0.f, 1.f);
+                return glm::mix(keys.back().value, keys.front().value, t);
+            }
+            return keys.back().value;
+        }
+
+        if (time <= keys.front().time)
+            return keys.front().value;
+        if (time >= keys.back().time)
+            return keys.back().value;
+
+        for (u32 i = 0; i + 1 < keys.size(); i++)
+        {
+            if (time < keys[i + 1].time)
+            {
+                const float span = keys[i + 1].time - keys[i].time;
+                const float t = span > 0.f ? (time - keys[i].time) / span : 0.f;
+                return glm::mix(keys[i].value, keys[i + 1].value, t);
+            }
+        }
+        return keys.back().value;
+    }
+
+    glm::quat SampleQuatKeys(const std::vector<QuatKey>& keys, float time, float duration, bool loop)
+    {
+        if (keys.empty())
+            return glm::quat(1.f, 0.f, 0.f, 0.f);
+        if (keys.size() == 1)
+            return keys.front().value;
+
+        if (loop && (time >= keys.back().time || time <= keys.front().time))
+        {
+            // See SampleVec3Keys - same wraparound, using slerp instead of mix.
+            const float wrapped_span = (duration - keys.back().time) + keys.front().time;
+            if (wrapped_span > 0.f)
+            {
+                const float time_since_last_key = time >= keys.back().time
+                                                      ? (time - keys.back().time)
+                                                      : (time + duration - keys.back().time);
+                const float t = glm::clamp(time_since_last_key / wrapped_span, 0.f, 1.f);
+                return glm::slerp(keys.back().value, keys.front().value, t);
+            }
+
+            return keys.back().value;
+        }
+
+        if (time <= keys.front().time)
+            return keys.front().value;
+        if (time >= keys.back().time)
+            return keys.back().value;
+
+        for (u32 i = 0; i + 1 < keys.size(); i++)
+        {
+            if (time < keys[i + 1].time)
+            {
+                const float span = keys[i + 1].time - keys[i].time;
+                const float t = span > 0.f ? (time - keys[i].time) / span : 0.f;
+                return glm::slerp(keys[i].value, keys[i + 1].value, t);
+            }
+        }
+        return keys.back().value;
+    }
+
+    /*
     glm::vec3 SampleVec3Keys(const std::vector<Vec3Key>& keys, float time)
     {
         if (keys.empty())
@@ -247,7 +334,7 @@ namespace Nova::Animators
             }
         }
         return keys.back().value;
-    }
+    }*/
 
     glm::mat4 ResolveBoneWorldTransform(u32 bone_index, const Skeleton& skeleton, const glm::mat4* local_transforms, glm::mat4* world_transforms, bool* resolved, const glm::mat4& root_motion_transform, bool has_root_motion)
     {

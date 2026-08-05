@@ -7,6 +7,7 @@ clean() {
 }
 
 copy-assets() {
+	compile-shaders
 	echo "Copying assets..."
 	cp -r Sandbox/Assets/ bin/${config_type^}-${platform}/Sandbox/
 }
@@ -16,29 +17,88 @@ run-sandbox() {
 	./"${app_path}"
 }
 
-setup-config() {
-	clear
+run-example() {
+	local name="$1"
+	local app_path="bin/${config_type^}-${platform}/Examples/${name}/${name}"
+	./"${app_path}"
+}
 
+ask-platform() {
 	read -p "Select desired platform (windows | linux): " platform
 
 	if [[ $platform != "windows" && $platform != "linux" ]]; then
 		echo "Invalid platform entered, exiting safely..."
 		return 1
 	fi
+}
 
+ask-config-type() {
 	read -p "Select configuration type (debug | release): " config_type
 
 	if [[ $config_type != "debug" && $config_type != "release" ]]; then
 		echo "Invalid configuration type entered, exiting safely..."
 		return 2
 	fi
+}
 
+ask-premake-config() {
 	read -p "Select project files to generate (gmake | vs2026): " premake_config
 
 	if [[ $premake_config != "gmake" && $premake_config != "vs2026" ]]; then
 		echo "Invalid configuration for premake, exiting safely..."
 		return 3
 	fi
+}
+
+ask-example() {
+	read -p "Enter the example you would like to run (1 | 2 | ...): " example_to_run
+
+	ask-platform
+	ask-config-type
+
+	case "$example_to_run" in
+	"1")
+		run-example "Asset_Management"
+		;;
+	"2")
+		run-example "ECS_Lifetimes"
+		;;
+	"3")
+		run-example "PBR"
+		;;
+	*)
+		echo "Invalid example entered, exiting safely..."
+		;;
+	esac
+}
+
+setup-config() {
+	clear
+
+	ask-platform
+	ask-config-type
+	ask-premake-config
+}
+
+compile-shaders() {
+	echo "Compiling shaders..."
+	glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/PBR_vs.glsl -o Sandbox/Assets/Shaders/Compiled/PBR_vs.spv
+	glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/SkinnedPBR_vs.glsl -o Sandbox/Assets/Shaders/Compiled/SkinnedPBR_vs.spv
+	glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/PBR_fs.glsl -o Sandbox/Assets/Shaders/Compiled/PBR_fs.spv
+
+	glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/Compositing_vs.glsl -o Sandbox/Assets/Shaders/Compiled/Compositing_vs.spv
+	glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/Compositing_fs.glsl -o Sandbox/Assets/Shaders/Compiled/Compositing_fs.spv
+
+	glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/Cubemap_vs.glsl -o Sandbox/Assets/Shaders/Compiled/Cubemap_vs.spv
+	glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/EquirectangularToCubemap_fs.glsl -o Sandbox/Assets/Shaders/Compiled/EquirectangularToCubemap_fs.spv
+	glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/Irradiance_fs.glsl -o Sandbox/Assets/Shaders/Compiled/Irradiance_fs.spv
+	glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/Prefilter_fs.glsl -o Sandbox/Assets/Shaders/Compiled/Prefilter_fs.spv
+
+	glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/BRDF_vs.glsl -o Sandbox/Assets/Shaders/Compiled/BRDF_vs.spv
+	glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/BRDF_fs.glsl -o Sandbox/Assets/Shaders/Compiled/BRDF_fs.spv
+
+	glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/Skybox_vs.glsl -o Sandbox/Assets/Shaders/Compiled/Skybox_vs.spv
+	glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/Skybox_fs.glsl -o Sandbox/Assets/Shaders/Compiled/Skybox_fs.spv
 }
 
 build-cmake-dependencies() {
@@ -82,25 +142,6 @@ build-nova() {
 	make_config+="_x64"
 	bear -- make all -s -j4 config=$make_config
 
-	echo "Compiling shaders..."
-	glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/PBR_vs.glsl -o Sandbox/Assets/Shaders/Compiled/PBR_vs.spv
-	glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/SkinnedPBR_vs.glsl -o Sandbox/Assets/Shaders/Compiled/SkinnedPBR_vs.spv
-	glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/PBR_fs.glsl -o Sandbox/Assets/Shaders/Compiled/PBR_fs.spv
-
-	glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/Compositing_vs.glsl -o Sandbox/Assets/Shaders/Compiled/Compositing_vs.spv
-	glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/Compositing_fs.glsl -o Sandbox/Assets/Shaders/Compiled/Compositing_fs.spv
-
-	glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/Cubemap_vs.glsl -o Sandbox/Assets/Shaders/Compiled/Cubemap_vs.spv
-	glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/EquirectangularToCubemap_fs.glsl -o Sandbox/Assets/Shaders/Compiled/EquirectangularToCubemap_fs.spv
-	glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/Irradiance_fs.glsl -o Sandbox/Assets/Shaders/Compiled/Irradiance_fs.spv
-	glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/Prefilter_fs.glsl -o Sandbox/Assets/Shaders/Compiled/Prefilter_fs.spv
-
-	glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/BRDF_vs.glsl -o Sandbox/Assets/Shaders/Compiled/BRDF_vs.spv
-	glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/BRDF_fs.glsl -o Sandbox/Assets/Shaders/Compiled/BRDF_fs.spv
-
-	glslc -fshader-stage="vertex" Sandbox/Assets/Shaders/Source/Skybox_vs.glsl -o Sandbox/Assets/Shaders/Compiled/Skybox_vs.spv
-	glslc -fshader-stage="fragment" Sandbox/Assets/Shaders/Source/Skybox_fs.glsl -o Sandbox/Assets/Shaders/Compiled/Skybox_fs.spv
-
 	copy-assets
 
 	local should_run="n"
@@ -111,6 +152,13 @@ build-nova() {
 	fi
 }
 
+display-examples() {
+	echo "Nova Examples:"
+	echo "1) Asset Management"
+	echo "2) ECS Lifetimes"
+	echo "3) PBR"
+}
+
 if [[ "$1" == "clean" ]]; then
 	clean
 	exit
@@ -119,10 +167,14 @@ elif [[ "$1" == "copy-assets" ]]; then
 	platform="$3"
 	copy-assets
 	exit
-elif [[ "$1" == "run" ]]; then
-	config_type="$2"
-	platform="$3"
+elif [[ "$1" == "run-sandbox" ]]; then
+	ask-platform
+	ask-config-type
 	run-sandbox
+	exit
+elif [[ "$1" == "run-example" ]]; then
+	display-examples
+	ask-example
 	exit
 fi
 

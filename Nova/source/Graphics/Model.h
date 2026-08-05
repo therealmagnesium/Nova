@@ -1,4 +1,5 @@
 #pragma once
+#include "Core/Asset.h"
 #include "Graphics/Animation.h"
 #include "Graphics/Mesh.h"
 
@@ -7,21 +8,18 @@
 
 namespace Nova
 {
-    struct Model
+    struct Model : public Asset
     {
         std::vector<Mesh> meshes;
         std::vector<Material> materials;
     };
 
-    struct AnimatedModel
+    struct AnimatedModel : public Asset
     {
         Skeleton skeleton;
         std::vector<Mesh> meshes;
         std::vector<Material> materials;
     };
-
-    inline const Model Stub_Model;
-    inline const AnimatedModel Stub_AnimatedModel;
 
     namespace Models
     {

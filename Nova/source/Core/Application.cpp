@@ -1,5 +1,6 @@
 #include "Core/Application.h"
 #include "Core/Log.h"
+#include "Core/Random.h"
 #include "Graphics/Renderer.h"
 
 #include <SDL3/SDL.h>
@@ -29,7 +30,9 @@ namespace Nova::Application
         context = &app;
 
         app.window = Windows::Create(config.screen_width, config.screen_height, config.name);
+        Random::Init();
         Renderer::Init();
+        AssetManager::Init(&app.assets);
 
         app.is_valid = true;
         context = NULL;
@@ -43,6 +46,7 @@ namespace Nova::Application
         INFO("Shutting down application \"%s\"...", app.config.name.c_str());
         app.is_valid = false;
 
+        AssetManager::Clean();
         Renderer::Shutdown();
         Windows::Destroy(app.window);
         SDL_Quit();

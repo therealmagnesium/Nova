@@ -1,4 +1,5 @@
 #pragma once
+#include "Core/Asset.h"
 #include "Core/Base.h"
 #include <filesystem>
 
@@ -34,7 +35,7 @@ namespace Nova
         Eight,
     };
 
-    struct Texture
+    struct Texture : public Asset
     {
         u32 id = 0;
         u16 width = 0;

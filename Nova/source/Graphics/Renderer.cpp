@@ -2,6 +2,7 @@
 #include "Graphics/Animator.h"
 #include "Graphics/Camera.h"
 #include "Graphics/IBL.h"
+#include "Graphics/Lights.h"
 #include "Graphics/Mesh.h"
 #include "Graphics/Model.h"
 #include "Graphics/Pipeline.h"
@@ -34,11 +35,13 @@ namespace Nova::Renderer
     struct BoneMatrixPool
     {
         GPUBuffer buffers[MAX_ANIMATED_DRAWS_PER_FRAME];
+        Buffers::UploadStream* upload_stream = NULL;
         u32 next_slot = 0;
     };
 
     struct RenderState
     {
+        BoneMatrixPool bone_matrix_pool;
         glm::mat4 matrix_view;
         glm::mat4 matrix_projection;
         Mesh mesh_screen;
@@ -47,11 +50,11 @@ namespace Nova::Renderer
         Texture texture_default_white;
         Texture texture_default_normal;
         Texture texture_depth_stencil;
+        const DirectionalLight* active_sun = NULL;
         const EnvironmentMap* active_environment_map = NULL;
         RenderPassHandle active_render_pass = NULL;
         Camera3D* primary_camera = NULL;
         SDL_GPUCommandBuffer* command_buffer = NULL;
-        BoneMatrixPool bone_matrix_pool;
         u32 vertex_buffer_count = 0;
         u32 index_buffer_count = 0;
         u32 storage_buffer_count = 0;
@@ -196,6 +199,11 @@ namespace Nova::Renderer
         for (u32 i = 0; i < MAX_ANIMATED_DRAWS_PER_FRAME; i++)
             state.bone_matrix_pool.buffers[i] = Buffers::Create(GPUBufferType::Storage, bone_buffer_size);
 
+        // One persistent staging buffer sized for the whole pool, created once and reused every frame.
+        state.bone_matrix_pool.upload_stream = Buffers::CreateUploadStream(bone_buffer_size * MAX_ANIMATED_DRAWS_PER_FRAME);
+
+        Renderer::SetSun(Stub_DirectionalLight);
+
         INFO("The renderer initialized successfully with %d graphics pipelines", GPUPipeline::_Length);
     }
 
@@ -209,6 +217,7 @@ namespace Nova::Renderer
         Textures::Unload(state.texture_depth_stencil);
         Textures::FreeSamplers();
 
+        Buffers::DestroyUploadStream(state.bone_matrix_pool.upload_stream);
         for (u32 i = 0; i < MAX_ANIMATED_DRAWS_PER_FRAME; i++)
             Buffers::Destroy(state.bone_matrix_pool.buffers[i]);
 
@@ -251,7 +260,6 @@ namespace Nova::Renderer
         state.texture_swapchain.metadata.width = swapchain_width;
         state.texture_swapchain.metadata.height = swapchain_height;
         state.texture_swapchain.metadata.channel_count = 4;
-        state.bone_matrix_pool.next_slot = 0;
 
         return true;
     }
@@ -261,6 +269,11 @@ namespace Nova::Renderer
         Pipelines::ResetBindingCache();
         state.matrix_view = glm::mat4(1.f);
         state.matrix_projection = glm::mat4(1.f);
+        state.bone_matrix_pool.next_slot = 0;
+
+        // Flush every bone-matrix write queued this frame as ONE copy pass on its own command
+        // buffer, submitted before the render command buffer.
+        Buffers::StreamFlush(state.bone_matrix_pool.upload_stream);
 
         SDL_SubmitGPUCommandBuffer(state.command_buffer);
         state.command_buffer = NULL;
@@ -321,8 +334,8 @@ namespace Nova::Renderer
         const auto albedo_linear = glm::vec4(powf(material.albedo.r, 2.2f), powf(material.albedo.g, 2.2f), powf(material.albedo.b, 2.2f), powf(material.albedo.a, 2.2f));
         const auto frag_data = (FragmentData){
             .data_light = (LightData){
-                .direction_intensity = glm::vec4(-0.4f, -1.f, -0.8f, 4.f),
-                .color = glm::vec4(0.98f, 0.96f, 0.92f, 1.f),
+                .direction_intensity = glm::vec4(state.active_sun->direction, state.active_sun->intensity),
+                .color = state.active_sun->color,
             },
             .data_material = (MaterialData){
                 .albedo = albedo_linear,
@@ -338,11 +351,10 @@ namespace Nova::Renderer
 
     void DrawModel(const Model& model, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
     {
+        const glm::mat4 transform = Meshes::CalculateTransform(position, rotation, scale);
+
         for (const Mesh& mesh : model.meshes)
-        {
-            const glm::mat4 transform = Meshes::CalculateTransform(position, rotation, scale);
             Renderer::DrawMesh(mesh, transform, model.materials[mesh.material_index]);
-        }
     }
 
     void DrawAnimatedModel(const AnimatedModel& model, const Animator& animator, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
@@ -357,8 +369,13 @@ namespace Nova::Renderer
         }
 
         GPUBuffer& bone_matrix_buffer = state.bone_matrix_pool.buffers[state.bone_matrix_pool.next_slot++];
-        Buffers::Upload(bone_matrix_buffer, animator.bone_matrices, static_cast<u32>(sizeof(glm::mat4) * MAX_BONES));
+        const u32 size = static_cast<u32>(sizeof(glm::mat4) * MAX_BONES);
+        const u32 offset = Buffers::StreamWrite(state.bone_matrix_pool.upload_stream, animator.bone_matrices, size);
+        Buffers::StreamQueueCopy(state.bone_matrix_pool.upload_stream, offset, bone_matrix_buffer, size);
 
+        // The actual GPU-side copy is deferred to EndFrame's StreamFlush call - see Buffers::UploadStream.
+        // Binding bone_matrix_buffer below is safe: submission order governs execution order, and
+        // StreamFlush's upload command buffer is submitted before state.command_buffer.
         const glm::mat4 transform = Meshes::CalculateTransform(position, rotation, scale);
         for (const Mesh& mesh : model.meshes)
             DrawSkinnedMesh(mesh, transform, model.materials[mesh.material_index], bone_matrix_buffer);
@@ -405,8 +422,8 @@ namespace Nova::Renderer
         const auto albedo_linear = glm::vec4(powf(material.albedo.r, 2.2f), powf(material.albedo.g, 2.2f), powf(material.albedo.b, 2.2f), powf(material.albedo.a, 2.2f));
         const auto frag_data = (FragmentData){
             .data_light = (LightData){
-                .direction_intensity = glm::vec4(-0.4f, -1.f, -0.8f, 4.f),
-                .color = glm::vec4(0.98f, 0.96f, 0.92f, 1.f),
+                .direction_intensity = glm::vec4(state.active_sun->direction, state.active_sun->intensity),
+                .color = state.active_sun->color,
             },
             .data_material = (MaterialData){
                 .albedo = albedo_linear,
@@ -444,6 +461,7 @@ namespace Nova::Renderer
     const Mesh& GetMeshSkybox() { return state.mesh_skybox; }
     const Mesh& GetMeshScreenQuad() { return state.mesh_screen; }
 
+    void SetSun(const DirectionalLight& sun) { state.active_sun = &sun; }
     void SetExposure(float exposure) { state.exposure = exposure; }
     void SetActiveRenderPass(RenderPassHandle render_pass) { state.active_render_pass = render_pass; }
     void SetPrimaryCamera(Camera3D* camera) { state.primary_camera = camera; }

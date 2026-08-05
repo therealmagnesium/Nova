@@ -98,6 +98,10 @@ namespace Nova::Windows
                     Input::Callback_OnMouseButtonReleased(&event);
                     break;
 
+                case SDL_EVENT_MOUSE_WHEEL:
+                    Input::Callback_OnMouseScroll(&event);
+                    break;
+
                 case SDL_EVENT_WINDOW_RESIZED:
                     window.width = event.window.data1;
                     window.height = event.window.data2;
