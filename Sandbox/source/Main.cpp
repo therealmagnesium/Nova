@@ -17,7 +17,7 @@ int main(int argc, char** argv)
     config.callbacks.on_render_ui = Game::OnRenderUI;
     config.callbacks.on_shutdown = Game::OnShutdown;
 
-    App app = Application::Create(config);
+    App* app = Application::Create(config);
     Application::Run(app);
     Application::Shutdown(app);
 }

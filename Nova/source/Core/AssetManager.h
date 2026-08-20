@@ -6,7 +6,7 @@ namespace Nova
 {
     struct AssetCollection
     {
-        AssetMap loadedAssets;
+        AssetMap loaded_assets;
         AssetRegistry registry;
     };
 
@@ -15,8 +15,10 @@ namespace Nova
         void Init(AssetCollection* collection);
         void Clean();
 
-        AssetHandle Import(const std::filesystem::path& path, AssetType type);
-        void Import(const std::filesystem::path& path, AssetType type, AssetHandle handle);
+        AssetHandle ImportByName(const string& name, AssetType type);
+        AssetHandle ImportByPath(const std::filesystem::path& path, AssetType type);
+        void ImportByName(const string& name, AssetType type, AssetHandle handle);
+        void ImportByPath(const std::filesystem::path& path, AssetType type, AssetHandle handle);
         void Remove(AssetHandle handle);
 
         const AssetMap& GetAllAssets();
@@ -30,8 +32,10 @@ namespace Nova
         bool IsAssetTypeRegistered(AssetType type);
         bool IsHandleValid(AssetHandle handle);
         bool IsAssetLoaded(AssetHandle handle);
-        bool IsAssetRegistered(const std::filesystem::path& path);
-        AssetHandle FindAssetHandle(const std::filesystem::path& path);
+        bool IsAssetRegisteredByName(const string& name);
+        bool IsAssetRegisteredByPath(const std::filesystem::path& path);
+        AssetHandle FindAssetHandleByName(const string& name);
+        AssetHandle FindAssetHandleByPath(const std::filesystem::path& path);
         std::vector<AssetHandle> GetAllHandlesOfType(AssetType type);
 
         template <typename T>

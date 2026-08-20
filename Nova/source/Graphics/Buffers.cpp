@@ -1,7 +1,7 @@
 #include "Graphics/Buffers.h"
-#include "Graphics/Renderer.h"
 #include "Core/Application.h"
 #include "Core/Log.h"
+#include "Graphics/Renderer.h"
 
 #include <SDL3/SDL_gpu.h>
 
@@ -23,6 +23,12 @@ namespace Nova::Buffers
         std::vector<QueuedCopy> queued_copies;
     };
 
+    struct BufferCache
+    {
+        SDL_GPUBuffer* buffer_vertex = NULL;
+        SDL_GPUBuffer* buffer_index = NULL;
+    };
+
     u32 BufferTypeToSDLBufferUsage(GPUBufferType type);
     string BufferTypeToString(GPUBufferType type);
     u32 CalculateBufferID(GPUBufferType type);
@@ -33,19 +39,23 @@ namespace Nova::Buffers
     void StreamQueueCopy(UploadStream* stream, u32 src_offset, GPUBuffer& dest, u32 size); // queues a transfer->dest copy for the next Flush
     void StreamFlush(UploadStream* stream);
 
+    static BufferCache cache;
+
     GPUBuffer Create(GPUBufferType type, u32 size)
     {
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
 
-        SDL_GPUBufferCreateInfo buffer_info = {};
-        buffer_info.usage = BufferTypeToSDLBufferUsage(type);
-        buffer_info.size = size;
+        const SDL_GPUBufferCreateInfo buffer_info = {
+            .usage = BufferTypeToSDLBufferUsage(type),
+            .size = size,
+        };
 
         SDL_GPUBuffer* buffer_handle = SDL_CreateGPUBuffer(device, &buffer_info);
         if (buffer_handle == NULL)
         {
-            ERROR("Buffers::Create - Failed to create %s!", BufferTypeToString(type).c_str());
+            ERROR("Buffers::Create - Failed to create %s!",
+                  BufferTypeToString(type).c_str());
             return {};
         }
 
@@ -86,18 +96,23 @@ namespace Nova::Buffers
     {
         SDL_GPURenderPass* render_pass = static_cast<SDL_GPURenderPass*>(Renderer::GetActiveRenderPass());
         SDL_GPUBuffer* handle = static_cast<SDL_GPUBuffer*>(buffer.handle);
-        const auto binding = (SDL_GPUBufferBinding){
-            .buffer = handle,
-            .offset = 0
-        };
+        const SDL_GPUBufferBinding binding = { .buffer = handle, .offset = 0 };
 
         switch (buffer.type)
         {
             case GPUBufferType::Vertex:
+                if (handle == cache.buffer_vertex)
+                    return;
+
                 SDL_BindGPUVertexBuffers(render_pass, slot, &binding, 1);
+                cache.buffer_vertex = handle;
                 break;
             case GPUBufferType::Index:
+                if (handle == cache.buffer_index)
+                    return;
+
                 SDL_BindGPUIndexBuffer(render_pass, &binding, SDL_GPU_INDEXELEMENTSIZE_32BIT);
+                cache.buffer_index = handle;
                 break;
             case GPUBufferType::Storage:
                 SDL_BindGPUVertexStorageBuffers(render_pass, slot, &handle, 1);
@@ -111,12 +126,12 @@ namespace Nova::Buffers
         SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
 
         // Create a transfer buffer (CPU-accessible staging area)
-        SDL_GPUTransferBufferCreateInfo transfer_buffer_info = {};
-        transfer_buffer_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-        transfer_buffer_info.size = size;
+        const SDL_GPUTransferBufferCreateInfo transfer_buffer_info = {
+            .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+            .size = size
+        };
 
         SDL_GPUTransferBuffer* transfer_buffer = SDL_CreateGPUTransferBuffer(device, &transfer_buffer_info);
-
         if (transfer_buffer == NULL)
         {
             ERROR("Buffers::Upload - %s", "Failed to create GPU transfer buffer!");
@@ -132,14 +147,16 @@ namespace Nova::Buffers
         SDL_GPUCommandBuffer* command_buffer = SDL_AcquireGPUCommandBuffer(device);
         SDL_GPUCopyPass* copy_pass = SDL_BeginGPUCopyPass(command_buffer);
 
-        SDL_GPUTransferBufferLocation source = {};
-        source.transfer_buffer = transfer_buffer;
-        source.offset = 0;
+        const SDL_GPUTransferBufferLocation source = {
+            .transfer_buffer = transfer_buffer,
+            .offset = 0
+        };
 
-        SDL_GPUBufferRegion dest = {};
-        dest.buffer = static_cast<SDL_GPUBuffer*>(buffer.handle);
-        dest.offset = 0;
-        dest.size = size;
+        const SDL_GPUBufferRegion dest = {
+            .buffer = static_cast<SDL_GPUBuffer*>(buffer.handle),
+            .offset = 0,
+            .size = size
+        };
 
         SDL_UploadToGPUBuffer(copy_pass, &source, &dest, false);
         SDL_EndGPUCopyPass(copy_pass);
@@ -147,6 +164,12 @@ namespace Nova::Buffers
         // Submit the command buffer and release the transfer buffer
         SDL_SubmitGPUCommandBuffer(command_buffer);
         SDL_ReleaseGPUTransferBuffer(device, transfer_buffer);
+    }
+
+    void ResetBindingCache()
+    {
+        cache.buffer_vertex = NULL;
+        cache.buffer_index = NULL;
     }
 
     u32 BufferTypeToSDLBufferUsage(GPUBufferType type)
@@ -214,7 +237,8 @@ namespace Nova::Buffers
         SDL_GPUTransferBuffer* handle = SDL_CreateGPUTransferBuffer(device, &info);
         if (handle == NULL)
         {
-            ERROR("Buffers::CreateUploadStream - %s", "Failed to create GPU transfer buffer!");
+            ERROR("Buffers::CreateUploadStream - %s",
+                  "Failed to create GPU transfer buffer!");
             return NULL;
         }
 
@@ -239,7 +263,8 @@ namespace Nova::Buffers
     {
         if (stream == NULL || stream->write_cursor + size > stream->capacity)
         {
-            ERROR("%s", "Buffers::StreamWrite - Upload stream is full or invalid, dropping write! Consider raising its capacity.");
+            ERROR("%s", "Buffers::StreamWrite - Upload stream is full or invalid, "
+                        "dropping write! Consider raising its capacity.");
             return 0;
         }
 
@@ -248,10 +273,11 @@ namespace Nova::Buffers
         {
             const Window& window = Application::GetWindow();
             SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
-            // cycle=true: don't stall waiting for a previous frame's copy pass to finish reading
-            // this transfer buffer - SDL_GPU transparently hands back a fresh backing allocation
-            // instead of blocking the CPU here.
-            stream->mapped = SDL_MapGPUTransferBuffer(device, stream->transfer_buffer, true);
+            // cycle=true: don't stall waiting for a previous frame's copy pass to
+            // finish reading this transfer buffer - SDL_GPU transparently hands back a
+            // fresh backing allocation instead of blocking the CPU here.
+            stream->mapped =
+                SDL_MapGPUTransferBuffer(device, stream->transfer_buffer, true);
         }
 
         const u32 offset = stream->write_cursor;
@@ -265,13 +291,15 @@ namespace Nova::Buffers
         if (stream == NULL)
             return;
 
-        stream->queued_copies.emplace_back(src_offset, static_cast<SDL_GPUBuffer*>(dest.handle), size);
+        stream->queued_copies.emplace_back(
+            src_offset, static_cast<SDL_GPUBuffer*>(dest.handle), size);
     }
 
     void StreamFlush(UploadStream* stream)
     {
         if (stream == NULL || stream->queued_copies.empty())
-            return; // Nothing was written this frame - e.g. zero animated draws - skip the submit entirely.
+            return; // Nothing was written this frame - e.g. zero animated draws - skip
+                    // the submit entirely.
 
         const Window& window = Application::GetWindow();
         SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
@@ -293,8 +321,8 @@ namespace Nova::Buffers
             dest.offset = 0;
             dest.size = copy.size;
 
-            // cycle=true: this destination SSBO was also written last frame and may still be
-            // being read by last frame's draw calls when this copy executes.
+            // cycle=true: this destination SSBO was also written last frame and may
+            // still be being read by last frame's draw calls when this copy executes.
             SDL_UploadToGPUBuffer(copy_pass, &source, &dest, true);
         }
 

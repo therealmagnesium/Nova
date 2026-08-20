@@ -50,6 +50,7 @@ namespace Nova
         void Destroy(GPUBuffer& buffer);
         void Bind(const GPUBuffer& buffer, u32 slot = 0);
         void Upload(GPUBuffer& buffer, const void* data, u32 size);
+        void ResetBindingCache();
 
         // --- Streaming upload API ---
         // For data that changes every frame (skinning matrices, dynamic UBOs, particle instance

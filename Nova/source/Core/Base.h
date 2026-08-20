@@ -41,8 +41,8 @@ public:
     inline const char* c_str() const { return !m_IsHeapAllocated ? m_BufferInline : m_BufferHeap; }
     inline bool IsHeapAllocated() const { return m_IsHeapAllocated; }
 
-    inline bool operator==(const string& rhs) { return !m_IsHeapAllocated ? strcmp(m_BufferInline, rhs.m_BufferInline) == 0 : strcmp(m_BufferHeap, rhs.m_BufferHeap) == 0; }
-    inline bool operator!=(const string& rhs) { return !(*this == rhs); }
+    inline bool operator==(const string& rhs) const { return !m_IsHeapAllocated ? strcmp(m_BufferInline, rhs.m_BufferInline) == 0 : strcmp(m_BufferHeap, rhs.m_BufferHeap) == 0; }
+    inline bool operator!=(const string& rhs) const { return !(*this == rhs); }
 
     inline string& operator=(const string& rhs)
     {

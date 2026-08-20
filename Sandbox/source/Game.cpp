@@ -1,72 +1,63 @@
 #include "Game.h"
-
-#include <Nova.h>
-#include <SDL3/SDL_gpu.h>
-#include <glm/gtc/matrix_transform.hpp>
+#include "Player.h"
 
 using namespace Nova;
 
-namespace PlayerAnimations
-{
-    enum : u8
-    {
-        Idle = 0,
-        Walking,
-        Running,
-        _Length
-    };
-}
-
 struct GameState
 {
-    AnimatedModel model_xbot;
-    AnimationClip clips[PlayerAnimations::_Length];
-    Animator animator;
-    u8 clip_index = PlayerAnimations::Idle;
-
-    Material material;
-    Mesh mesh_sphere;
-    Model model_mario;
+    Scene scene_editor;
+    Scene scene_runtime;
+    Scene* scene_active = NULL;
+    Player player;
+    Entity camera_game;
+    Material material_grid;
+    Material material_red;
+    Material material_green;
+    Material material_blue;
 
     EnvironmentMap environment_map;
     DirectionalLight sun;
-    Camera3D camera;
+    Camera3D camera_editor;
     Texture attachment_hdr;
     Texture attachment_resolve;
     Texture attachment_depth;
+
+    AssetHandle assets[Assets::_Length];
 };
 
 static GameState state;
 
 namespace Game
 {
-    void ResetEditorCamera();
+    void ResetCameraEditor();
+    void ResetCameraGame();
     void RenderPass_SceneHDR();
     void RenderPass_PostProcessing();
 
     void OnCreate()
     {
-        // Bake the environment and generate meshes
+        // Load all of the assets at the very start of the program
+        state.assets[Assets::AnimationIdle] = AssetManager::ImportByPath("Assets/Animations/Idle.fbx", AssetType::AnimationClip);
+        state.assets[Assets::AnimationRun] = AssetManager::ImportByPath("Assets/Animations/Run.fbx", AssetType::AnimationClip);
+        state.assets[Assets::AnimationJump] = AssetManager::ImportByPath("Assets/Animations/Jump.fbx", AssetType::AnimationClip);
+        state.assets[Assets::ModelRobot] = AssetManager::ImportByPath("Assets/Models/Robot.fbx", AssetType::ModelAnimated);
+        state.assets[Assets::TextureGrid] = AssetManager::ImportByPath("Assets/Textures/Grid.png", AssetType::Texture);
+
+        state.material_grid.texture_albedo = *AssetManager::GetAsset<Texture>(GetAsset(Assets::TextureGrid));
+        state.material_red.albedo = glm::vec4(1.f, 0.f, 0.f, 1.f);
+        state.material_green.albedo = glm::vec4(0.f, 1.f, 0.f, 1.f);
+        state.material_blue.albedo = glm::vec4(0.f, 0.f, 1.f, 1.f);
+
+        // Bake the environment and setup the sun
         state.environment_map = IBL::BakeFromHDRI("Assets/HDRIs/puresky_citrus.hdr");
-        state.model_mario = Models::Load("Assets/Models/Mario.fbx");
-        state.mesh_sphere = Meshes::GenerateSphere(64, 32);
-
-        state.model_xbot = Models::LoadAnimated("Assets/Models/X-Bot.fbx");
-        state.clips[PlayerAnimations::Idle] = Animations::Load("Assets/Animations/Idle.fbx");
-        state.clips[PlayerAnimations::Walking] = Animations::Load("Assets/Animations/Walking.fbx");
-        state.clips[PlayerAnimations::Running] = Animations::Load("Assets/Animations/Running.fbx");
-
-        state.animator = Animators::Create(state.model_xbot.skeleton);
-
-        for (const AnimationClip& clip : state.clips)
-            Animations::Bind(clip, state.model_xbot.skeleton);
-
-        Animators::Play(state.animator, state.clips[state.clip_index]);
-
         state.sun.direction = glm::vec3(-0.7f, -1.f, -0.25f);
         state.sun.color = glm::vec4(1.f, 0.92f, 0.86f, 1.f);
         state.sun.intensity = 2.f;
         Renderer::SetSun(state.sun);
+
+        state.scene_active = &state.scene_editor;
+        state.scene_editor = Scenes::Create(10);
+        state.player = Player_Create(state.scene_editor);
 
         // Create the HDR framebuffer attachments
         const Window& window = Application::GetWindow();
@@ -76,9 +67,9 @@ namespace Game
         state.attachment_depth = Textures::CreateFramebufferAttachmentDepth(window.width, window.height, msaa);
 
         // Setup settings for the scene
-        ResetEditorCamera();
-        Renderer::SetPrimaryCamera(&state.camera);
-        Renderer::SetExposure(1.5f);
+        ResetCameraEditor();
+        ResetCameraGame();
+        Renderer::SetExposure(1.f);
     }
 
     void OnEvent()
@@ -96,23 +87,29 @@ namespace Game
             state.attachment_depth = Textures::CreateFramebufferAttachmentDepth(window.width, window.height, msaa);
         }
 
-        if (Input::IsKeyPressed(KEY_F1))
-            Renderer::ToggleWireframeMode();
+        if (Input::IsKeyPressed(KEY_F5))
+        {
+            if (state.scene_active == &state.scene_editor)
+            {
+                Scenes::Copy(state.scene_editor, state.scene_runtime);
+                Scenes::Play(state.scene_runtime);
+                state.scene_active = &state.scene_runtime;
+            }
+            else
+            {
+                state.scene_active = &state.scene_editor;
+                Scenes::Stop(state.scene_runtime);
+                Scenes::Destroy(state.scene_runtime);
+            }
+        }
 
         if (Input::IsKeyPressed(KEY_F2))
-            ResetEditorCamera();
+            ResetCameraEditor();
 
         if (Input::IsKeyPressed(KEY_C))
         {
-            WARN("Position: " V3_FMT, V3_OPEN(state.camera.position));
-            WARN("Target: " V3_FMT, V3_OPEN(state.camera.target));
-        }
-
-        if (Input::IsKeyPressed(KEY_N))
-        {
-            const float transition_duration = 0.25f;
-            state.clip_index = (state.clip_index + 1) % PlayerAnimations::_Length;
-            Animators::CrossfadeTo(state.animator, state.clips[state.clip_index], transition_duration);
+            WARN("Position: " V3_FMT, V3_OPEN(state.camera_editor.position));
+            WARN("Target: " V3_FMT, V3_OPEN(state.camera_editor.target));
         }
     }
 
@@ -122,8 +119,15 @@ namespace Game
         if (Windows::IsMinimized(window))
             return;
 
-        Cameras::UpdateEditor(state.camera, 2.f, 12.f); // TODO: Add a scene camera to enable switching between editing and runtime
-        Animators::Update(state.animator, Application::GetDeltaTime());
+        Scenes::UpdateSubsystems(*state.scene_active);
+        Player_Update(*state.scene_active, state.player);
+
+        /*
+        auto cc = state.camera_game.GetComponent<PerspectiveCameraComponent>();
+        cc->camera.target = state.player.GetPosition();*/
+
+        if (state.scene_active->state == SceneState::Editor)
+            Cameras::UpdateEditor(state.camera_editor, 1.f, 12.f);
     }
 
     void OnRender()
@@ -140,13 +144,8 @@ namespace Game
 
     void OnShutdown()
     {
-        for (AnimationClip& clip : state.clips)
-            Animations::Unload(clip);
-
-        Models::UnloadAnimated(state.model_xbot);
-
-        Models::Unload(state.model_mario);
-        Meshes::Destroy(state.mesh_sphere);
+        Scenes::Destroy(state.scene_editor);
+        Scenes::Destroy(state.scene_runtime);
         IBL::Free(state.environment_map);
 
         Textures::Unload(state.attachment_hdr);
@@ -154,13 +153,31 @@ namespace Game
         Textures::Unload(state.attachment_depth);
     }
 
-    void ResetEditorCamera()
+    AssetHandle GetAsset(AssetIndex index) { return state.assets[index]; }
+
+    void ResetCameraEditor()
     {
-        state.camera.position = glm::vec3(-9.769f, 1.474f, 15.054f);
-        state.camera.target = glm::vec3(-5.383f, 0.223f, 6.155f);
-        state.camera.fov = 75.f;
-        state.camera.clip_near = 0.1f;
-        state.camera.clip_far = 50.f;
+        state.camera_editor.position = glm::vec3(0.625, 3.620, 6.042);
+        state.camera_editor.target = glm::vec3(0.f);
+        state.camera_editor.fov = 75.f;
+        state.camera_editor.clip_near = 0.1f;
+        state.camera_editor.clip_far = 50.f;
+
+        if (state.scene_active->state == SceneState::Editor)
+            Renderer::SetPrimaryCamera(&state.camera_editor);
+    }
+
+    void ResetCameraGame()
+    {
+        state.camera_game = Scenes::CreateEntity(*state.scene_active, "Main Camera");
+
+        const auto transform = state.camera_game.GetComponent<TransformComponent>(*state.scene_active);
+        const auto cc = state.camera_game.AddComponent<PerspectiveCameraComponent>(*state.scene_active, true, state.player.entity);
+
+        transform->position = glm::vec3(0.064, 5.704, -8.300);
+        cc->camera.clip_near = 0.1f;
+        cc->camera.clip_far = 50.f;
+        cc->camera.fov = 75.f;
     }
 
     void RenderPass_SceneHDR()
@@ -182,31 +199,11 @@ namespace Game
 
         // Renders the scene to the HDR framebuffer
         const RenderPassHandle scene_pass = RenderPasses::Begin(&hdr_info, 1, ds_info);
-
-        // Render rows * column number of spheres with varying metallic/roughness values scaled by rows and columns respectively
-        const u8 row_count = 7;
-        const u8 column_count = 7;
-        const float spacing = 2.5f;
-        glm::mat4 transform = glm::mat4(1.0f);
-        for (u8 i = 0; i < row_count; i++)
-        {
-            state.material.metallic = static_cast<float>(i) / static_cast<float>(row_count);
-            for (u8 j = 0; j < column_count; j++)
-            {
-                // Clamp the roughness to 0.025 - 1.0 as perfectly smooth surfaces (roughness of 0.0) tend to look a bit off with direct lighting
-                state.material.roughness = glm::clamp(static_cast<float>(j) / static_cast<float>(column_count), 0.025f, 1.f);
-
-                const float position_x = (float)(j - (column_count * 0.5f)) * spacing;
-                const float position_y = (float)(i - (row_count * 0.5f)) * spacing;
-                transform = glm::mat4(1.0f);
-                transform = glm::translate(transform, glm::vec3(position_x, position_y, -4.f));
-                Renderer::DrawMesh(state.mesh_sphere, transform, state.material);
-            }
-        }
-
-        Renderer::DrawModel(state.model_mario, glm::vec3(-2.f, 0.f, 4.f));
-        Renderer::DrawAnimatedModel(state.model_xbot, state.animator, glm::vec3(2.f, 0.f, 4.f));
-
+        Scenes::RenderSubsystems(*state.scene_active);
+        Renderer::DrawPrimitive(PrimitiveMesh::Plane, Meshes::CalculateTransform(glm::vec3(0.f, -1.f, 0.f), glm::vec3(0.f), glm::vec3(10.f, 1.f, 10.f)), state.material_grid);
+        Renderer::DrawPrimitive(PrimitiveMesh::Cone, Meshes::CalculateTransform(glm::vec3(4.f, 0.f, 0.f)), state.material_red);
+        Renderer::DrawPrimitive(PrimitiveMesh::Pyramid, Meshes::CalculateTransform(glm::vec3(-4.f, 0.f, 0.f)), state.material_green);
+        Renderer::DrawPrimitive(PrimitiveMesh::Torus, Meshes::CalculateTransform(glm::vec3(0.f, -0.5f, -4.f)), state.material_blue);
         Renderer::DrawSkybox(state.environment_map);
         RenderPasses::End(scene_pass);
     }

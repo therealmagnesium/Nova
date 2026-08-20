@@ -16,18 +16,27 @@ namespace Nova::Animators
     void AdvanceTrackTime(AnimationTrack& track, float delta_time);
     glm::vec3 SampleVec3Keys(const std::vector<Vec3Key>& keys, float time, float duration, bool loop);
     glm::quat SampleQuatKeys(const std::vector<QuatKey>& keys, float time, float duration, bool loop);
+    glm::mat4 ResolveBoneWorldTransform(u32 bone_index, const Skeleton& skeleton, const glm::mat4* local_transforms, glm::mat4* world_transforms, bool* resolved, const glm::mat4& root_motion_transform, bool has_root_motion);
     void SampleTrackIntoLocalTRS(const AnimationTrack& track, BoneLocalTRS* out_local_trs, u32 bone_count);
     void ResetToBindPose(const Skeleton& skeleton, BoneLocalTRS* out_local_trs);
-    glm::mat4 ResolveBoneWorldTransform(u32 bone_index, const Skeleton& skeleton, const glm::mat4* local_transforms, glm::mat4* world_transforms, bool* resolved, const glm::mat4& root_motion_transform, bool has_root_motion);
+    void ComputeBoneMatricesFromLocalTRS(Animator& animator, const BoneLocalTRS* local_trs, const glm::mat4& root_motion_transform, bool has_root_motion);
+
+    Animator Create()
+    {
+        Animator animator;
+        animator.skeleton = NULL;
+
+        for (u32 i = 0; i < MAX_BONES; i++)
+            animator.bone_matrices[i] = glm::mat4(1.f);
+
+        return animator;
+    }
 
     Animator Create(const Skeleton& skeleton)
     {
         Animator animator;
         animator.skeleton = &skeleton;
-
-        for (u32 i = 0; i < MAX_BONES; i++)
-            animator.bone_matrices[i] = glm::mat4(1.f);
-
+        ResetToBindPose(animator);
         return animator;
     }
 
@@ -129,24 +138,30 @@ namespace Nova::Animators
             }
         }
 
-        glm::mat4 local_transforms[MAX_BONES];
-        for (u32 i = 0; i < bone_count; i++)
+        ComputeBoneMatricesFromLocalTRS(animator, local_trs, root_motion_transform, has_root_motion);
+    }
+
+    void ResetToBindPose(Animator& animator)
+    {
+        if (!animator.IsValid())
         {
-            local_transforms[i] = glm::translate(glm::mat4(1.f), local_trs[i].translation) *
-                                  glm::mat4_cast(local_trs[i].rotation) *
-                                  glm::scale(glm::mat4(1.f), local_trs[i].scale);
+            ERROR("%s", "Animators::ResetToBindPose - Attempted to reset an Animator with no skeleton set!");
+            return;
         }
 
-        // Bones aren't guaranteed to be stored in parent-before-child order (they're collected in
-        // whatever order Assimp's per-mesh bone lists happen to enumerate them), so world transforms
-        // are resolved recursively with memoization rather than a single flat forward pass.
-        glm::mat4 world_transforms[MAX_BONES];
-        bool resolved[MAX_BONES] = {};
-        for (u32 i = 0; i < bone_count; i++)
-            ResolveBoneWorldTransform(i, skeleton, local_transforms, world_transforms, resolved, root_motion_transform, has_root_motion);
+        // A bind-pose reset is a hard cut back to the rest pose - clear any in-progress
+        // playback/crossfade so a subsequent Play()/CrossfadeTo() starts clean rather than blending
+        // from whatever was previously mid-flight.
+        animator.track_current = Stub_AnimationTrack;
+        animator.track_previous = Stub_AnimationTrack;
+        animator.crossfade_time = 0.f;
+        animator.crossfade_duration = 0.f;
 
-        for (u32 i = 0; i < bone_count && i < MAX_BONES; i++)
-            animator.bone_matrices[i] = skeleton.global_inverse_transform * world_transforms[i] * skeleton.bones[i].offset;
+        const Skeleton& skeleton = *animator.skeleton;
+        BoneLocalTRS local_trs[MAX_BONES];
+        ResetToBindPose(skeleton, local_trs); // the private, skeleton-only overload above
+
+        ComputeBoneMatricesFromLocalTRS(animator, local_trs, glm::mat4(1.f), false);
     }
 
     const BoundAnimationClip* ResolveBinding(Animator& animator, const AnimationClip& clip)
@@ -293,49 +308,6 @@ namespace Nova::Animators
         return keys.back().value;
     }
 
-    /*
-    glm::vec3 SampleVec3Keys(const std::vector<Vec3Key>& keys, float time)
-    {
-        if (keys.empty())
-            return glm::vec3(0.f);
-        if (keys.size() == 1 || time <= keys.front().time)
-            return keys.front().value;
-        if (time >= keys.back().time)
-            return keys.back().value;
-
-        for (u32 i = 0; i + 1 < keys.size(); i++)
-        {
-            if (time < keys[i + 1].time)
-            {
-                const float span = keys[i + 1].time - keys[i].time;
-                const float t = span > 0.f ? (time - keys[i].time) / span : 0.f;
-                return glm::mix(keys[i].value, keys[i + 1].value, t);
-            }
-        }
-        return keys.back().value;
-    }
-
-    glm::quat SampleQuatKeys(const std::vector<QuatKey>& keys, float time)
-    {
-        if (keys.empty())
-            return glm::quat(1.f, 0.f, 0.f, 0.f);
-        if (keys.size() == 1 || time <= keys.front().time)
-            return keys.front().value;
-        if (time >= keys.back().time)
-            return keys.back().value;
-
-        for (u32 i = 0; i + 1 < keys.size(); i++)
-        {
-            if (time < keys[i + 1].time)
-            {
-                const float span = keys[i + 1].time - keys[i].time;
-                const float t = span > 0.f ? (time - keys[i].time) / span : 0.f;
-                return glm::slerp(keys[i].value, keys[i + 1].value, t);
-            }
-        }
-        return keys.back().value;
-    }*/
-
     glm::mat4 ResolveBoneWorldTransform(u32 bone_index, const Skeleton& skeleton, const glm::mat4* local_transforms, glm::mat4* world_transforms, bool* resolved, const glm::mat4& root_motion_transform, bool has_root_motion)
     {
         if (resolved[bone_index])
@@ -357,5 +329,30 @@ namespace Nova::Animators
         world_transforms[bone_index] = parent_world * parent_offset * local_transforms[bone_index];
         resolved[bone_index] = true;
         return world_transforms[bone_index];
+    }
+
+    void ComputeBoneMatricesFromLocalTRS(Animator& animator, const BoneLocalTRS* local_trs, const glm::mat4& root_motion_transform, bool has_root_motion)
+    {
+        const Skeleton& skeleton = *animator.skeleton;
+        const u32 bone_count = static_cast<u32>(skeleton.bones.size());
+
+        glm::mat4 local_transforms[MAX_BONES];
+        for (u32 i = 0; i < bone_count; i++)
+        {
+            local_transforms[i] = glm::translate(glm::mat4(1.f), local_trs[i].translation) *
+                                  glm::mat4_cast(local_trs[i].rotation) *
+                                  glm::scale(glm::mat4(1.f), local_trs[i].scale);
+        }
+
+        // Bones aren't guaranteed to be stored in parent-before-child order (they're collected in
+        // whatever order Assimp's per-mesh bone lists happen to enumerate them), so world transforms
+        // are resolved recursively with memoization rather than a single flat forward pass.
+        glm::mat4 world_transforms[MAX_BONES];
+        bool resolved[MAX_BONES] = {};
+        for (u32 i = 0; i < bone_count; i++)
+            ResolveBoneWorldTransform(i, skeleton, local_transforms, world_transforms, resolved, root_motion_transform, has_root_motion);
+
+        for (u32 i = 0; i < bone_count && i < MAX_BONES; i++)
+            animator.bone_matrices[i] = skeleton.global_inverse_transform * world_transforms[i] * skeleton.bones[i].offset;
     }
 }

@@ -39,8 +39,7 @@ namespace Nova::Pipelines
         const SDL_GPUVertexBufferDescription* vertex_buffer_descs = NULL,
         u32 vertex_buffer_desc_count = 0,
         const SDL_GPUVertexAttribute* vertex_attributes = NULL,
-        u32 vertex_attribute_count = 0
-    );
+        u32 vertex_attribute_count = 0);
 
     void Init(const PipelineShaderInfo& shader_info, MSAASamples msaa)
     {
@@ -97,8 +96,7 @@ namespace Nova::Pipelines
         const SDL_GPUVertexBufferDescription* vertex_buffer_descs,
         u32 vertex_buffer_desc_count,
         const SDL_GPUVertexAttribute* vertex_attributes,
-        u32 vertex_attribute_count
-    )
+        u32 vertex_attribute_count)
     {
         if (shader == NULL || shader->handle_vertex == NULL || shader->handle_fragment == NULL)
             return NULL;
@@ -161,13 +159,15 @@ namespace Nova::Pipelines
         pipeline_info.multisample_state.sample_count = MSAASamplesToSDL(msaa);
 
         // --- Color Blend ---
-        SDL_GPUColorTargetBlendState blend = {};
-        blend.enable_blend = false;
-        blend.color_write_mask = SDL_GPU_COLORCOMPONENT_R | SDL_GPU_COLORCOMPONENT_G | SDL_GPU_COLORCOMPONENT_B | SDL_GPU_COLORCOMPONENT_A;
+        const SDL_GPUColorTargetBlendState blend = {
+            .color_write_mask = SDL_GPU_COLORCOMPONENT_R | SDL_GPU_COLORCOMPONENT_G | SDL_GPU_COLORCOMPONENT_B | SDL_GPU_COLORCOMPONENT_A,
+            .enable_blend = false,
+        };
 
-        SDL_GPUColorTargetDescription color_target_desc = {};
-        color_target_desc.format = color_target_format;
-        color_target_desc.blend_state = blend;
+        const SDL_GPUColorTargetDescription color_target_desc = {
+            .format = color_target_format,
+            .blend_state = blend,
+        };
 
         pipeline_info.target_info.color_target_descriptions = &color_target_desc;
         pipeline_info.target_info.num_color_targets = 1;
@@ -254,8 +254,7 @@ namespace Nova::Pipelines
         const u8 index = static_cast<u8>(GPUPipeline::OutdoorMeshesSkinned);
         pipelines[index] = CreateGraphicsPipeline(
             shader, msaa, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, true, true, SDL_GPU_COMPAREOP_LESS, SDL_GPU_CULLMODE_BACK, SDL_GPU_FILLMODE_FILL,
-            &vertex_buffer_desc, 1, vertex_attributes, LEN(vertex_attributes)
-        );
+            &vertex_buffer_desc, 1, vertex_attributes, LEN(vertex_attributes));
         if (pipelines[index] == NULL) FATAL("Pipelines::Init - %s", "Failed to create Outdoor Skinned Meshes pipeline!");
     }
 

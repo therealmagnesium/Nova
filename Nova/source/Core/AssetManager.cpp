@@ -2,6 +2,9 @@
 #include "Core/Log.h"
 #include "Core/Random.h"
 #include "Graphics/Model.h"
+#include "Graphics/Animator.h"
+
+#include <inttypes.h>
 
 namespace Nova::AssetManager
 {
@@ -24,7 +27,7 @@ namespace Nova::AssetManager
     {
         INFO("AssetManager::Clean - %s", "The asset manager is unloading assets...");
 
-        for (auto& [handle, asset] : assets->loadedAssets)
+        for (auto& [handle, asset] : assets->loaded_assets)
         {
             switch (asset->GetType())
             {
@@ -48,65 +51,96 @@ namespace Nova::AssetManager
             asset = NULL;
         }
 
-        assets->loadedAssets.clear();
+        assets->loaded_assets.clear();
         assets->registry.clear();
     }
 
-    AssetHandle Import(const std::filesystem::path& path, AssetType type)
+    AssetHandle ImportByName(const string& name, AssetType type)
     {
-        if (IsAssetRegistered(path))
+        if (IsAssetRegisteredByName(name))
         {
-            const AssetHandle handle = FindAssetHandle(path);
+            const AssetHandle handle = FindAssetHandleByName(name);
             return handle;
         }
 
         const AssetHandle handle = Random::GenerateUUID();
-        AssetManager::Import(path, type, handle);
+        ImportByName(name, type, handle);
         return handle;
     }
 
-    void Import(const std::filesystem::path& path, AssetType type, AssetHandle handle)
+    AssetHandle ImportByPath(const std::filesystem::path& path, AssetType type)
+    {
+        if (IsAssetRegisteredByPath(path))
+        {
+            const AssetHandle handle = FindAssetHandleByPath(path);
+            return handle;
+        }
+
+        const AssetHandle handle = Random::GenerateUUID();
+        ImportByPath(path, type, handle);
+        return handle;
+    }
+
+    void ImportByName(const string& name, AssetType type, AssetHandle handle)
     {
         AssetMetadata metadata;
-        metadata.path = path;
+        metadata.name = name;
         metadata.type = type;
 
         if (metadata.type == AssetType::Invalid)
             return;
 
-        const AssetHandle validHandle = IsAssetRegistered(metadata.path) ? FindAssetHandle(metadata.path) : handle;
-        Asset* asset = (IsAssetRegistered(metadata.path) && IsAssetLoaded(validHandle)) ? assets->loadedAssets.at(validHandle) : LoadAsset(validHandle, metadata);
+        const AssetHandle valid_handle = IsAssetRegisteredByName(metadata.name) ? FindAssetHandleByName(metadata.name) : handle;
+        Asset* asset = IsAssetRegisteredByName(name) && IsAssetLoaded(valid_handle) ? assets->loaded_assets.at(valid_handle) : LoadAsset(valid_handle, metadata);
         if (asset != NULL)
         {
-            metadata.path = metadata.path;
-            assets->registry[validHandle] = metadata;
-            assets->loadedAssets[validHandle] = asset;
+            assets->registry[valid_handle] = metadata;
+            assets->loaded_assets[valid_handle] = asset;
+        }
+    }
+
+    void ImportByPath(const std::filesystem::path& path, AssetType type, AssetHandle handle)
+    {
+        AssetMetadata metadata;
+        metadata.path = path;
+        metadata.name = path.stem().c_str();
+        metadata.type = type;
+
+        if (metadata.type == AssetType::Invalid)
+            return;
+
+        const AssetHandle valid_handle = IsAssetRegisteredByPath(metadata.path) ? FindAssetHandleByPath(metadata.path) : handle;
+        Asset* asset = (IsAssetRegisteredByPath(metadata.path) && IsAssetLoaded(valid_handle)) ? assets->loaded_assets.at(valid_handle) : LoadAsset(valid_handle, metadata);
+        if (asset != NULL)
+        {
+            assets->registry[valid_handle] = metadata;
+            assets->loaded_assets[valid_handle] = asset;
         }
     }
 
     void Remove(AssetHandle handle)
     {
-        const std::filesystem::path assetPath = assets->registry[handle].path;
+        const std::filesystem::path assetPath = assets->registry.at(handle).path;
 
         if (AssetManager::IsHandleValid(handle))
         {
             INFO("Removing asset \"%s\"...", assetPath.c_str());
             assets->registry.erase(handle);
-            assets->loadedAssets.erase(handle);
+            assets->loaded_assets.erase(handle);
         }
     }
 
-    const AssetMap& GetAllAssets() { return assets->loadedAssets; }
+    const AssetMap& GetAllAssets() { return assets->loaded_assets; }
     const AssetRegistry& GetRegistry() { return assets->registry; }
 
-    u32 GetTotalAssetCount() { return assets->registry.size() == assets->loadedAssets.size() ? assets->registry.size() : assets->loadedAssets.size(); }
+    u32 GetTotalAssetCount() { return assets->registry.size() == assets->loaded_assets.size() ? assets->registry.size() : assets->loaded_assets.size(); }
 
     Asset* GetAsset(AssetHandle handle)
     {
         if (!IsHandleValid(handle))
             return NULL;
 
-        Asset* asset = assets->loadedAssets[handle];
+        Asset* asset = assets->loaded_assets[handle];
         return asset;
     }
 
@@ -145,10 +179,20 @@ namespace Nova::AssetManager
 
     bool IsAssetLoaded(AssetHandle handle)
     {
-        return assets->loadedAssets.find(handle) != assets->loadedAssets.end();
+        return assets->loaded_assets.find(handle) != assets->loaded_assets.end();
     }
 
-    bool IsAssetRegistered(const std::filesystem::path& path)
+    bool IsAssetRegisteredByName(const string& name)
+    {
+        auto IsNameRegistered = [&](const std::pair<AssetHandle, AssetMetadata>& pair)
+        {
+            return pair.second.name == name;
+        };
+        auto it = std::find_if(assets->registry.begin(), assets->registry.end(), IsNameRegistered);
+        return it != assets->registry.end();
+    }
+
+    bool IsAssetRegisteredByPath(const std::filesystem::path& path)
     {
         auto IsPathRegistered = [&](const std::pair<AssetHandle, AssetMetadata>& pair)
         {
@@ -158,7 +202,22 @@ namespace Nova::AssetManager
         return it != assets->registry.end();
     }
 
-    AssetHandle FindAssetHandle(const std::filesystem::path& path)
+    AssetHandle FindAssetHandleByName(const string& name)
+    {
+        AssetHandle searchedAssetHandle = AssetHandle_Invalid;
+        auto IsNameRegistered = [&](const std::pair<AssetHandle, AssetMetadata>& pair)
+        {
+            return pair.second.name == name;
+        };
+        auto it = std::find_if(assets->registry.begin(), assets->registry.end(), IsNameRegistered);
+
+        if (it != assets->registry.end())
+            searchedAssetHandle = it->first;
+
+        return searchedAssetHandle;
+    }
+
+    AssetHandle FindAssetHandleByPath(const std::filesystem::path& path)
     {
         AssetHandle searchedAssetHandle = AssetHandle_Invalid;
         auto IsPathRegistered = [&](const std::pair<AssetHandle, AssetMetadata>& pair)

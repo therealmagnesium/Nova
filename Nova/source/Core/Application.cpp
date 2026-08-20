@@ -9,77 +9,77 @@ namespace Nova::Application
 {
     static App* context = NULL;
 
-    App Create(const AppConfig& config)
+    App* Create(const AppConfig& config)
     {
-        App app;
-        app.config = config;
+        App* app = new App();
+        app->config = config;
 
         if (config.callbacks.on_create == NULL || config.callbacks.on_event == NULL ||
             config.callbacks.on_update == NULL || config.callbacks.on_render == NULL ||
             config.callbacks.on_render_ui == NULL || config.callbacks.on_shutdown == NULL)
         {
             FATAL("%s", "Application::Create - The event callbacks are not setup properly!");
-            return Stub_App;
+            return NULL;
         }
 
         if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
         {
             FATAL("%s", "Application::Create - SDL failed to initialize properly!");
-            return Stub_App;
+            return NULL;
         }
-        context = &app;
 
-        app.window = Windows::Create(config.screen_width, config.screen_height, config.name);
+        context = app;
+        app->window = Windows::Create(config.screen_width, config.screen_height, config.name);
         Random::Init();
         Renderer::Init();
-        AssetManager::Init(&app.assets);
+        AssetManager::Init(&app->assets);
 
-        app.is_valid = true;
-        context = NULL;
-
-        INFO("Application \"%s\" initialized successfully!", app.config.name.c_str());
+        app->is_valid = true;
+        INFO("Application \"%s\" initialized successfully!", app->config.name.c_str());
         return app;
     }
 
-    void Shutdown(App& app)
+    void Shutdown(App* app)
     {
-        INFO("Shutting down application \"%s\"...", app.config.name.c_str());
-        app.is_valid = false;
+        INFO("Shutting down application \"%s\"...", app->config.name.c_str());
+        app->is_valid = false;
 
         AssetManager::Clean();
         Renderer::Shutdown();
-        Windows::Destroy(app.window);
+        Windows::Destroy(app->window);
         SDL_Quit();
+
+        delete app;
     }
 
-    void Run(App& app)
+    void Run(App* app)
     {
-        if (!app.is_valid)
+        if (app == NULL || !app->is_valid)
             return;
 
-        context = &app;
-        app.is_running = true;
-        app.config.callbacks.on_create();
+        context = app;
+        app->is_running = true;
+        app->config.callbacks.on_create();
 
         u64 ticks_previous = SDL_GetTicksNS();
-        while (app.is_running)
+        while (app->is_running)
         {
             const u64 ticks_current = SDL_GetTicksNS();
-            app.delta_time = static_cast<float>(ticks_current - ticks_previous) / 1e9f;
+            app->delta_time = static_cast<float>(ticks_current - ticks_previous) / 1e9f;
             ticks_previous = ticks_current;
 
-            Windows::HandleEvents(app.window);
-            app.config.callbacks.on_event();
-            app.config.callbacks.on_update();
+            Windows::HandleEvents(app->window);
+            app->config.callbacks.on_event();
+            app->config.callbacks.on_update();
 
             if (Renderer::BeginFrame())
             {
-                app.config.callbacks.on_render();
-                app.config.callbacks.on_render_ui();
+                app->config.callbacks.on_render();
+                app->config.callbacks.on_render_ui();
                 Renderer::EndFrame();
             }
         }
-        app.config.callbacks.on_shutdown();
+        app->config.callbacks.on_shutdown();
     }
 
     float GetDeltaTime() { return context->delta_time; }

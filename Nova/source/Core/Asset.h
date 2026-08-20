@@ -29,6 +29,7 @@ namespace Nova
 
     struct AssetMetadata
     {
+        string name;
         std::filesystem::path path;
         AssetType type = AssetType::Invalid;
     };

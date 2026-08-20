@@ -28,7 +28,7 @@ ask-platform() {
 
 	if [[ $platform != "windows" && $platform != "linux" ]]; then
 		echo "Invalid platform entered, exiting safely..."
-		return 1
+		exit
 	fi
 }
 
@@ -37,7 +37,7 @@ ask-config-type() {
 
 	if [[ $config_type != "debug" && $config_type != "release" ]]; then
 		echo "Invalid configuration type entered, exiting safely..."
-		return 2
+		exit
 	fi
 }
 
@@ -46,7 +46,7 @@ ask-premake-config() {
 
 	if [[ $premake_config != "gmake" && $premake_config != "vs2026" ]]; then
 		echo "Invalid configuration for premake, exiting safely..."
-		return 3
+		exit
 	fi
 }
 

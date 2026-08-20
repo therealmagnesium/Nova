@@ -172,7 +172,7 @@ namespace Nova::Textures
             return Stub_Texture;
         }
 
-        const u8 pixel_data[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+        const u8 pixel_data[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
         UploadTexture(entry.metadata, pixel_data, static_cast<SDL_GPUTexture*>(entry.handle));
 
         return RegisterTexture(std::move(entry));
@@ -207,7 +207,7 @@ namespace Nova::Textures
             return Stub_Texture;
         }
 
-        const u8 pixel_data[4] = {128, 128, 255, 255};
+        const u8 pixel_data[4] = { 128, 128, 255, 255 };
         UploadTexture(entry.metadata, pixel_data, static_cast<SDL_GPUTexture*>(entry.handle));
 
         return RegisterTexture(std::move(entry));
@@ -481,8 +481,7 @@ namespace Nova::Textures
             const Window& window = Application::GetWindow();
             SDL_ReleaseGPUTexture(
                 static_cast<SDL_GPUDevice*>(window.gpu_device),
-                static_cast<SDL_GPUTexture*>(it->second.handle)
-            );
+                static_cast<SDL_GPUTexture*>(it->second.handle));
 
             if (!it->second.path.empty())
                 path_to_id.erase(it->second.path);

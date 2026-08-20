@@ -1,8 +1,14 @@
 #pragma once
-#include "Core/Asset.h"
+#include "ECS/Entity.h"
+
+#include "Core/AssetManager.h"
+#include "Core/Log.h"
+#include "Core/Random.h"
+
 #include "Graphics/Animator.h"
 #include "Graphics/Camera.h"
-#include "Graphics/Mesh.h"
+#include "Graphics/Model.h"
+
 #include <glm/vec3.hpp>
 
 namespace Nova
@@ -14,18 +20,18 @@ namespace Nova
 
     struct InternalComponent : public Component
     {
-        // TODO: Store the UUID (Random 64 bit unsigned integer)
         string tag;
+        UUID id;
         bool is_active = false;
-        bool is_alive = false;
+        // TODO: Maybe store the scene context in here?
 
         InternalComponent() = default;
         InternalComponent(const InternalComponent&) = default;
         InternalComponent(const string& tag, bool is_active = true)
         {
-            this->tag = std::move(tag);
+            this->tag = tag;
             this->is_active = is_active;
-            this->is_alive = true;
+            this->id = Random::GenerateUUID();
         }
     };
 
@@ -48,14 +54,16 @@ namespace Nova
     struct PerspectiveCameraComponent : public Component
     {
         Camera3D camera;
+        Entity target_entity;
         bool is_primary = false;
 
         PerspectiveCameraComponent() = default;
         PerspectiveCameraComponent(const PerspectiveCameraComponent&) = default;
-        PerspectiveCameraComponent(bool is_primary)
+        PerspectiveCameraComponent(bool is_primary, const Entity& target_entity = Stub_Entity)
         {
             this->is_primary = is_primary;
-            this->camera.position = glm::vec3(-3.f, 4.f, 5.f);
+            this->target_entity = target_entity;
+            this->camera.position = glm::vec3(0.f);
             this->camera.target = glm::vec3(0.f);
             this->camera.fov = 75.f;
             this->camera.clip_near = 0.1f;
@@ -66,35 +74,59 @@ namespace Nova
     struct MeshFilterComponent : public Component
     {
         PrimitiveMesh primitive;
+        Material material;
 
         MeshFilterComponent() = default;
         MeshFilterComponent(const MeshFilterComponent&) = default;
-        MeshFilterComponent(PrimitiveMesh primitive) { this->primitive = primitive; }
+        MeshFilterComponent(PrimitiveMesh primitive, const Material& material)
+        {
+            this->primitive = primitive;
+            this->material = material;
+        }
     };
 
     struct MeshRendererComponent : public Component
     {
-        AssetHandle model; // Standard model
+        AssetHandle asset_model = AssetHandle_Invalid; // Standard model
 
         MeshRendererComponent() = default;
         MeshRendererComponent(const MeshRendererComponent&) = default;
-        MeshRendererComponent(AssetHandle model)
+        MeshRendererComponent(AssetHandle asset_model)
         {
-            this->model = model;
+            this->asset_model = asset_model;
         }
     };
 
     struct AnimatorComponent : public Component
     {
         Animator animator;
-        AssetHandle model; // Animated model
+        AssetHandle asset_model = AssetHandle_Invalid; // Animated model
 
         AnimatorComponent() = default;
         AnimatorComponent(const AnimatorComponent&) = default;
-        AnimatorComponent(AssetHandle model)
+        AnimatorComponent(AssetHandle asset_model, AssetHandle* assets_clips = NULL, u16 clip_count = 0)
         {
-            this->model = model;
-            // TODO: Create the animator with the model's skeleton
+            if (!AssetManager::IsHandleValid(asset_model))
+            {
+                WARN("AnimatorComponent::AnimatorComponent - %s", "Component left uninitialized since \"asset_model\" was an invalid handle");
+                return;
+            }
+
+            this->asset_model = asset_model;
+            const AnimatedModel* model = AssetManager::GetAsset<AnimatedModel>(asset_model);
+
+            this->animator = Animators::Create(model->skeleton);
+            if (assets_clips == NULL || clip_count == 0)
+                return;
+
+            for (u16 i = 0; i < clip_count; i++)
+            {
+                const AnimationClip* clip = AssetManager::GetAsset<AnimationClip>(assets_clips[i]);
+                Animations::Bind(*clip, model->skeleton);
+
+                if (i == 0)
+                    Animators::Play(animator, *clip, true);
+            }
         }
     };
 }

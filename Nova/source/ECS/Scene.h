@@ -1,10 +1,18 @@
 #pragma once
 #include "Core/Base.h"
-#include "ECS/Components.h"
+#include <tuple>
+#include <vector>
 
 namespace Nova
 {
     struct Entity;
+    struct Component;
+    struct InternalComponent;
+    struct TransformComponent;
+    struct PerspectiveCameraComponent;
+    struct MeshFilterComponent;
+    struct MeshRendererComponent;
+    struct AnimatorComponent;
 
     using EntityID = s64;
     using ComponentPool = std::tuple<
@@ -37,7 +45,7 @@ namespace Nova
         {
             static_assert(std::is_base_of_v<Component, T>, "EntityRegistry::GetComponent - T must derive from Component!");
             std::vector<T>& components = std::get<std::vector<T>>(pool_components);
-            if (entity_id >= static_cast<EntityID>(components.size()) || !components[entity_id].has)
+            if (entity_id < 0 || entity_id >= static_cast<EntityID>(components.size()) || !components[entity_id].has)
                 return NULL;
 
             return &components[entity_id];
@@ -48,7 +56,7 @@ namespace Nova
         {
             static_assert(std::is_base_of_v<Component, T>, "EntityRegistry::GetComponent - T must derive from Component!");
             const std::vector<T>& components = std::get<std::vector<T>>(pool_components);
-            if (entity_id >= static_cast<EntityID>(components.size()) || !components[entity_id].has)
+            if (entity_id < 0 || entity_id >= static_cast<EntityID>(components.size()) || !components[entity_id].has)
                 return NULL;
 
             return &components[entity_id];
@@ -58,7 +66,7 @@ namespace Nova
         inline bool HasComponent(EntityID entity_id) const
         {
             static_assert(std::is_base_of_v<Component, T>, "EntityRegistry::HasComponent - T must derive from Component!");
-            const Component* component = GetComponent<T>(entity_id);
+            const auto component = GetComponent<T>(entity_id);
             if (component == NULL)
                 return false;
 
@@ -69,7 +77,11 @@ namespace Nova
         inline T* AddComponent(EntityID entity_id, Args&&... args)
         {
             static_assert(std::is_base_of_v<Component, T>, "EntityRegistry::AddComponent - T must derive from Component!");
+            if (entity_id < 0)
+                return NULL;
+
             std::vector<T>& components = std::get<std::vector<T>>(pool_components);
+
             if (entity_id >= static_cast<EntityID>(components.size()))
                 components.resize(entity_id + 1);
 
@@ -102,7 +114,7 @@ namespace Nova
     struct Scene
     {
         EntityRegistry registry;
-        SceneState state;
+        SceneState state = SceneState::Editor;
     };
 
     namespace Scenes
@@ -117,5 +129,6 @@ namespace Nova
         void Stop(Scene& scene);
         void UpdateSubsystems(Scene& scene);
         void RenderSubsystems(Scene& scene);
+        void Copy(const Scene& source, Scene& destination);
     }
 }

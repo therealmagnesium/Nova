@@ -11,12 +11,14 @@ namespace Nova
     enum class PrimitiveMesh : u8
     {
         None = 0,
+        Quad,
         Cube,
         Sphere,
         Plane,
         Cone,
         Pyramid,
         Torus,
+        _Length,
     };
 
     struct Vertex
@@ -67,6 +69,10 @@ namespace Nova
         Mesh GenerateQuad();
         Mesh GenerateCube();
         Mesh GenerateSphere(u32 segment_count, u32 ring_count);
+        Mesh GeneratePlane();
+        Mesh GenerateCone();
+        Mesh GeneratePyramid();
+        Mesh GenerateTorus();
         glm::mat4 CalculateTransform(const glm::vec3& position, const glm::vec3& rotation = glm::vec3(0.f), const glm::vec3& scale = glm::vec3(1.f));
         void Destroy(Mesh& mesh);
     }

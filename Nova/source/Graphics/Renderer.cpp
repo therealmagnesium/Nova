@@ -44,8 +44,7 @@ namespace Nova::Renderer
         BoneMatrixPool bone_matrix_pool;
         glm::mat4 matrix_view;
         glm::mat4 matrix_projection;
-        Mesh mesh_screen;
-        Mesh mesh_skybox;
+        Mesh primitives[static_cast<u8>(PrimitiveMesh::_Length)];
         SwapchainTexture texture_swapchain;
         Texture texture_default_white;
         Texture texture_default_normal;
@@ -95,52 +94,49 @@ namespace Nova::Renderer
 
     void Init()
     {
-        const auto info_scene_vertex = (ShaderStorageInfo){
+        const ShaderStorageInfo info_scene_vertex = {
             .sampler_count = 0,
             .uniform_buffer_count = 1,
             .storage_buffer_count = 0,
             .storage_texture_count = 0
         };
-
-        const auto info_skinned_scene_vertex = (ShaderStorageInfo){
+        const ShaderStorageInfo info_skinned_scene_vertex = {
             .sampler_count = 0,
             .uniform_buffer_count = 1,
             .storage_buffer_count = 1, // Bone matrices SSBO
             .storage_texture_count = 0
         };
-
-        const auto info_scene_fragment = (ShaderStorageInfo){
+        const ShaderStorageInfo info_scene_fragment = {
             .sampler_count = 7,
             .uniform_buffer_count = 1,
             .storage_buffer_count = 0,
             .storage_texture_count = 0
-
         };
-        const auto info_compositing_vertex = (ShaderStorageInfo){
+        const ShaderStorageInfo info_compositing_vertex = {
             .sampler_count = 0,
             .uniform_buffer_count = 0,
             .storage_buffer_count = 0,
             .storage_texture_count = 0
         };
-        const auto info_compositing_fragment = (ShaderStorageInfo){
+        const ShaderStorageInfo info_compositing_fragment = {
             .sampler_count = 1,
             .uniform_buffer_count = 1,
             .storage_buffer_count = 0,
             .storage_texture_count = 0
         };
-        const auto info_ibl_vertex = (ShaderStorageInfo){
+        const ShaderStorageInfo info_ibl_vertex = {
             .sampler_count = 0,
             .uniform_buffer_count = 1,
             .storage_buffer_count = 0,
             .storage_texture_count = 0
         };
-        const auto info_ibl_fragment = (ShaderStorageInfo){
+        const ShaderStorageInfo info_ibl_fragment = {
             .sampler_count = 1,
             .uniform_buffer_count = 0,
             .storage_buffer_count = 0,
             .storage_texture_count = 0
         };
-        const auto info_prefilter_fragment = (ShaderStorageInfo){
+        const ShaderStorageInfo info_prefilter_fragment = {
             .sampler_count = 1,
             .uniform_buffer_count = 1,
             .storage_buffer_count = 0,
@@ -191,8 +187,13 @@ namespace Nova::Renderer
         state.texture_depth_stencil = Textures::CreateFramebufferAttachmentDepth(window.width, window.height);
         state.texture_swapchain.metadata = Stub_Texture; // Gets written in "BeginFrame"
 
-        state.mesh_screen = Meshes::GenerateQuad();
-        state.mesh_skybox = Meshes::GenerateCube();
+        state.primitives[static_cast<u8>(PrimitiveMesh::Quad)] = Meshes::GenerateQuad();
+        state.primitives[static_cast<u8>(PrimitiveMesh::Cube)] = Meshes::GenerateCube();
+        state.primitives[static_cast<u8>(PrimitiveMesh::Sphere)] = Meshes::GenerateSphere(32, 16);
+        state.primitives[static_cast<u8>(PrimitiveMesh::Plane)] = Meshes::GeneratePlane();
+        state.primitives[static_cast<u8>(PrimitiveMesh::Cone)] = Meshes::GenerateCone();
+        state.primitives[static_cast<u8>(PrimitiveMesh::Pyramid)] = Meshes::GeneratePyramid();
+        state.primitives[static_cast<u8>(PrimitiveMesh::Torus)] = Meshes::GenerateTorus();
 
         // Pre-allocate every bone matrix pool slot up front - see BoneMatrixPool's comment above.
         const u32 bone_buffer_size = static_cast<u32>(sizeof(glm::mat4) * MAX_BONES);
@@ -210,8 +211,10 @@ namespace Nova::Renderer
     void Shutdown()
     {
         INFO("%s", "Shutting down the renderer...");
-        Meshes::Destroy(state.mesh_screen);
-        Meshes::Destroy(state.mesh_skybox);
+
+        for (Mesh& primitive : state.primitives)
+            Meshes::Destroy(primitive);
+
         Textures::Unload(state.texture_default_white);
         Textures::Unload(state.texture_default_normal);
         Textures::Unload(state.texture_depth_stencil);
@@ -234,7 +237,8 @@ namespace Nova::Renderer
         if (state.command_buffer == NULL)
             return false;
 
-        u32 swapchain_width, swapchain_height = 0;
+        u32 swapchain_width = 0;
+        u32 swapchain_height = 0;
         SDL_GPUTexture* swapchain_handle = NULL;
         if (!SDL_AcquireGPUSwapchainTexture(state.command_buffer, window_handle, &swapchain_handle, &swapchain_width, &swapchain_height))
         {
@@ -267,6 +271,8 @@ namespace Nova::Renderer
     void EndFrame()
     {
         Pipelines::ResetBindingCache();
+        Buffers::ResetBindingCache();
+
         state.matrix_view = glm::mat4(1.f);
         state.matrix_projection = glm::mat4(1.f);
         state.bone_matrix_pool.next_slot = 0;
@@ -279,21 +285,13 @@ namespace Nova::Renderer
         state.command_buffer = NULL;
     }
 
-    void DrawSkybox(const EnvironmentMap& environment_map)
+    void DrawPrimitive(PrimitiveMesh primitive, const glm::mat4& transform, const Material& material)
     {
-        if (state.active_render_pass == NULL || state.primary_camera == NULL)
+        const Mesh& mesh = state.primitives[static_cast<u8>(primitive)];
+        if (mesh.index_count < 1)
             return;
 
-        state.active_environment_map = &environment_map;
-
-        Pipelines::Bind(GPUPipeline::IBL_Skybox, state.active_render_pass);
-        Buffers::Bind(state.mesh_skybox.buffer_vertex);
-        Buffers::Bind(state.mesh_skybox.buffer_index);
-        Textures::Bind(environment_map.environment);
-
-        const glm::mat4 mvp_data[2] = {state.matrix_view, state.matrix_projection};
-        SDL_PushGPUVertexUniformData(state.command_buffer, 0, mvp_data, sizeof(glm::mat4) * LEN(mvp_data));
-        SDL_DrawGPUIndexedPrimitives(static_cast<SDL_GPURenderPass*>(state.active_render_pass), state.mesh_skybox.index_count, 1, 0, 0, 0);
+        DrawMesh(mesh, transform, material);
     }
 
     void DrawMesh(const Mesh& mesh, const glm::mat4& transform, const Material& material)
@@ -304,7 +302,7 @@ namespace Nova::Renderer
         if (state.active_render_pass == NULL || state.primary_camera == NULL)
             return;
 
-        Pipelines::Bind(!state.wireframe_enabled ? mesh.pipeline : GPUPipeline::WireframeMeshes, state.active_render_pass);
+        Pipelines::Bind(mesh.pipeline, state.active_render_pass);
         Buffers::Bind(mesh.buffer_vertex);
         Buffers::Bind(mesh.buffer_index);
         Textures::Bind(material.texture_albedo.IsValid() ? material.texture_albedo : state.texture_default_white, 0);
@@ -369,7 +367,8 @@ namespace Nova::Renderer
         }
 
         GPUBuffer& bone_matrix_buffer = state.bone_matrix_pool.buffers[state.bone_matrix_pool.next_slot++];
-        const u32 size = static_cast<u32>(sizeof(glm::mat4) * MAX_BONES);
+        const u32 bone_count = static_cast<u32>(animator.skeleton->bones.size());
+        const u32 size = static_cast<u32>(sizeof(glm::mat4)) * bone_count;
         const u32 offset = Buffers::StreamWrite(state.bone_matrix_pool.upload_stream, animator.bone_matrices, size);
         Buffers::StreamQueueCopy(state.bone_matrix_pool.upload_stream, offset, bone_matrix_buffer, size);
 
@@ -386,10 +385,6 @@ namespace Nova::Renderer
         if (mesh.buffer_vertex.handle == NULL || mesh.buffer_index.handle == NULL)
             return;
 
-        // NOTE: Skinned meshes always use their assigned pipeline (GPUPipeline::OutdoorMeshesSkinned),
-        // ignoring ToggleWireframeMode() - the static WireframeMeshes pipeline expects the 4-attribute
-        // static Vertex layout and would read garbage from a 6-attribute SkinnedVertex buffer. Add a
-        // WireframeMeshesSkinned pipeline (mirroring InitOutdoorMeshesSkinned) if wireframe support is needed here.
         Pipelines::Bind(mesh.pipeline, state.active_render_pass);
         Buffers::Bind(mesh.buffer_vertex);
         Buffers::Bind(mesh.buffer_index);
@@ -439,14 +434,34 @@ namespace Nova::Renderer
     void DrawTextureCompositing(const Texture& screen_texture)
     {
         const RenderPassHandle render_pass = Renderer::GetActiveRenderPass();
+        const Mesh& mesh_compositing = GetPrimitiveMesh(PrimitiveMesh::Quad);
+
         Pipelines::Bind(GPUPipeline::PostProcessing, render_pass);
-        Buffers::Bind(state.mesh_screen.buffer_vertex);
-        Buffers::Bind(state.mesh_screen.buffer_index);
+        Buffers::Bind(mesh_compositing.buffer_index);
+        Buffers::Bind(mesh_compositing.buffer_vertex);
         Textures::Bind(screen_texture);
 
         const float exposure = state.exposure;
         SDL_PushGPUFragmentUniformData(state.command_buffer, 0, &exposure, sizeof(float));
-        SDL_DrawGPUIndexedPrimitives(static_cast<SDL_GPURenderPass*>(render_pass), state.mesh_screen.index_count, 1, 0, 0, 0);
+        SDL_DrawGPUIndexedPrimitives(static_cast<SDL_GPURenderPass*>(render_pass), mesh_compositing.index_count, 1, 0, 0, 0);
+    }
+
+    void DrawSkybox(const EnvironmentMap& environment_map)
+    {
+        if (state.active_render_pass == NULL || state.primary_camera == NULL)
+            return;
+
+        const Mesh& mesh_skybox = GetPrimitiveMesh(PrimitiveMesh::Cube);
+        state.active_environment_map = &environment_map;
+
+        Pipelines::Bind(GPUPipeline::IBL_Skybox, state.active_render_pass);
+        Buffers::Bind(mesh_skybox.buffer_vertex);
+        Buffers::Bind(mesh_skybox.buffer_index);
+        Textures::Bind(environment_map.environment);
+
+        const glm::mat4 mvp_data[2] = { state.matrix_view, state.matrix_projection };
+        SDL_PushGPUVertexUniformData(state.command_buffer, 0, mvp_data, sizeof(glm::mat4) * LEN(mvp_data));
+        SDL_DrawGPUIndexedPrimitives(static_cast<SDL_GPURenderPass*>(state.active_render_pass), mesh_skybox.index_count, 1, 0, 0, 0);
     }
 
     float GetExposure() { return state.exposure; }
@@ -458,8 +473,7 @@ namespace Nova::Renderer
     const Texture& GetTextureDepthStencil() { return state.texture_depth_stencil; }
     const glm::mat4& GetMatrixView() { return state.matrix_view; }
     const glm::mat4& GetMatrixProjection() { return state.matrix_projection; }
-    const Mesh& GetMeshSkybox() { return state.mesh_skybox; }
-    const Mesh& GetMeshScreenQuad() { return state.mesh_screen; }
+    const Mesh& GetPrimitiveMesh(PrimitiveMesh primitive) { return state.primitives[static_cast<u8>(primitive)]; }
 
     void SetSun(const DirectionalLight& sun) { state.active_sun = &sun; }
     void SetExposure(float exposure) { state.exposure = exposure; }

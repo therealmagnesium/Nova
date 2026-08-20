@@ -1,6 +1,7 @@
 #include "Graphics/Camera.h"
 #include "Core/Application.h"
 #include "Core/Input.h"
+#include "Core/Log.h"
 
 #include <SDL3/SDL_mouse.h>
 #include <glm/ext/matrix_transform.hpp>
@@ -14,6 +15,7 @@ namespace Nova::Cameras
     void Camera3D_Pan(Camera3D& camera, const glm::vec2& delta, float pan_speed);
     void Camera3D_Orbit(Camera3D& camera, const glm::vec2& delta, float orbit_sensitivity);
     void Camera3D_Zoom(Camera3D& camera, float delta);
+    float Camera3D_CalculateZoomSpeed(Camera3D& camera);
 
     void UpdateEditor(Camera3D& camera, float pan_speed, float orbit_sensitivity)
     {
@@ -99,11 +101,21 @@ namespace Nova::Cameras
 
     void Camera3D_Zoom(Camera3D& camera, float delta)
     {
-        const float distance_to_target = glm::length(camera.target - camera.position);
-        if (delta > 0.f && distance_to_target <= 1.f)
-            return;
-
         const glm::vec3 forward = glm::normalize(camera.target - camera.position);
-        camera.position += forward * delta;
+        camera.position += forward * delta * Camera3D_CalculateZoomSpeed(camera);
+
+        const glm::vec3 V = camera.position - camera.target;
+        const float d = glm::length(V);
+        if (d <= 1.f)
+        {
+            const glm::vec3 U = glm::normalize(V);
+            camera.position = camera.target + U; // P = T + (U * x)
+        }
+    }
+
+    float Camera3D_CalculateZoomSpeed(Camera3D& camera)
+    {
+        const float distance = std::max(glm::length(camera.target - camera.position) * 0.1f, 0.f);
+        return std::min(distance * distance, 10.f);
     }
 }

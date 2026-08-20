@@ -15,7 +15,7 @@ namespace Nova
     struct Material;
     struct Mesh;
     struct Model;
-    enum class PipelineType : u8;
+    enum class PrimitiveMesh : u8;
 
     namespace Renderer
     {
@@ -24,11 +24,12 @@ namespace Nova
         bool BeginFrame();
         void EndFrame();
 
-        void DrawSkybox(const EnvironmentMap& environment_map);
+        void DrawPrimitive(PrimitiveMesh primitive, const glm::mat4& transform, const Material& material);
         void DrawMesh(const Mesh& mesh, const glm::mat4& transform, const Material& material);
         void DrawModel(const Model& model, const glm::vec3& position = glm::vec3(0.f), const glm::vec3& rotation = glm::vec3(0.f), const glm::vec3& scale = glm::vec3(1.f));
         void DrawAnimatedModel(const AnimatedModel& model, const Animator& animator, const glm::vec3& position = glm::vec3(0.f), const glm::vec3& rotation = glm::vec3(0.f), const glm::vec3& scale = glm::vec3(1.f));
         void DrawTextureCompositing(const Texture& screen_texture);
+        void DrawSkybox(const EnvironmentMap& environment_map);
 
         float GetExposure();
         void* GetCommandBuffer();
@@ -39,8 +40,7 @@ namespace Nova
         const Texture& GetTextureDepthStencil();
         const glm::mat4& GetMatrixView();
         const glm::mat4& GetMatrixProjection();
-        const Mesh& GetMeshSkybox();     // TEMPORARY - Bad design!
-        const Mesh& GetMeshScreenQuad(); // TEMPORARY - Bad design!
+        const Mesh& GetPrimitiveMesh(PrimitiveMesh primitive);
 
         void SetSun(const DirectionalLight& sun);
         void SetExposure(float exposure);

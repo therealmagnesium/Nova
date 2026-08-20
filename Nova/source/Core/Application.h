@@ -36,14 +36,13 @@ namespace Nova
         bool is_valid = false;
     };
 
-    inline const App Stub_App;
     inline const EventCallbacks Stub_EventCallbacks;
 
     namespace Application
     {
-        App Create(const AppConfig& config);
-        void Run(App& app);
-        void Shutdown(App& app);
+        App* Create(const AppConfig& config);
+        void Run(App* app);
+        void Shutdown(App* app);
 
         float GetDeltaTime();
         u16 GetScreenWidth();

@@ -43,8 +43,8 @@ namespace Nova::IBL
         };
 
         const u8 face_count = 6;
-        const Mesh& quad = Renderer::GetMeshScreenQuad();
-        const Mesh& cube = Renderer::GetMeshSkybox();
+        const Mesh& quad = Renderer::GetPrimitiveMesh(PrimitiveMesh::Quad);
+        const Mesh& cube = Renderer::GetPrimitiveMesh(PrimitiveMesh::Cube);
 
         SDL_GPUTexture* handle_environment = static_cast<SDL_GPUTexture*>(Textures::GetHandle(map.environment));
         SDL_GPUTexture* handle_irradiance = static_cast<SDL_GPUTexture*>(Textures::GetHandle(map.irradiance));
