@@ -50,6 +50,14 @@ namespace Nova::Meshes
         return mesh;
     }
 
+    void Destroy(Mesh& mesh)
+    {
+        Buffers::Destroy(mesh.buffer_vertex);
+        Buffers::Destroy(mesh.buffer_index);
+        mesh.vertex_count = 0;
+        mesh.index_count = 0;
+    }
+
     Mesh GenerateQuad()
     {
         const Vertex vertices[4] = {
@@ -323,12 +331,17 @@ namespace Nova::Meshes
             float x = cos_theta * radius;
             float z = sin_theta * radius;
 
-            glm::vec3 normal = glm::normalize(glm::vec3(x, radius * (radius / height), z));
+            // Separate the normals: bottom points outward, top points straight up
+            glm::vec3 normal_bottom = glm::normalize(glm::vec3(x, radius * (radius / height), z));
+            glm::vec3 normal_top = glm::vec3(0.f, 1.f, 0.f);
+
             glm::vec3 tangent = glm::normalize(glm::vec3(-sin_theta, 0.f, cos_theta));
 
             float u = static_cast<float>(i) / static_cast<float>(segments);
-            vertices.emplace_back((Vertex){ .position = glm::vec3(x, -half_height, z), .normal = normal, .uv = glm::vec2(u, 0.f), .tangent = tangent });
-            vertices.emplace_back((Vertex){ .position = glm::vec3(0.f, half_height, 0.f), .normal = normal, .uv = glm::vec2(u, 1.f), .tangent = tangent });
+
+            // Apply the distinct normals to their respective vertices
+            vertices.emplace_back((Vertex){ .position = glm::vec3(x, -half_height, z), .normal = normal_bottom, .uv = glm::vec2(u, 0.f), .tangent = tangent });
+            vertices.emplace_back((Vertex){ .position = glm::vec3(0.f, half_height, 0.f), .normal = normal_top, .uv = glm::vec2(u, 1.f), .tangent = tangent });
         }
 
         for (u32 i = 0; i < segments; i++)
@@ -413,13 +426,5 @@ namespace Nova::Meshes
         transform = glm::rotate(transform, glm::radians(rotation.z), glm::vec3(0.f, 0.f, 1.f));
         transform = glm::scale(transform, scale);
         return transform;
-    }
-
-    void Destroy(Mesh& mesh)
-    {
-        Buffers::Destroy(mesh.buffer_vertex);
-        Buffers::Destroy(mesh.buffer_index);
-        mesh.vertex_count = 0;
-        mesh.index_count = 0;
     }
 }

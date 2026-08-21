@@ -45,8 +45,14 @@ namespace Game
 
         state.material_grid.texture_albedo = *AssetManager::GetAsset<Texture>(GetAsset(Assets::TextureGrid));
         state.material_red.albedo = glm::vec4(1.f, 0.f, 0.f, 1.f);
+        state.material_red.metallic = 0.65f;
+        state.material_red.roughness = 0.35f;
         state.material_green.albedo = glm::vec4(0.f, 1.f, 0.f, 1.f);
+        state.material_green.metallic = 0.35f;
+        state.material_green.roughness = 0.85f;
         state.material_blue.albedo = glm::vec4(0.f, 0.f, 1.f, 1.f);
+        state.material_blue.metallic = 0.75f;
+        state.material_blue.roughness = 0.25f;
 
         // Bake the environment and setup the sun
         state.environment_map = IBL::BakeFromHDRI("Assets/HDRIs/puresky_citrus.hdr");

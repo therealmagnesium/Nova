@@ -106,7 +106,7 @@ void Update_Jump(Scene& scene, Player& player, const glm::vec3& move_direction)
     const auto transform = player.entity.GetComponent<TransformComponent>(scene);
 
     // Limited air control - same direction as ground movement, at reduced authority
-    transform->position += move_direction * player.move_speed * 0.5f * Application::GetDeltaTime();
+    transform->position += move_direction * player.move_speed * Application::GetDeltaTime();
     ApplyGravity(player, *transform);
 
     if (player.is_grounded)

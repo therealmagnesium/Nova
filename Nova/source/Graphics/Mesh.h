@@ -66,6 +66,7 @@ namespace Nova
     {
         Mesh Create(const Vertex* vertices, u32 vertex_count, const u32* indices, u32 index_count);
         Mesh CreateSkinned(const VertexSkinned* vertices, u32 vertex_count, const u32* indices, u32 index_count);
+        void Destroy(Mesh& mesh);
         Mesh GenerateQuad();
         Mesh GenerateCube();
         Mesh GenerateSphere(u32 segment_count, u32 ring_count);
@@ -74,6 +75,5 @@ namespace Nova
         Mesh GeneratePyramid();
         Mesh GenerateTorus();
         glm::mat4 CalculateTransform(const glm::vec3& position, const glm::vec3& rotation = glm::vec3(0.f), const glm::vec3& scale = glm::vec3(1.f));
-        void Destroy(Mesh& mesh);
     }
 }
