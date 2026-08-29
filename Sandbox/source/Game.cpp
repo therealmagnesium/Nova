@@ -1,6 +1,8 @@
 #include "Game.h"
 #include "Player.h"
 
+#include <imgui.h>
+
 using namespace Nova;
 
 struct GameState
@@ -48,8 +50,8 @@ namespace Game
         state.material_red.metallic = 0.65f;
         state.material_red.roughness = 0.35f;
         state.material_green.albedo = glm::vec4(0.f, 1.f, 0.f, 1.f);
-        state.material_green.metallic = 0.35f;
-        state.material_green.roughness = 0.85f;
+        state.material_green.metallic = 0.15f;
+        state.material_green.roughness = 0.05f;
         state.material_blue.albedo = glm::vec4(0.f, 0.f, 1.f, 1.f);
         state.material_blue.metallic = 0.75f;
         state.material_blue.roughness = 0.25f;
@@ -125,13 +127,18 @@ namespace Game
         if (Windows::IsMinimized(window))
             return;
 
-        Scenes::UpdateSubsystems(*state.scene_active);
         Player_Update(*state.scene_active, state.player);
+        if (state.scene_active->state == SceneState::Runtime)
+        {
+            // Make the runtime camera follow the player
+            const glm::vec3 player_position = state.player.entity.GetComponent<TransformComponent>(state.scene_runtime)->position;
+            const glm::vec3 camera_offset = glm::vec3(0.f, 6.f, -5.f);
 
-        /*
-        auto cc = state.camera_game.GetComponent<PerspectiveCameraComponent>();
-        cc->camera.target = state.player.GetPosition();*/
+            auto transform = state.camera_game.GetComponent<TransformComponent>(state.scene_runtime);
+            transform->position = player_position + camera_offset;
+        }
 
+        Scenes::UpdateSubsystems(*state.scene_active);
         if (state.scene_active->state == SceneState::Editor)
             Cameras::UpdateEditor(state.camera_editor, 1.f, 12.f);
     }
@@ -146,7 +153,11 @@ namespace Game
         RenderPass_PostProcessing();
     }
 
-    void OnRenderUI() {}
+    void OnRenderUI()
+    {
+        if (state.scene_active->state == SceneState::Editor)
+            ImGui::ShowDemoWindow();
+    }
 
     void OnShutdown()
     {
@@ -188,7 +199,7 @@ namespace Game
 
     void RenderPass_SceneHDR()
     {
-        const auto hdr_info = (ColorTargetInfo){
+        const ColorTargetInfo hdr_info = {
             .clear_color = glm::vec4(0.01f, 0.01f, 0.01f, 1.f), // Note: Colors are not in linear space after compositing pass
             .texture = Textures::GetHandle(state.attachment_hdr),
             .texture_msaa_resolve = Textures::GetHandle(state.attachment_resolve),
@@ -196,7 +207,7 @@ namespace Game
             .store_op = GPUStoreOp::Resolve,
         };
 
-        const auto ds_info = (DepthStencilTargetInfo){
+        const DepthStencilTargetInfo ds_info = {
             .texture = Textures::GetHandle(state.attachment_depth),
             .clear_depth = 1.f,
             .load_op = GPULoadOp::Clear,
@@ -216,14 +227,14 @@ namespace Game
 
     void RenderPass_PostProcessing()
     {
-        const auto swapchain_info = (ColorTargetInfo){
+        const ColorTargetInfo swapchain_info = {
             .clear_color = glm::vec4(0.12, 0.12, 0.12, 1.f),
             .texture = NULL, // Resorts to using the renderer's swapchain texture
             .load_op = GPULoadOp::Clear,
             .store_op = GPUStoreOp::Store,
         };
 
-        const auto ds_info = (DepthStencilTargetInfo){
+        const DepthStencilTargetInfo ds_info = {
             .texture = NULL, // Resorts to using the renderer's default depth-stencil texture
             .clear_depth = 1.f,
             .load_op = GPULoadOp::Clear,
@@ -233,6 +244,7 @@ namespace Game
         // Renders the HDR framebuffer onto a fullscreen quad and applies post-processing effects
         const RenderPassHandle post_processing_pass = RenderPasses::Begin(&swapchain_info, 1, ds_info);
         Renderer::DrawTextureCompositing(state.attachment_resolve);
+        UI::Display(post_processing_pass);
         RenderPasses::End(post_processing_pass);
     }
 }

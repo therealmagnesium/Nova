@@ -26,7 +26,7 @@ namespace Nova::RenderPasses
             info.resolve_texture = p_info.texture_msaa_resolve != NULL ? static_cast<SDL_GPUTexture*>(p_info.texture_msaa_resolve) : NULL;
             info.resolve_mip_level = 0;
             info.resolve_layer = 0;
-            info.clear_color = (SDL_FColor){p_info.clear_color.r, p_info.clear_color.g, p_info.clear_color.b, p_info.clear_color.a};
+            info.clear_color = (SDL_FColor){ p_info.clear_color.r, p_info.clear_color.g, p_info.clear_color.b, p_info.clear_color.a };
             info.load_op = GPULoadOpToSDL(p_info.load_op);
             info.store_op = GPUStoreOpToSDL(p_info.store_op);
             info.mip_level = p_info.mip_level;
@@ -51,8 +51,10 @@ namespace Nova::RenderPasses
 
     void End(RenderPassHandle render_pass)
     {
+        Renderer::Flush();
         SDL_EndGPURenderPass(static_cast<SDL_GPURenderPass*>(render_pass));
         Pipelines::ResetBindingCache();
+        Renderer::SetActiveRenderPass(NULL);
     }
 
     SDL_GPULoadOp GPULoadOpToSDL(GPULoadOp load_op)

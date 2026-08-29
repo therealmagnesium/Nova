@@ -22,12 +22,13 @@ function LinkNova()
 
     includedirs({
         framework_root .. "/Nova/source",
-        framework_root .. "/vendor/SDL3/include",
         framework_root .. "/vendor/glm",
+        framework_root .. "/vendor/imgui/include",
     })
 
     links({
         "Nova",
+        "imgui", -- only for ImGui::ShowDemoWindow()
     })
 
     filter("system:windows")

@@ -30,6 +30,7 @@ namespace Nova::Textures
     u16 CalculateMipLevels(u16 width, u16 height);
     Texture RegisterTexture(CachedTexture&& entry);
     void UploadTexture(const Texture& metadata, const void* image_data, SDL_GPUTexture* handle);
+    bool ValidateTransparency(const Texture& metadata, const u8* image_data);
 
     void SetupSamplers()
     {
@@ -237,6 +238,7 @@ namespace Nova::Textures
         entry.metadata.channel_count = (u8)channels;
         entry.metadata.mip_levels = CalculateMipLevels(width, height);
         entry.metadata.format = format;
+        entry.metadata.has_transparency = ValidateTransparency(entry.metadata, image_data);
         entry.sampler = sampler;
 
         if (!path.empty())
@@ -291,6 +293,7 @@ namespace Nova::Textures
         entry.metadata.channel_count = (u8)channels;
         entry.metadata.mip_levels = CalculateMipLevels(width, height);
         entry.metadata.format = format;
+        entry.metadata.has_transparency = ValidateTransparency(entry.metadata, image_data);
         entry.path = path; // store the relative path as the cache key
         entry.sampler = sampler;
 
@@ -653,5 +656,29 @@ namespace Nova::Textures
 
         SDL_SubmitGPUCommandBuffer(command_buffer);
         SDL_ReleaseGPUTransferBuffer(device, transfer_buffer);
+    }
+
+    bool ValidateTransparency(const Texture& metadata, const u8* image_data)
+    {
+        if (image_data == NULL)
+            return false;
+
+        if (metadata.channel_count != 4 && metadata.channel_count != 2)
+            return false;
+
+        const u32 pixel_count = metadata.width * metadata.height;
+
+        bool has_transparency = false;
+        for (u32 i = 0; i < pixel_count; i++)
+        {
+            const u8 alpha = image_data[i * 4 + 3];
+            if (alpha < 255)
+            {
+                has_transparency = true;
+                break;
+            }
+        }
+
+        return has_transparency;
     }
 }

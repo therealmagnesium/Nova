@@ -24,6 +24,7 @@ namespace Nova
         bool BeginFrame();
         void EndFrame();
 
+        void Flush();
         void DrawPrimitive(PrimitiveMesh primitive, const glm::mat4& transform, const Material& material);
         void DrawMesh(const Mesh& mesh, const glm::mat4& transform, const Material& material);
         void DrawModel(const Model& model, const glm::vec3& position = glm::vec3(0.f), const glm::vec3& rotation = glm::vec3(0.f), const glm::vec3& scale = glm::vec3(1.f));

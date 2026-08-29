@@ -9,51 +9,54 @@ targetdir("%{wks.location}/bin/" .. output_dir .. "/%{prj.name}")
 objdir("%{wks.location}/build/" .. output_dir .. "/%{prj.name}")
 
 files({
-    "source/**.h",
-    "source/**.cpp",
+	"source/**.h",
+	"source/**.cpp",
 })
 
 includedirs({
-    "source",
-    "%{wks.location}/vendor/SDL3/include",
-    "%{wks.location}/vendor/glm",
-    "%{wks.location}/vendor/stb_image/include",
-    "%{wks.location}/vendor/assimp/include",
-    "%{wks.location}/vendor/assimp/build/include", -- assimp/config.h
+	"source",
+	"%{wks.location}/vendor/SDL3/include",
+	"%{wks.location}/vendor/glm",
+	"%{wks.location}/vendor/stb_image/include",
+	"%{wks.location}/vendor/imgui/include",
+	"%{wks.location}/vendor/assimp/include",
+	"%{wks.location}/vendor/assimp/build/include", -- assimp/config.h
 })
 
 libdirs({
-    "%{wks.location}/vendor/SDL3/build",
-    "%{wks.location}/vendor/stb_image/bin",
-    "%{wks.location}/vendor/assimp/build/lib",
+	"%{wks.location}/vendor/SDL3/build",
+	"%{wks.location}/vendor/stb_image/bin",
+	"%{wks.location}/vendor/imgui/bin",
+	"%{wks.location}/vendor/assimp/build/lib",
 })
 
 linkoptions({ "-Wl,--start-group" })
 links({
-    "SDL3",
-    "stb_image",
-    "assimp",
-    "z",
+	"SDL3",
+	"stb_image",
+	"assimp",
+	"imgui",
+	"z",
 })
 linkoptions({ "-Wl,--end-group" })
 
 filter("system:windows")
 defines({ "PLATFORM_WINDOWS" })
 links({
-    "setupapi",
-    "winmm",
-    "imm32",
-    "version",
-    "ole32",
-    "oleaut32",
+	"setupapi",
+	"winmm",
+	"imm32",
+	"version",
+	"ole32",
+	"oleaut32",
 })
 
 filter("system:linux")
 defines({ "PLATFORM_LINUX" })
 links({
-    "dl",
-    "pthread",
-    "m",
+	"dl",
+	"pthread",
+	"m",
 })
 
 filter("configurations:Debug")

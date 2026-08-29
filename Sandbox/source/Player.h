@@ -21,7 +21,7 @@ struct Player
     u8 state = PlayerState::Idle;
 
     glm::vec3 velocity = glm::vec3(0.f);
-    float move_speed = 4.f;      // Units/second while running
+    float move_speed = 5.f;      // Units/second while running
     float turn_smoothing = 15.f; // Higher = snappier turning, lower = smoother/slower (see FaceMoveDirection)
     float jump_speed = 9.f;      // Initial upward velocity applied on jump
     float gravity = -18.f;       // Downward acceleration applied every frame while airborne

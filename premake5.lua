@@ -8,6 +8,7 @@ output_dir = "%{cfg.buildcfg}-%{cfg.system}"
 
 group("Dependencies")
 include("vendor/stb_image/premake5.lua")
+include("vendor/imgui/premake5.lua")
 group("")
 
 include("Nova.lua")

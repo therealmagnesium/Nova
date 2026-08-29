@@ -39,29 +39,6 @@ namespace Nova::Renderer
         u32 next_slot = 0;
     };
 
-    struct RenderState
-    {
-        BoneMatrixPool bone_matrix_pool;
-        glm::mat4 matrix_view;
-        glm::mat4 matrix_projection;
-        Mesh primitives[static_cast<u8>(PrimitiveMesh::_Length)];
-        SwapchainTexture texture_swapchain;
-        Texture texture_default_white;
-        Texture texture_default_normal;
-        Texture texture_depth_stencil;
-        const DirectionalLight* active_sun = NULL;
-        const EnvironmentMap* active_environment_map = NULL;
-        RenderPassHandle active_render_pass = NULL;
-        Camera3D* primary_camera = NULL;
-        SDL_GPUCommandBuffer* command_buffer = NULL;
-        u32 vertex_buffer_count = 0;
-        u32 index_buffer_count = 0;
-        u32 storage_buffer_count = 0;
-        float exposure = 1.f;
-        GPUPipeline pipeline_index = GPUPipeline::OutdoorMeshes;
-        bool wireframe_enabled = false;
-    };
-
     struct alignas(16) MVPData
     {
         glm::mat4 matrix_model;
@@ -88,8 +65,52 @@ namespace Nova::Renderer
         glm::vec4 camera_position;
     };
 
-    static RenderState state;
+    struct RenderCommand
+    {
+        glm::mat4 transform = glm::mat4(1.f);
+        const GPUBuffer* buffer_vertex = NULL;
+        const GPUBuffer* buffer_index = NULL;
+        const GPUBuffer* buffer_ssbo_bones = NULL;
+        const Material* material = NULL;
+        u64 index_count = 0;
+        float sort_depth = 0.f;
+        GPUPipeline pipeline = GPUPipeline::OutdoorMeshes;
+    };
 
+    struct RenderQueue
+    {
+        std::vector<RenderCommand> opaque;
+        std::vector<RenderCommand> translucent;
+    };
+
+    struct RenderState
+    {
+        BoneMatrixPool bone_matrix_pool;
+        glm::mat4 matrix_view;
+        glm::mat4 matrix_projection;
+        Mesh primitives[static_cast<u8>(PrimitiveMesh::_Length)];
+        SwapchainTexture texture_swapchain;
+        Texture texture_default_white;
+        Texture texture_default_normal;
+        Texture texture_depth_stencil;
+        const DirectionalLight* active_sun = NULL;
+        const EnvironmentMap* active_environment_map = NULL;
+        RenderPassHandle active_render_pass = NULL;
+        Camera3D* primary_camera = NULL;
+        SDL_GPUCommandBuffer* command_buffer = NULL;
+        u32 vertex_buffer_count = 0;
+        u32 index_buffer_count = 0;
+        u32 storage_buffer_count = 0;
+        float exposure = 1.f;
+        GPUPipeline pipeline_index = GPUPipeline::OutdoorMeshes;
+        bool wireframe_enabled = false;
+    };
+
+    static RenderState state;
+    static RenderQueue queue;
+
+    void SubmitCommand(const RenderCommand& command);
+    void RegisterCommand(const RenderCommand& command);
     void DrawSkinnedMesh(const Mesh& mesh, const glm::mat4& transform, const Material& material, const GPUBuffer& bone_matrix_buffer);
 
     void Init()
@@ -270,6 +291,9 @@ namespace Nova::Renderer
 
     void EndFrame()
     {
+        SDL_SubmitGPUCommandBuffer(state.command_buffer);
+        state.command_buffer = NULL;
+
         Pipelines::ResetBindingCache();
         Buffers::ResetBindingCache();
 
@@ -280,9 +304,31 @@ namespace Nova::Renderer
         // Flush every bone-matrix write queued this frame as ONE copy pass on its own command
         // buffer, submitted before the render command buffer.
         Buffers::StreamFlush(state.bone_matrix_pool.upload_stream);
+    }
 
-        SDL_SubmitGPUCommandBuffer(state.command_buffer);
-        state.command_buffer = NULL;
+    void Flush()
+    {
+        const auto SortDepthNearest = [](const RenderCommand& a, const RenderCommand& b)
+        {
+            return a.sort_depth < b.sort_depth;
+        };
+
+        const auto SortDepthFurthest = [](const RenderCommand& a, const RenderCommand& b)
+        {
+            return a.sort_depth > b.sort_depth;
+        };
+
+        std::sort(queue.opaque.begin(), queue.opaque.end(), SortDepthNearest);            // near → far
+        std::sort(queue.translucent.begin(), queue.translucent.end(), SortDepthFurthest); // far → near
+
+        for (const RenderCommand& command : queue.opaque)
+            SubmitCommand(command);
+
+        for (const RenderCommand& command : queue.translucent)
+            SubmitCommand(command);
+
+        queue.opaque.clear();
+        queue.translucent.clear();
     }
 
     void DrawPrimitive(PrimitiveMesh primitive, const glm::mat4& transform, const Material& material)
@@ -298,53 +344,24 @@ namespace Nova::Renderer
     {
         if (mesh.buffer_vertex.handle == NULL || mesh.buffer_index.handle == NULL)
             return;
-
         if (state.active_render_pass == NULL || state.primary_camera == NULL)
             return;
 
-        Pipelines::Bind(mesh.pipeline, state.active_render_pass);
-        Buffers::Bind(mesh.buffer_vertex);
-        Buffers::Bind(mesh.buffer_index);
-        Textures::Bind(material.texture_albedo.IsValid() ? material.texture_albedo : state.texture_default_white, 0);
-        Textures::Bind(material.texture_normal.IsValid() ? material.texture_normal : state.texture_default_normal, 1);
-        Textures::Bind(material.texture_metallic.IsValid() ? material.texture_metallic : state.texture_default_white, 2);
-        Textures::Bind(material.texture_roughness.IsValid() ? material.texture_roughness : state.texture_default_white, 3);
+        const glm::vec3 world_pos = glm::vec3(transform[3]);
+        const glm::vec4 view_pos = state.matrix_view * glm::vec4(world_pos, 1.f);
+        const float view_depth = view_pos.z;
 
-        if (state.active_environment_map != NULL && state.active_environment_map->IsValid())
-        {
-            Textures::Bind(state.active_environment_map->irradiance, 4);
-            Textures::Bind(state.active_environment_map->prefilter, 5);
-            Textures::Bind(state.active_environment_map->brdf_lut, 6);
-        }
-        else
-        {
-            Textures::Bind(state.texture_default_white, 4);
-            Textures::Bind(state.texture_default_white, 5);
-            Textures::Bind(state.texture_default_white, 6);
-        }
-
-        const auto mvp_data = (MVPData){
-            .matrix_model = transform,
-            .matrix_view_projection = state.matrix_projection * state.matrix_view,
-            .matrix_normal = glm::transpose(glm::inverse(transform))
+        const RenderCommand command = {
+            .transform = transform,
+            .buffer_vertex = &mesh.buffer_vertex,
+            .buffer_index = &mesh.buffer_index,
+            .material = &material,
+            .index_count = mesh.index_count,
+            .sort_depth = 0.f,
+            .pipeline = mesh.pipeline,
         };
 
-        const auto albedo_linear = glm::vec4(powf(material.albedo.r, 2.2f), powf(material.albedo.g, 2.2f), powf(material.albedo.b, 2.2f), powf(material.albedo.a, 2.2f));
-        const auto frag_data = (FragmentData){
-            .data_light = (LightData){
-                .direction_intensity = glm::vec4(state.active_sun->direction, state.active_sun->intensity),
-                .color = state.active_sun->color,
-            },
-            .data_material = (MaterialData){
-                .albedo = albedo_linear,
-                .pbr = glm::vec4(material.texture_metallic.IsValid() ? 1.f : material.metallic, material.texture_roughness.IsValid() ? 1.f : material.roughness, 0.f, 0.f),
-            },
-            .camera_position = glm::vec4(state.primary_camera->position, 0.f),
-        };
-
-        SDL_PushGPUVertexUniformData(state.command_buffer, 0, &mvp_data, sizeof(MVPData));
-        SDL_PushGPUFragmentUniformData(state.command_buffer, 0, &frag_data, sizeof(FragmentData));
-        SDL_DrawGPUIndexedPrimitives(static_cast<SDL_GPURenderPass*>(state.active_render_pass), mesh.index_count, 1, 0, 0, 0);
+        RegisterCommand(command);
     }
 
     void DrawModel(const Model& model, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
@@ -384,53 +401,27 @@ namespace Nova::Renderer
     {
         if (mesh.buffer_vertex.handle == NULL || mesh.buffer_index.handle == NULL)
             return;
+        if (state.active_render_pass == NULL || state.primary_camera == NULL)
+            return;
 
-        Pipelines::Bind(mesh.pipeline, state.active_render_pass);
-        Buffers::Bind(mesh.buffer_vertex);
-        Buffers::Bind(mesh.buffer_index);
-        Buffers::Bind(bone_matrix_buffer, 0);
+        const glm::vec3 world_pos = glm::vec3(transform[3]);
+        const glm::vec4 view_pos = state.matrix_view * glm::vec4(world_pos, 1.f);
+        const float view_depth = view_pos.z;
 
-        Textures::Bind(material.texture_albedo.IsValid() ? material.texture_albedo : state.texture_default_white, 0);
-        Textures::Bind(material.texture_normal.IsValid() ? material.texture_normal : state.texture_default_normal, 1);
-        Textures::Bind(material.texture_metallic.IsValid() ? material.texture_metallic : state.texture_default_white, 2);
-        Textures::Bind(material.texture_roughness.IsValid() ? material.texture_roughness : state.texture_default_white, 3);
-
-        if (state.active_environment_map != NULL && state.active_environment_map->IsValid())
-        {
-            Textures::Bind(state.active_environment_map->irradiance, 4);
-            Textures::Bind(state.active_environment_map->prefilter, 5);
-            Textures::Bind(state.active_environment_map->brdf_lut, 6);
-        }
-        else
-        {
-            Textures::Bind(state.texture_default_white, 4);
-            Textures::Bind(state.texture_default_white, 5);
-            Textures::Bind(state.texture_default_white, 6);
-        }
-
-        const auto mvp_data = (MVPData){
-            .matrix_model = transform,
-            .matrix_view_projection = state.matrix_projection * state.matrix_view,
-            .matrix_normal = glm::transpose(glm::inverse(transform))
+        const RenderCommand command = {
+            .transform = transform,
+            .buffer_vertex = &mesh.buffer_vertex,
+            .buffer_index = &mesh.buffer_index,
+            .buffer_ssbo_bones = &bone_matrix_buffer,
+            .material = &material,
+            .index_count = mesh.index_count,
+            .sort_depth = 0.f,
+            .pipeline = mesh.pipeline,
         };
 
-        const auto albedo_linear = glm::vec4(powf(material.albedo.r, 2.2f), powf(material.albedo.g, 2.2f), powf(material.albedo.b, 2.2f), powf(material.albedo.a, 2.2f));
-        const auto frag_data = (FragmentData){
-            .data_light = (LightData){
-                .direction_intensity = glm::vec4(state.active_sun->direction, state.active_sun->intensity),
-                .color = state.active_sun->color,
-            },
-            .data_material = (MaterialData){
-                .albedo = albedo_linear,
-                .pbr = glm::vec4(material.texture_metallic.IsValid() ? 1.f : material.metallic, material.texture_roughness.IsValid() ? 1.f : material.roughness, 0.f, 0.f),
-            },
-            .camera_position = glm::vec4(state.primary_camera->position, 0.f),
-        };
-
-        SDL_PushGPUVertexUniformData(state.command_buffer, 0, &mvp_data, sizeof(MVPData));
-        SDL_PushGPUFragmentUniformData(state.command_buffer, 0, &frag_data, sizeof(FragmentData));
-        SDL_DrawGPUIndexedPrimitives(static_cast<SDL_GPURenderPass*>(state.active_render_pass), mesh.index_count, 1, 0, 0, 0);
+        RegisterCommand(command);
     }
+
     void DrawTextureCompositing(const Texture& screen_texture)
     {
         const RenderPassHandle render_pass = Renderer::GetActiveRenderPass();
@@ -462,6 +453,75 @@ namespace Nova::Renderer
         const glm::mat4 mvp_data[2] = { state.matrix_view, state.matrix_projection };
         SDL_PushGPUVertexUniformData(state.command_buffer, 0, mvp_data, sizeof(glm::mat4) * LEN(mvp_data));
         SDL_DrawGPUIndexedPrimitives(static_cast<SDL_GPURenderPass*>(state.active_render_pass), mesh_skybox.index_count, 1, 0, 0, 0);
+    }
+
+    void SubmitCommand(const RenderCommand& command)
+    {
+        if (command.buffer_vertex == NULL || command.buffer_index == NULL)
+            return;
+
+        if (command.buffer_vertex->handle == NULL || command.buffer_index->handle == NULL)
+            return;
+
+        if (command.material == NULL)
+            return;
+
+        if (state.active_render_pass == NULL || state.primary_camera == NULL)
+            return;
+
+        Pipelines::Bind(command.pipeline, state.active_render_pass);
+        Buffers::Bind(*command.buffer_vertex);
+        Buffers::Bind(*command.buffer_index);
+
+        if (command.buffer_ssbo_bones != NULL)
+            Buffers::Bind(*command.buffer_ssbo_bones);
+
+        Textures::Bind(command.material->texture_albedo.IsValid() ? command.material->texture_albedo : state.texture_default_white, 0);
+        Textures::Bind(command.material->texture_normal.IsValid() ? command.material->texture_normal : state.texture_default_normal, 1);
+        Textures::Bind(command.material->texture_metallic.IsValid() ? command.material->texture_metallic : state.texture_default_white, 2);
+        Textures::Bind(command.material->texture_roughness.IsValid() ? command.material->texture_roughness : state.texture_default_white, 3);
+
+        if (state.active_environment_map != NULL && state.active_environment_map->IsValid())
+        {
+            Textures::Bind(state.active_environment_map->irradiance, 4);
+            Textures::Bind(state.active_environment_map->prefilter, 5);
+            Textures::Bind(state.active_environment_map->brdf_lut, 6);
+        }
+        else
+        {
+            Textures::Bind(state.texture_default_white, 4);
+            Textures::Bind(state.texture_default_white, 5);
+            Textures::Bind(state.texture_default_white, 6);
+        }
+
+        const MVPData mvp_data = {
+            .matrix_model = command.transform,
+            .matrix_view_projection = state.matrix_projection * state.matrix_view,
+            .matrix_normal = glm::transpose(glm::inverse(command.transform))
+        };
+
+        const glm::vec4 albedo_linear = glm::vec4(powf(command.material->albedo.r, 2.2f), powf(command.material->albedo.g, 2.2f), powf(command.material->albedo.b, 2.2f), powf(command.material->albedo.a, 2.2f));
+        const FragmentData frag_data = {
+            .data_light = {
+                .direction_intensity = glm::vec4(state.active_sun->direction, state.active_sun->intensity),
+                .color = state.active_sun->color,
+            },
+            .data_material = {
+                .albedo = albedo_linear,
+                .pbr = glm::vec4(command.material->texture_metallic.IsValid() ? 1.f : command.material->metallic, command.material->texture_roughness.IsValid() ? 1.f : command.material->roughness, 0.f, 0.f),
+            },
+            .camera_position = glm::vec4(state.primary_camera->position, 0.f),
+        };
+
+        SDL_PushGPUVertexUniformData(state.command_buffer, 0, &mvp_data, sizeof(MVPData));
+        SDL_PushGPUFragmentUniformData(state.command_buffer, 0, &frag_data, sizeof(FragmentData));
+        SDL_DrawGPUIndexedPrimitives(static_cast<SDL_GPURenderPass*>(state.active_render_pass), command.index_count, 1, 0, 0, 0);
+    }
+
+    void RegisterCommand(const RenderCommand& command)
+    {
+        const bool is_transparent = command.material->albedo.a < 1.f || command.material->texture_albedo.has_transparency;
+        (!is_transparent ? queue.opaque : queue.translucent).emplace_back(command);
     }
 
     float GetExposure() { return state.exposure; }

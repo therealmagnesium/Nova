@@ -2,6 +2,7 @@
 #include "Core/Log.h"
 #include "Core/Random.h"
 #include "Graphics/Renderer.h"
+#include "UI/UI.h"
 
 #include <SDL3/SDL.h>
 
@@ -31,8 +32,9 @@ namespace Nova::Application
         context = app;
         app->window = Windows::Create(config.screen_width, config.screen_height, config.name);
         Random::Init();
-        Renderer::Init();
         AssetManager::Init(&app->assets);
+        Renderer::Init();
+        UI::Init();
 
         app->is_valid = true;
         INFO("Application \"%s\" initialized successfully!", app->config.name.c_str());
@@ -44,6 +46,7 @@ namespace Nova::Application
         INFO("Shutting down application \"%s\"...", app->config.name.c_str());
         app->is_valid = false;
 
+        UI::Shutdown();
         AssetManager::Clean();
         Renderer::Shutdown();
         Windows::Destroy(app->window);
@@ -74,8 +77,12 @@ namespace Nova::Application
 
             if (Renderer::BeginFrame())
             {
-                app->config.callbacks.on_render();
+                UI::BeginFrame();
                 app->config.callbacks.on_render_ui();
+                UI::EndFrame();
+
+                app->config.callbacks.on_render();
+
                 Renderer::EndFrame();
             }
         }

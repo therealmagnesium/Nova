@@ -25,3 +25,5 @@
 #include "ECS/Components.h"
 #include "ECS/Entity.h"
 #include "ECS/Scene.h"
+
+#include "UI/UI.h"

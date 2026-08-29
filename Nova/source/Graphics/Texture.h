@@ -35,6 +35,13 @@ namespace Nova
         Eight,
     };
 
+    struct Image
+    {
+        u16 width = 0;
+        u16 height = 0;
+        u8* pixel_data = NULL;
+    };
+
     struct Texture : public Asset
     {
         u32 id = 0;
@@ -43,6 +50,7 @@ namespace Nova
         u16 mip_levels = 0;
         u8 channel_count = 0;
         TextureFormat format = TextureFormat::RGBA8;
+        bool has_transparency = false;
 
         inline bool IsValid() const { return id != 0; }
         inline bool operator==(const Texture& other) const { return id == other.id; }

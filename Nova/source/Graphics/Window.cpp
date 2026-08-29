@@ -5,6 +5,8 @@
 #include "Core/Input.h"
 #include "Core/Log.h"
 
+#include "UI/UI.h"
+
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_video.h>
@@ -72,6 +74,7 @@ namespace Nova::Windows
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
+            UI::ProcessEvent(&event);
             switch (event.type)
             {
                 case SDL_EVENT_QUIT:

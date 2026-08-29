@@ -1,12 +1,12 @@
 #include "Graphics/Camera.h"
 #include "Core/Application.h"
 #include "Core/Input.h"
-#include "Core/Log.h"
 
 #include <SDL3/SDL_mouse.h>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <imgui.h>
 
 namespace Nova::Cameras
 {
@@ -19,6 +19,9 @@ namespace Nova::Cameras
 
     void UpdateEditor(Camera3D& camera, float pan_speed, float orbit_sensitivity)
     {
+        if (ImGui::GetIO().WantCaptureMouse)
+            return;
+
         const bool is_panning = Input::IsMouseDown(MOUSE_BUTTON_LEFT);
         const bool is_orbiting = Input::IsMouseDown(MOUSE_BUTTON_RIGHT);
         const bool is_zooming = fabsf(Input::GetMouseScroll().y) > 0.f;
