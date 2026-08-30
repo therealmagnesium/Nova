@@ -78,6 +78,7 @@ namespace Nova::Windows
             switch (event.type)
             {
                 case SDL_EVENT_QUIT:
+                    Input::Callback_Quit();
                     Application::Quit();
                     break;
 
@@ -103,6 +104,26 @@ namespace Nova::Windows
 
                 case SDL_EVENT_MOUSE_WHEEL:
                     Input::Callback_OnMouseScroll(&event);
+                    break;
+
+                case SDL_EVENT_GAMEPAD_ADDED:
+                    Input::Callback_OnGamepadConnected(event.gdevice.which);
+                    break;
+
+                case SDL_EVENT_GAMEPAD_REMOVED:
+                    Input::Callback_OnGamepadDisconnected(event.gdevice.which);
+                    break;
+
+                case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+                    Input::Callback_OnGamepadButtonHeld(static_cast<GamepadButton>(event.gbutton.button));
+                    break;
+
+                case SDL_EVENT_GAMEPAD_BUTTON_UP:
+                    Input::Callback_OnGamepadButtonReleased(static_cast<GamepadButton>(event.gbutton.button));
+                    break;
+
+                case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+                    Input::Callback_OnGamepadAxisMotion(static_cast<GamepadAxis>(event.gaxis.axis), static_cast<float>(event.gaxis.value) / 32767.f);
                     break;
 
                 case SDL_EVENT_WINDOW_RESIZED:

@@ -67,7 +67,7 @@ void Update_Idle(Scene& scene, Player& player, const glm::vec3& move_direction)
     const auto transform = player.entity.GetComponent<TransformComponent>(scene);
     ApplyGravity(player, *transform); // Keeps the player glued to the ground / catches it falling off a ledge later
 
-    if (Input::IsKeyPressed(KEY_SPACE) && player.is_grounded)
+    if (Input::IsGamepadButtonPressed(GamepadButton::South) && player.is_grounded)
     {
         player.velocity.y = player.jump_speed;
         player.is_grounded = false;
@@ -84,7 +84,7 @@ void Update_Run(Scene& scene, Player& player, const glm::vec3& move_direction)
     const auto transform = player.entity.GetComponent<TransformComponent>(scene);
     ApplyGravity(player, *transform);
 
-    if (Input::IsKeyPressed(KEY_SPACE) && player.is_grounded)
+    if (Input::IsGamepadButtonPressed(GamepadButton::South) && player.is_grounded)
     {
         player.velocity.y = player.jump_speed;
         player.is_grounded = false;
@@ -196,8 +196,8 @@ void FaceMoveDirection(Player& player, TransformComponent& transform, const glm:
 
 glm::vec3 GetCameraRelativeMoveDirection()
 {
-    const float input_x = Input::GetAxis(InputAxis::Horizontal) + Input::GetAxisAlt(InputAxis::Horizontal);
-    const float input_z = Input::GetAxis(InputAxis::Vertical) - Input::GetAxisAlt(InputAxis::Vertical);
+    const float input_x = Input::GetAxisGamepad(InputAxis::Horizontal);
+    const float input_z = Input::GetAxisGamepad(InputAxis::Vertical);
 
     if (fabsf(input_x) < 0.001f && fabsf(input_z) < 0.001f)
         return glm::vec3(0.f);
