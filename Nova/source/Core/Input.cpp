@@ -44,6 +44,9 @@ namespace Nova::Input
     };
 
     static InputState state;
+    static constexpr float k_Deadzone = 0.15f;
+
+    float CalculateScaledAxis(float value);
 
     bool IsCapturing() { return state.should_capture; }
 
@@ -57,6 +60,28 @@ namespace Nova::Input
     bool IsKeyDown(KeyboardKey scancode) { return state.should_capture ? state.keyboard.keys_held[scancode] : false; }
     bool IsKeyPressed(KeyboardKey scancode) { return state.should_capture ? state.keyboard.keys_pressed[scancode] : false; }
     bool IsKeyReleased(KeyboardKey scancode) { return state.should_capture ? state.keyboard.keys_released[scancode] : false; }
+
+    bool IsGamepadLeftStickMoving()
+    {
+        const u8 index_x = static_cast<u8>(GamepadAxis::LeftX);
+        const u8 index_y = static_cast<u8>(GamepadAxis::LeftY);
+        const float left_x = CalculateScaledAxis(state.gamepad.axes[index_x]);
+        const float left_y = CalculateScaledAxis(state.gamepad.axes[index_y]);
+        const bool is_moving = fabsf(left_x) > 0.f || fabsf(left_y) > 0.f;
+
+        return state.should_capture ? is_moving : false;
+    }
+
+    bool IsGamepadRightStickMoving()
+    {
+        const u8 index_x = static_cast<u8>(GamepadAxis::RightX);
+        const u8 index_y = static_cast<u8>(GamepadAxis::RightY);
+        const float right_x = CalculateScaledAxis(state.gamepad.axes[index_x]);
+        const float right_y = CalculateScaledAxis(state.gamepad.axes[index_y]);
+        const bool is_moving = fabsf(right_x) > 0.f || fabsf(right_y) > 0.f;
+
+        return state.should_capture ? is_moving : false;
+    }
 
     bool IsGamepadButtonDown(GamepadButton button) { return state.should_capture ? state.gamepad.buttons_held[static_cast<u8>(button)] : false; }
     bool IsGamepadButtonPressed(GamepadButton button) { return state.should_capture ? state.gamepad.buttons_pressed[static_cast<u8>(button)] : false; }
@@ -98,9 +123,6 @@ namespace Nova::Input
 
     float GetAxisGamepad(InputAxis axis)
     {
-        // Define a deadzone threshold. 15% is standard and safe for most controllers.
-        static constexpr float k_Deadzone = 0.15f;
-
         float value = 0.f;
         switch (axis)
         {
@@ -114,18 +136,13 @@ namespace Nova::Input
                 break;
         }
 
-        // Apply the deadzone filter
-        if (fabsf(value) < k_Deadzone)
-        {
-            return 0.f;
-        }
+        return CalculateScaledAxis(value);
+    }
 
-        // Optional but highly recommended: Rescale the remaining input range
-        // from [deadzone, 1.0] to [0.0, 1.0] so you don't get a sudden jump in speed.
-        const float sign = (value > 0.f) ? 1.f : -1.f;
-        value = sign * ((fabsf(value) - k_Deadzone) / (1.f - k_Deadzone));
-
-        return value;
+    float GetAxisGamepad(GamepadAxis axis)
+    {
+        const u8 index = static_cast<u8>(axis);
+        return CalculateScaledAxis(state.gamepad.axes[index]);
     }
 
     void Reset()
@@ -143,52 +160,46 @@ namespace Nova::Input
 
     void Capture(bool should_capture) { state.should_capture = should_capture; }
 
-    void Callback_OnKeyHeld(const void* event)
+    void Callback_OnKeyHeld(KeyboardKey key)
     {
-        const SDL_Event* sdl_event = (SDL_Event*)event;
-        state.keyboard.keys_pressed[sdl_event->key.scancode] = !state.keyboard.keys_held[sdl_event->key.scancode];
-        state.keyboard.keys_held[sdl_event->key.scancode] = true;
-        state.keyboard.keys_released[sdl_event->key.scancode] = false;
+        state.keyboard.keys_pressed[key] = !state.keyboard.keys_held[key];
+        state.keyboard.keys_held[key] = true;
+        state.keyboard.keys_released[key] = false;
     }
 
-    void Callback_OnKeyReleased(const void* event)
+    void Callback_OnKeyReleased(KeyboardKey key)
     {
-        const SDL_Event* sdl_event = (SDL_Event*)event;
-        state.keyboard.keys_pressed[sdl_event->key.scancode] = false;
-        state.keyboard.keys_held[sdl_event->key.scancode] = false;
-        state.keyboard.keys_released[sdl_event->key.scancode] = true;
+        state.keyboard.keys_pressed[key] = false;
+        state.keyboard.keys_held[key] = false;
+        state.keyboard.keys_released[key] = true;
     }
 
-    void Callback_OnMouseMove(const void* event)
+    void Callback_OnMouseMove(const glm::vec2& absolute, const glm::vec2& relative)
     {
-        const SDL_Event* sdl_event = (SDL_Event*)event;
-        state.mouse.position.x = sdl_event->motion.x;
-        state.mouse.position.y = sdl_event->motion.y;
-        state.mouse.relative.x = sdl_event->motion.xrel;
-        state.mouse.relative.y = sdl_event->motion.yrel;
+        state.mouse.position.x = absolute.x;
+        state.mouse.position.y = absolute.y;
+        state.mouse.relative.x = relative.x;
+        state.mouse.relative.y = relative.y;
     }
 
-    void Callback_OnMouseButtonHeld(const void* event)
+    void Callback_OnMouseButtonHeld(MouseButton button)
     {
-        const SDL_Event* sdl_event = (SDL_Event*)event;
-        state.mouse.buttons_clicked[sdl_event->button.button] = !state.mouse.buttons_held[sdl_event->button.button];
-        state.mouse.buttons_held[sdl_event->button.button] = true;
-        state.mouse.buttons_released[sdl_event->button.button] = false;
+        state.mouse.buttons_clicked[button] = !state.mouse.buttons_held[button];
+        state.mouse.buttons_held[button] = true;
+        state.mouse.buttons_released[button] = false;
     }
 
-    void Callback_OnMouseButtonReleased(const void* event)
+    void Callback_OnMouseButtonReleased(MouseButton button)
     {
-        const SDL_Event* sdl_event = (SDL_Event*)event;
-        state.mouse.buttons_clicked[sdl_event->button.button] = false;
-        state.mouse.buttons_held[sdl_event->button.button] = false;
-        state.mouse.buttons_released[sdl_event->button.button] = true;
+        state.mouse.buttons_clicked[button] = false;
+        state.mouse.buttons_held[button] = false;
+        state.mouse.buttons_released[button] = true;
     }
 
-    void Callback_OnMouseScroll(const void* event)
+    void Callback_OnMouseScroll(const glm::vec2& scroll)
     {
-        const SDL_Event* sdl_event = (SDL_Event*)event;
-        state.mouse.scroll.x = sdl_event->wheel.x;
-        state.mouse.scroll.y = sdl_event->wheel.y;
+        state.mouse.scroll.x = scroll.x;
+        state.mouse.scroll.y = scroll.y;
     }
 
     void Callback_OnGamepadButtonHeld(GamepadButton button)
@@ -230,7 +241,7 @@ namespace Nova::Input
     {
         if (state.connected_gamepads.contains(id))
         {
-            INFO("Disconnecting gamepad #%d...", id);
+            INFO("Disconnecting gamepad with and ID of %d...", id);
             const auto it = state.connected_gamepads.find(id);
             SDL_CloseGamepad(it->second);
             state.connected_gamepads.erase(it);
@@ -252,5 +263,16 @@ namespace Nova::Input
 
         // Wipe the map clear now that iteration is finished
         state.connected_gamepads.clear();
+    }
+
+    float CalculateScaledAxis(float value)
+    {
+        // Apply the deadzone filter
+        if (fabsf(value) < k_Deadzone)
+            return 0.f;
+
+        // Rescale the remaining input range
+        const float sign = (value > 0.f) ? 1.f : -1.f;
+        return sign * ((fabsf(value) - k_Deadzone) / (1.f - k_Deadzone));
     }
 }

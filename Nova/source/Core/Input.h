@@ -70,6 +70,8 @@ namespace Nova
         bool IsKeyPressed(KeyboardKey scancode);
         bool IsKeyReleased(KeyboardKey scancode);
 
+        bool IsGamepadLeftStickMoving();
+        bool IsGamepadRightStickMoving();
         bool IsGamepadButtonDown(GamepadButton button);
         bool IsGamepadButtonPressed(GamepadButton button);
         bool IsGamepadButtonReleased(GamepadButton button);
@@ -77,16 +79,17 @@ namespace Nova
         float GetAxis(InputAxis axis);
         float GetAxisAlt(InputAxis axis);
         float GetAxisGamepad(InputAxis axis);
+        float GetAxisGamepad(GamepadAxis axis);
 
         void Reset();
         void Capture(bool shouldCapture);
 
-        void Callback_OnKeyHeld(const void* event);
-        void Callback_OnKeyReleased(const void* event);
-        void Callback_OnMouseMove(const void* event);
-        void Callback_OnMouseButtonHeld(const void* event);
-        void Callback_OnMouseButtonReleased(const void* event);
-        void Callback_OnMouseScroll(const void* event);
+        void Callback_OnKeyHeld(KeyboardKey key);
+        void Callback_OnKeyReleased(KeyboardKey key);
+        void Callback_OnMouseMove(const glm::vec2& absolute, const glm::vec2& relative);
+        void Callback_OnMouseButtonHeld(MouseButton button);
+        void Callback_OnMouseButtonReleased(MouseButton button);
+        void Callback_OnMouseScroll(const glm::vec2& scroll);
         void Callback_OnGamepadButtonHeld(GamepadButton button);
         void Callback_OnGamepadButtonReleased(GamepadButton button);
         void Callback_OnGamepadAxisMotion(GamepadAxis axis, float value);

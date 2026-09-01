@@ -1,8 +1,9 @@
 #pragma once
+#include "Core/Base.h"
 
 namespace Nova
 {
-    enum MouseButton
+    enum MouseButton : u8
     {
         MOUSE_BUTTON_UNKNOWN = 0,
         MOUSE_BUTTON_LEFT,
@@ -11,7 +12,7 @@ namespace Nova
         MOUSE_BUTTON_COUNT
     };
 
-    enum KeyboardKey
+    enum KeyboardKey : u16
     {
         KEY_A = 4,
         KEY_B = 5,

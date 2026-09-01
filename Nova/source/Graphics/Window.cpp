@@ -83,50 +83,86 @@ namespace Nova::Windows
                     break;
 
                 case SDL_EVENT_KEY_DOWN:
-                    Input::Callback_OnKeyHeld(&event);
+                {
+                    const KeyboardKey key = static_cast<KeyboardKey>(event.key.scancode);
+                    Input::Callback_OnKeyHeld(key);
                     break;
+                }
 
                 case SDL_EVENT_KEY_UP:
-                    Input::Callback_OnKeyReleased(&event);
+                {
+                    const KeyboardKey key = static_cast<KeyboardKey>(event.key.scancode);
+                    Input::Callback_OnKeyReleased(key);
                     break;
+                }
 
                 case SDL_EVENT_MOUSE_MOTION:
-                    Input::Callback_OnMouseMove(&event);
+                {
+                    const glm::vec2 absolute = glm::vec2(event.motion.x, event.motion.y);
+                    const glm::vec2 relative = glm::vec2(event.motion.xrel, event.motion.yrel);
+                    Input::Callback_OnMouseMove(absolute, relative);
                     break;
+                }
 
                 case SDL_EVENT_MOUSE_BUTTON_DOWN:
-                    Input::Callback_OnMouseButtonHeld(&event);
+                {
+                    const MouseButton button = static_cast<MouseButton>(event.button.button);
+                    Input::Callback_OnMouseButtonHeld(button);
                     break;
+                }
 
                 case SDL_EVENT_MOUSE_BUTTON_UP:
-                    Input::Callback_OnMouseButtonReleased(&event);
+                {
+                    const MouseButton button = static_cast<MouseButton>(event.button.button);
+                    Input::Callback_OnMouseButtonReleased(button);
                     break;
+                }
 
                 case SDL_EVENT_MOUSE_WHEEL:
-                    Input::Callback_OnMouseScroll(&event);
+                {
+                    const glm::vec2 scroll = glm::vec2(event.wheel.x, event.wheel.y);
+                    Input::Callback_OnMouseScroll(scroll);
                     break;
+                }
 
                 case SDL_EVENT_GAMEPAD_ADDED:
-                    Input::Callback_OnGamepadConnected(event.gdevice.which);
+                {
+                    const GamepadID gamepad_id = event.gdevice.which;
+                    Input::Callback_OnGamepadConnected(gamepad_id);
                     break;
+                }
 
                 case SDL_EVENT_GAMEPAD_REMOVED:
-                    Input::Callback_OnGamepadDisconnected(event.gdevice.which);
+                {
+                    const GamepadID gamepad_id = event.gdevice.which;
+                    Input::Callback_OnGamepadDisconnected(gamepad_id);
                     break;
+                }
 
                 case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
-                    Input::Callback_OnGamepadButtonHeld(static_cast<GamepadButton>(event.gbutton.button));
+                {
+                    const GamepadButton button = static_cast<GamepadButton>(event.gbutton.button);
+                    Input::Callback_OnGamepadButtonHeld(button);
                     break;
+                }
 
                 case SDL_EVENT_GAMEPAD_BUTTON_UP:
-                    Input::Callback_OnGamepadButtonReleased(static_cast<GamepadButton>(event.gbutton.button));
+                {
+                    const GamepadButton button = static_cast<GamepadButton>(event.gbutton.button);
+                    Input::Callback_OnGamepadButtonReleased(button);
                     break;
+                }
 
                 case SDL_EVENT_GAMEPAD_AXIS_MOTION:
-                    Input::Callback_OnGamepadAxisMotion(static_cast<GamepadAxis>(event.gaxis.axis), static_cast<float>(event.gaxis.value) / 32767.f);
+                {
+                    const GamepadAxis axis = static_cast<GamepadAxis>(event.gaxis.axis);
+                    const float value = static_cast<float>(event.gaxis.value) / static_cast<float>(std::numeric_limits<u16>::max());
+                    Input::Callback_OnGamepadAxisMotion(axis, value);
                     break;
+                }
 
                 case SDL_EVENT_WINDOW_RESIZED:
+                {
                     window.width = event.window.data1;
                     window.height = event.window.data2;
                     window.state |= NOVA_WINDOWSTATE_RESIZED;
@@ -134,24 +170,31 @@ namespace Nova::Windows
                     window.state &= ~NOVA_WINDOWSTATE_MINIMIZED;
                     Renderer::Callback_OnResize();
                     break;
+                }
 
                 case SDL_EVENT_WINDOW_MAXIMIZED:
+                {
                     window.state |= NOVA_WINDOWSTATE_MAXIMIZED;
                     window.state &= ~NOVA_WINDOWSTATE_MINIMIZED;
                     break;
+                }
 
                 case SDL_EVENT_WINDOW_OCCLUDED:
                 case SDL_EVENT_WINDOW_MINIMIZED:
+                {
                     window.state |= NOVA_WINDOWSTATE_MINIMIZED;
                     window.state &= ~NOVA_WINDOWSTATE_MAXIMIZED;
                     break;
+                }
 
                 case SDL_EVENT_WINDOW_EXPOSED:
                 case SDL_EVENT_WINDOW_RESTORED:
+                {
                     window.state |= NOVA_WINDOWSTATE_RESIZED;
                     window.state &= ~NOVA_WINDOWSTATE_MAXIMIZED;
                     window.state &= ~NOVA_WINDOWSTATE_MINIMIZED;
                     break;
+                }
 
                 default:
                     break;

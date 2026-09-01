@@ -95,7 +95,7 @@ namespace Game
             state.attachment_depth = Textures::CreateFramebufferAttachmentDepth(window.width, window.height, msaa);
         }
 
-        if (Input::IsKeyPressed(KEY_F5))
+        if (Input::IsKeyPressed(KEY_F5) || Input::IsGamepadButtonPressed(GamepadButton::Start))
         {
             if (state.scene_active == &state.scene_editor)
             {
@@ -111,7 +111,7 @@ namespace Game
             }
         }
 
-        if (Input::IsKeyPressed(KEY_F2))
+        if (Input::IsKeyPressed(KEY_F2) || Input::IsGamepadButtonPressed(GamepadButton::Back))
             ResetCameraEditor();
 
         if (Input::IsKeyPressed(KEY_C))
@@ -140,7 +140,7 @@ namespace Game
 
         Scenes::UpdateSubsystems(*state.scene_active);
         if (state.scene_active->state == SceneState::Editor)
-            Cameras::UpdateEditor(state.camera_editor, 1.f, 12.f);
+            Cameras::UpdateEditor(state.camera_editor, 1.f, 8.f);
     }
 
     void OnRender()
@@ -155,8 +155,6 @@ namespace Game
 
     void OnRenderUI()
     {
-        if (state.scene_active->state == SceneState::Editor)
-            ImGui::ShowDemoWindow();
     }
 
     void OnShutdown()

@@ -1,6 +1,7 @@
 #include "Graphics/Camera.h"
 #include "Core/Application.h"
 #include "Core/Input.h"
+#include "Core/Log.h"
 
 #include <SDL3/SDL_mouse.h>
 #include <glm/ext/matrix_transform.hpp>
@@ -22,24 +23,32 @@ namespace Nova::Cameras
         if (ImGui::GetIO().WantCaptureMouse)
             return;
 
-        const bool is_panning = Input::IsMouseDown(MOUSE_BUTTON_LEFT);
-        const bool is_orbiting = Input::IsMouseDown(MOUSE_BUTTON_RIGHT);
-        const bool is_zooming = fabsf(Input::GetMouseScroll().y) > 0.f;
+        const float scroll_delta = Input::GetMouseScroll().y;
+        const float trigger_delta = Input::GetAxisGamepad(GamepadAxis::RightTrigger) - Input::GetAxisGamepad(GamepadAxis::LeftTrigger);
+
+        const bool is_panning = Input::IsMouseDown(MOUSE_BUTTON_LEFT) || Input::IsGamepadLeftStickMoving();
+        const bool is_orbiting = Input::IsMouseDown(MOUSE_BUTTON_RIGHT) || Input::IsGamepadRightStickMoving();
+        const bool is_zooming = fabsf(scroll_delta) > 0.f || fabsf(trigger_delta) > 0.f;
 
         if (is_panning || is_orbiting)
         {
             SDL_HideCursor();
 
+            const float joystick_sensitivity = 5.f;
             const glm::vec2 mouse_delta = Input::GetMouseRelative();
+            const glm::vec2 joystick_left_delta = glm::vec2(Input::GetAxisGamepad(GamepadAxis::LeftX), Input::GetAxisGamepad(GamepadAxis::LeftY)) * joystick_sensitivity;
+            const glm::vec2 joystick_right_delta = glm::vec2(Input::GetAxisGamepad(GamepadAxis::RightX), Input::GetAxisGamepad(GamepadAxis::RightY)) * joystick_sensitivity;
+            const glm::vec2 pan_delta = mouse_delta + joystick_left_delta;
+            const glm::vec2 orbit_delta = mouse_delta + joystick_right_delta;
+
             const float distance_to_target = glm::length(camera.target - camera.position);
             const float orbit_pan_scale = distance_to_target * 0.01f;
 
-            /* If both buttons are somehow held at once, orbiting wins - it's the more
-             * "global" of the two operations.*/
             if (is_orbiting)
-                Camera3D_Orbit(camera, mouse_delta, orbit_sensitivity * orbit_pan_scale);
-            else
-                Camera3D_Pan(camera, mouse_delta, pan_speed * orbit_pan_scale);
+                Camera3D_Orbit(camera, orbit_delta, orbit_sensitivity * orbit_pan_scale);
+
+            if (is_panning)
+                Camera3D_Pan(camera, pan_delta, pan_speed * orbit_pan_scale);
         }
 
         if (Input::IsMouseReleased(MOUSE_BUTTON_LEFT) || Input::IsMouseReleased(MOUSE_BUTTON_RIGHT))
@@ -47,7 +56,8 @@ namespace Nova::Cameras
 
         if (is_zooming)
         {
-            const float zoom_delta = Input::GetMouseScroll().y;
+            const float trigger_sensitivity = 0.75f;
+            const float zoom_delta = scroll_delta + trigger_delta * trigger_sensitivity;
             Camera3D_Zoom(camera, zoom_delta);
         }
     }

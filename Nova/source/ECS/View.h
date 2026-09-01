@@ -16,7 +16,7 @@ namespace Nova
         template <typename... Components>
         inline EntityID NarrowestPoolSize(const EntityRegistry& registry)
         {
-            return std::min({PoolSize<Components>(registry)...});
+            return std::min({ PoolSize<Components>(registry)... });
         }
 
         template <typename... Components>
@@ -33,7 +33,6 @@ namespace Nova
         static_assert((std::is_base_of_v<Component, Components> && ...), "View - All filtered types must derive from Component!");
 
         EntityRegistry* registry = NULL;
-        Scene* scene = NULL;
 
         struct Iterator
         {
@@ -41,7 +40,7 @@ namespace Nova
             EntityID current;
             EntityID last;
 
-            inline Entity operator*() const { return Entity{current}; }
+            inline Entity operator*() const { return Entity{ current }; }
             inline bool operator!=(const Iterator& other) const { return current != other.current; }
 
             inline Iterator& operator++()
@@ -60,13 +59,13 @@ namespace Nova
             EntityID first = 0;
             while (first < last && !Internal::HasAll<Components...>(*registry, first))
                 ++first;
-            return Iterator{registry, first, last};
+            return Iterator{ registry, first, last };
         }
 
         inline Iterator end() const
         {
             const EntityID last = Internal::NarrowestPoolSize<Components...>(*registry);
-            return Iterator{registry, last, last};
+            return Iterator{ registry, last, last };
         }
     };
 
@@ -75,7 +74,7 @@ namespace Nova
         template <typename... Components>
         inline View<Components...> Create(Scene& scene)
         {
-            return View<Components...>{&scene.registry};
+            return View<Components...>{ &scene.registry };
         }
 
         template <typename... Components, typename Func>
@@ -89,7 +88,7 @@ namespace Nova
 
             for (EntityID id = 0; id < last; id++)
                 if (Internal::HasAll<Components...>(registry, id))
-                    func(Entity{id}, *registry.GetComponent<Components>(id)...);
+                    func(Entity{ id }, *registry.GetComponent<Components>(id)...);
         }
 
         template <typename... Components>
