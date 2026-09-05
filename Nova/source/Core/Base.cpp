@@ -15,6 +15,7 @@ string::string(const string& other)
     else
     {
         memcpy(m_BufferInline, other.m_BufferInline, 64);
+        m_IsHeapAllocated = false;
     }
 }
 

@@ -19,10 +19,20 @@ namespace Nova
             return std::min({ PoolSize<Components>(registry)... });
         }
 
+        // Verify vector length bounds explicitly to prevent indexing crashes
+        template <typename T>
+        inline bool SafeHasComponent(const EntityRegistry& registry, EntityID id)
+        {
+            const auto& components = std::get<std::vector<T>>(registry.pool_components);
+            if (id < 0 || id >= static_cast<EntityID>(components.size()))
+                return false;
+            return components[id].has;
+        }
+
         template <typename... Components>
         inline bool HasAll(const EntityRegistry& registry, EntityID id)
         {
-            return (registry.HasComponent<Components>(id) && ...);
+            return (SafeHasComponent<Components>(registry, id) && ...);
         }
     }
 

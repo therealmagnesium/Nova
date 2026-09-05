@@ -13,6 +13,7 @@ namespace Nova::Scenes
 {
     static Camera3D* primary_editor_camera = NULL;
     static Camera3D* primary_runtime_camera = NULL;
+    static Scene* active_scene = NULL;
 
     void Editor_OnUpdate(Scene& scene);
     void Editor_OnRender(Scene& scene);
@@ -51,8 +52,8 @@ namespace Nova::Scenes
         Entity entity;
         entity.id = scene.registry.CreateEntityID();
 
-        entity.AddComponent<InternalComponent>(scene, tag, true);
-        entity.AddComponent<TransformComponent>(scene);
+        entity.AddComponent<InternalComponent>(tag, true);
+        entity.AddComponent<TransformComponent>();
 
         return entity;
     }
@@ -139,12 +140,11 @@ namespace Nova::Scenes
         if (primary_editor_camera == NULL)
             primary_editor_camera = Renderer::GetPrimaryCamera();
 
-        // Find primary runtime ccamera from every entity with a perspective camera component
         for (Entity entity : Views::Create<TransformComponent, PerspectiveCameraComponent>(scene))
         {
-            const auto transform = entity.GetComponent<TransformComponent>(scene);
-            const auto cc = entity.GetComponent<PerspectiveCameraComponent>(scene);
-            cc->camera.position = transform->position;
+            const auto& transform = entity.GetComponent<TransformComponent>();
+            auto& cc = entity.GetComponent<PerspectiveCameraComponent>();
+            cc.camera.position = transform.position;
         }
     }
 
@@ -153,27 +153,27 @@ namespace Nova::Scenes
         // Render all standard models in the scene
         for (Entity entity : Views::Create<TransformComponent, MeshRendererComponent>(scene))
         {
-            const auto transform = entity.GetComponent<TransformComponent>(scene);
-            const auto mesh_renderer = entity.GetComponent<MeshRendererComponent>(scene);
+            const auto& transform = entity.GetComponent<TransformComponent>();
+            const auto& mesh_renderer = entity.GetComponent<MeshRendererComponent>();
 
-            if (!AssetManager::IsHandleValid(mesh_renderer->asset_model))
+            if (!AssetManager::IsHandleValid(mesh_renderer.asset_model))
                 continue;
 
-            const auto model = AssetManager::GetAsset<Model>(mesh_renderer->asset_model);
-            Renderer::DrawModel(*model, transform->position, transform->rotation, transform->scale);
+            const auto model = AssetManager::GetAsset<Model>(mesh_renderer.asset_model);
+            Renderer::DrawModel(*model, transform.position, transform.rotation, transform.scale);
         }
 
         // Render all animated models in the scene
         for (Entity entity : Views::Create<TransformComponent, AnimatorComponent>(scene))
         {
-            const auto transform = entity.GetComponent<TransformComponent>(scene);
-            const auto ac = entity.GetComponent<AnimatorComponent>(scene);
+            const auto& transform = entity.GetComponent<TransformComponent>();
+            const auto& ac = entity.GetComponent<AnimatorComponent>();
 
-            if (!AssetManager::IsHandleValid(ac->asset_model) || !ac->animator.IsValid())
+            if (!AssetManager::IsHandleValid(ac.asset_model) || !ac.animator.IsValid())
                 continue;
 
-            const auto model = AssetManager::GetAsset<AnimatedModel>(ac->asset_model);
-            Renderer::DrawAnimatedModel(*model, ac->animator, transform->position, transform->rotation, transform->scale);
+            const auto model = AssetManager::GetAsset<AnimatedModel>(ac.asset_model);
+            Renderer::DrawAnimatedModel(*model, ac.animator, transform.position, transform.rotation, transform.scale);
         }
     }
 
@@ -182,16 +182,16 @@ namespace Nova::Scenes
         // Set every camera's transform to the values from the entity's transform component
         for (Entity entity : Views::Create<TransformComponent, PerspectiveCameraComponent>(scene))
         {
-            const auto transform = entity.GetComponent<TransformComponent>(scene);
-            const auto cc = entity.GetComponent<PerspectiveCameraComponent>(scene);
+            const auto& transform = entity.GetComponent<TransformComponent>();
+            auto& cc = entity.GetComponent<PerspectiveCameraComponent>();
 
-            cc->camera.position = transform->position;
+            cc.camera.position = transform.position;
 
-            if (cc->target_entity.IsValid())
-                cc->camera.target = cc->target_entity.GetComponent<TransformComponent>(scene)->position;
+            if (cc.target_entity.IsValid())
+                cc.camera.target = cc.target_entity.GetComponent<TransformComponent>().position;
 
-            if (cc->is_primary)
-                primary_runtime_camera = &cc->camera;
+            if (cc.is_primary)
+                primary_runtime_camera = &cc.camera;
         }
 
         Renderer::SetPrimaryCamera(primary_runtime_camera);
@@ -199,13 +199,13 @@ namespace Nova::Scenes
         // Update all animated models' animators in the scene
         for (Entity entity : Views::Create<TransformComponent, AnimatorComponent>(scene))
         {
-            const auto transform = entity.GetComponent<TransformComponent>(scene);
-            const auto ac = entity.GetComponent<AnimatorComponent>(scene);
+            const auto& transform = entity.GetComponent<TransformComponent>();
+            auto& ac = entity.GetComponent<AnimatorComponent>();
 
-            if (!AssetManager::IsHandleValid(ac->asset_model) || !ac->animator.IsValid())
+            if (!AssetManager::IsHandleValid(ac.asset_model) || !ac.animator.IsValid())
                 continue;
 
-            Animators::Update(ac->animator, Application::GetDeltaTime());
+            Animators::Update(ac.animator, Application::GetDeltaTime());
         }
     }
 
@@ -214,27 +214,30 @@ namespace Nova::Scenes
         // Render all standard models in the scene
         for (Entity entity : Views::Create<TransformComponent, MeshRendererComponent>(scene))
         {
-            const auto transform = entity.GetComponent<TransformComponent>(scene);
-            const auto mesh_renderer = entity.GetComponent<MeshRendererComponent>(scene);
+            const auto& transform = entity.GetComponent<TransformComponent>();
+            const auto& mesh_renderer = entity.GetComponent<MeshRendererComponent>();
 
-            if (!AssetManager::IsHandleValid(mesh_renderer->asset_model))
+            if (!AssetManager::IsHandleValid(mesh_renderer.asset_model))
                 continue;
 
-            const auto model = AssetManager::GetAsset<Model>(mesh_renderer->asset_model);
-            Renderer::DrawModel(*model, transform->position, transform->rotation, transform->scale);
+            const auto model = AssetManager::GetAsset<Model>(mesh_renderer.asset_model);
+            Renderer::DrawModel(*model, transform.position, transform.rotation, transform.scale);
         }
 
         // Render all animated models in the scene
         for (Entity entity : Views::Create<TransformComponent, AnimatorComponent>(scene))
         {
-            const auto transform = entity.GetComponent<TransformComponent>(scene);
-            const auto ac = entity.GetComponent<AnimatorComponent>(scene);
+            const auto& transform = entity.GetComponent<TransformComponent>();
+            const auto& ac = entity.GetComponent<AnimatorComponent>();
 
-            if (!AssetManager::IsHandleValid(ac->asset_model) || !ac->animator.IsValid())
+            if (!AssetManager::IsHandleValid(ac.asset_model) || !ac.animator.IsValid())
                 continue;
 
-            const auto model = AssetManager::GetAsset<AnimatedModel>(ac->asset_model);
-            Renderer::DrawAnimatedModel(*model, ac->animator, transform->position, transform->rotation, transform->scale);
+            const auto model = AssetManager::GetAsset<AnimatedModel>(ac.asset_model);
+            Renderer::DrawAnimatedModel(*model, ac.animator, transform.position, transform.rotation, transform.scale);
         }
     }
+
+    Scene* GetActive() { return active_scene; }
+    void SetActive(Scene& scene) { active_scene = &scene; }
 }

@@ -9,7 +9,6 @@ struct GameState
 {
     Scene scene_editor;
     Scene scene_runtime;
-    Scene* scene_active = NULL;
     Player player;
     Entity camera_game;
     Material material_grid;
@@ -25,6 +24,7 @@ struct GameState
     Texture attachment_depth;
 
     AssetHandle assets[Assets::_Length];
+    bool show_demo_window = true;
 };
 
 static GameState state;
@@ -63,8 +63,10 @@ namespace Game
         state.sun.intensity = 2.f;
         Renderer::SetSun(state.sun);
 
-        state.scene_active = &state.scene_editor;
         state.scene_editor = Scenes::Create(10);
+        state.scene_runtime = Scenes::Create(10);
+
+        Scenes::SetActive(state.scene_editor);
         state.player = Player_Create(state.scene_editor);
 
         // Create the HDR framebuffer attachments
@@ -97,19 +99,23 @@ namespace Game
 
         if (Input::IsKeyPressed(KEY_F5) || Input::IsGamepadButtonPressed(GamepadButton::Start))
         {
-            if (state.scene_active == &state.scene_editor)
+            const Scene* active_scene = Scenes::GetActive();
+            if (active_scene->state == SceneState::Editor)
             {
                 Scenes::Copy(state.scene_editor, state.scene_runtime);
                 Scenes::Play(state.scene_runtime);
-                state.scene_active = &state.scene_runtime;
+                Scenes::SetActive(state.scene_runtime);
             }
             else
             {
-                state.scene_active = &state.scene_editor;
+                Scenes::SetActive(state.scene_editor);
                 Scenes::Stop(state.scene_runtime);
                 Scenes::Destroy(state.scene_runtime);
             }
         }
+
+        if (Input::IsKeyPressed(KEY_F1))
+            state.show_demo_window = !state.show_demo_window;
 
         if (Input::IsKeyPressed(KEY_F2) || Input::IsGamepadButtonPressed(GamepadButton::Back))
             ResetCameraEditor();
@@ -127,19 +133,21 @@ namespace Game
         if (Windows::IsMinimized(window))
             return;
 
-        Player_Update(*state.scene_active, state.player);
-        if (state.scene_active->state == SceneState::Runtime)
+        Player_Update(state.player);
+
+        Scene* active_scene = Scenes::GetActive();
+        if (active_scene->state == SceneState::Runtime)
         {
             // Make the runtime camera follow the player
-            const glm::vec3 player_position = state.player.entity.GetComponent<TransformComponent>(state.scene_runtime)->position;
+            const glm::vec3 player_position = state.player.entity.GetComponent<TransformComponent>().position;
             const glm::vec3 camera_offset = glm::vec3(0.f, 6.f, -5.f);
 
-            auto transform = state.camera_game.GetComponent<TransformComponent>(state.scene_runtime);
-            transform->position = player_position + camera_offset;
+            auto& transform = state.camera_game.GetComponent<TransformComponent>();
+            transform.position = player_position + camera_offset;
         }
 
-        Scenes::UpdateSubsystems(*state.scene_active);
-        if (state.scene_active->state == SceneState::Editor)
+        Scenes::UpdateSubsystems(*active_scene);
+        if (active_scene->state == SceneState::Editor)
             Cameras::UpdateEditor(state.camera_editor, 1.f, 8.f);
     }
 
@@ -155,6 +163,8 @@ namespace Game
 
     void OnRenderUI()
     {
+        if (state.show_demo_window)
+            ImGui::ShowDemoWindow(&state.show_demo_window);
     }
 
     void OnShutdown()
@@ -178,21 +188,21 @@ namespace Game
         state.camera_editor.clip_near = 0.1f;
         state.camera_editor.clip_far = 50.f;
 
-        if (state.scene_active->state == SceneState::Editor)
+        if (Scenes::GetActive()->state == SceneState::Editor)
             Renderer::SetPrimaryCamera(&state.camera_editor);
     }
 
     void ResetCameraGame()
     {
-        state.camera_game = Scenes::CreateEntity(*state.scene_active, "Main Camera");
+        state.camera_game = Scenes::CreateEntity(state.scene_editor, "Main Camera");
 
-        const auto transform = state.camera_game.GetComponent<TransformComponent>(*state.scene_active);
-        const auto cc = state.camera_game.AddComponent<PerspectiveCameraComponent>(*state.scene_active, true, state.player.entity);
+        auto& transform = state.camera_game.GetComponent<TransformComponent>();
+        auto& cc = state.camera_game.AddComponent<PerspectiveCameraComponent>(true, state.player.entity);
 
-        transform->position = glm::vec3(0.064, 5.704, -8.300);
-        cc->camera.clip_near = 0.1f;
-        cc->camera.clip_far = 50.f;
-        cc->camera.fov = 75.f;
+        transform.position = glm::vec3(0.064, 5.704, -8.300);
+        cc.camera.clip_near = 0.1f;
+        cc.camera.clip_far = 50.f;
+        cc.camera.fov = 75.f;
     }
 
     void RenderPass_SceneHDR()
@@ -214,7 +224,7 @@ namespace Game
 
         // Renders the scene to the HDR framebuffer
         const RenderPassHandle scene_pass = RenderPasses::Begin(&hdr_info, 1, ds_info);
-        Scenes::RenderSubsystems(*state.scene_active);
+        Scenes::RenderSubsystems(*Scenes::GetActive());
         Renderer::DrawPrimitive(PrimitiveMesh::Plane, Meshes::CalculateTransform(glm::vec3(0.f, -1.f, 0.f), glm::vec3(0.f), glm::vec3(10.f, 1.f, 10.f)), state.material_grid);
         Renderer::DrawPrimitive(PrimitiveMesh::Cone, Meshes::CalculateTransform(glm::vec3(4.f, 0.f, 0.f)), state.material_red);
         Renderer::DrawPrimitive(PrimitiveMesh::Pyramid, Meshes::CalculateTransform(glm::vec3(-4.f, 0.f, 0.f)), state.material_green);

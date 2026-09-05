@@ -93,31 +93,15 @@ namespace Nova::Input
         switch (axis)
         {
             case InputAxis::Horizontal:
-                value = IsKeyDown(KEY_RIGHT) - IsKeyDown(KEY_LEFT);
+                value = (IsKeyDown(KEY_RIGHT) - IsKeyDown(KEY_LEFT)) + (IsKeyDown(KEY_D) - IsKeyDown(KEY_A));
                 break;
 
             case InputAxis::Vertical:
-                value = IsKeyDown(KEY_UP) - IsKeyDown(KEY_DOWN);
+                value = (IsKeyDown(KEY_UP) - IsKeyDown(KEY_DOWN)) + (IsKeyDown(KEY_W) - IsKeyDown(KEY_S));
                 break;
         }
 
-        return value;
-    }
-
-    float GetAxisAlt(InputAxis axis)
-    {
-        float value = 0.f;
-        switch (axis)
-        {
-            case InputAxis::Horizontal:
-                value = IsKeyDown(KEY_D) - IsKeyDown(KEY_A);
-                break;
-
-            case InputAxis::Vertical:
-                value = IsKeyDown(KEY_W) - IsKeyDown(KEY_S);
-                break;
-        }
-
+        value += GetAxisGamepad(axis);
         return value;
     }
 

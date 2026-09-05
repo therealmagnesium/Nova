@@ -442,6 +442,9 @@ namespace Nova::Renderer
         if (state.active_render_pass == NULL || state.primary_camera == NULL)
             return;
 
+        if (!environment_map.IsValid())
+            return;
+
         const Mesh& mesh_skybox = GetPrimitiveMesh(PrimitiveMesh::Cube);
         state.active_environment_map = &environment_map;
 

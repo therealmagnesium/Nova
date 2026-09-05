@@ -5,14 +5,15 @@ using namespace Nova;
 
 static constexpr float k_AnimationCrossfadeDuration = 0.2f;
 
-void Update_Idle(Scene& scene, Player& player, const glm::vec3& move_direction);
-void Update_Run(Scene& scene, Player& player, const glm::vec3& move_direction);
-void Update_Jump(Scene& scene, Player& player, const glm::vec3& move_direction);
-void SwitchToState(Scene& scene, Player& player, u8 new_state);
-void PlayAnimationForState(Scene& scene, Player& player, u8 state);
+void Update_Idle(Player& player, const glm::vec3& move_direction);
+void Update_Run(Player& player, const glm::vec3& move_direction);
+void Update_Jump(Player& player, const glm::vec3& move_direction);
+void SwitchToState(Player& player, u8 new_state);
+void PlayAnimationForState(Player& player, u8 state);
 void ApplyGravity(Player& player, TransformComponent& transform);
 void FaceMoveDirection(Player& player, TransformComponent& transform, const glm::vec3& move_direction, float delta_time);
 glm::vec3 GetCameraRelativeMoveDirection();
+bool HandleJumping(Player& player);
 
 Player Player_Create(Scene& scene)
 {
@@ -26,105 +27,88 @@ Player Player_Create(Scene& scene)
     assets_animations[2] = Game::GetAsset(Assets::AnimationJump);
 
     player.entity = Scenes::CreateEntity(scene, "Player");
-    player.entity.AddComponent<AnimatorComponent>(scene, asset_robot, assets_animations, LEN(assets_animations));
-    player.entity.GetComponent<TransformComponent>(scene)->position = glm::vec3(0.f, -1.f, 0.f);
+    player.entity.AddComponent<AnimatorComponent>(asset_robot, assets_animations, LEN(assets_animations));
+    player.entity.GetComponent<TransformComponent>().position = glm::vec3(0.f, -1.f, 0.f);
 
     return player;
 }
 
-void Player_Update(Scene& scene, Player& player)
+void Player_Update(Player& player)
 {
-    if (scene.state != SceneState::Runtime)
+    if (Scenes::GetActive()->state != SceneState::Runtime)
         return;
 
-    const auto transform = player.entity.GetComponent<TransformComponent>(scene);
-    if (transform == NULL)
-        return;
-
+    auto& transform = player.entity.GetComponent<TransformComponent>();
     const glm::vec3 move_direction = GetCameraRelativeMoveDirection();
 
     switch (player.state)
     {
         case PlayerState::Idle:
-            Update_Idle(scene, player, move_direction);
+            Update_Idle(player, move_direction);
             break;
         case PlayerState::Run:
-            Update_Run(scene, player, move_direction);
+            Update_Run(player, move_direction);
             break;
         case PlayerState::Jump:
-            Update_Jump(scene, player, move_direction);
+            Update_Jump(player, move_direction);
             break;
 
         default:
             break;
     }
 
-    FaceMoveDirection(player, *transform, move_direction, Application::GetDeltaTime());
+    FaceMoveDirection(player, transform, move_direction, Application::GetDeltaTime());
 }
 
-void Update_Idle(Scene& scene, Player& player, const glm::vec3& move_direction)
+void Update_Idle(Player& player, const glm::vec3& move_direction)
 {
-    const auto transform = player.entity.GetComponent<TransformComponent>(scene);
-    ApplyGravity(player, *transform); // Keeps the player glued to the ground / catches it falling off a ledge later
-
-    if (Input::IsGamepadButtonPressed(GamepadButton::South) && player.is_grounded)
-    {
-        player.velocity.y = player.jump_speed;
-        player.is_grounded = false;
-        SwitchToState(scene, player, PlayerState::Jump);
-        return;
-    }
+    auto& transform = player.entity.GetComponent<TransformComponent>();
+    ApplyGravity(player, transform);
+    HandleJumping(player);
 
     if (glm::dot(move_direction, move_direction) > 0.001f)
-        SwitchToState(scene, player, PlayerState::Run);
+        SwitchToState(player, PlayerState::Run);
 }
 
-void Update_Run(Scene& scene, Player& player, const glm::vec3& move_direction)
+void Update_Run(Player& player, const glm::vec3& move_direction)
 {
-    const auto transform = player.entity.GetComponent<TransformComponent>(scene);
-    ApplyGravity(player, *transform);
-
-    if (Input::IsGamepadButtonPressed(GamepadButton::South) && player.is_grounded)
-    {
-        player.velocity.y = player.jump_speed;
-        player.is_grounded = false;
-        SwitchToState(scene, player, PlayerState::Jump);
-        return;
-    }
+    auto& transform = player.entity.GetComponent<TransformComponent>();
+    ApplyGravity(player, transform);
+    HandleJumping(player);
 
     if (glm::dot(move_direction, move_direction) <= 0.001f)
     {
-        SwitchToState(scene, player, PlayerState::Idle);
+        SwitchToState(player, PlayerState::Idle);
         return;
     }
 
-    transform->position += move_direction * player.move_speed * Application::GetDeltaTime();
+    transform.position += move_direction * player.move_speed * Application::GetDeltaTime();
 }
 
-void Update_Jump(Scene& scene, Player& player, const glm::vec3& move_direction)
+void Update_Jump(Player& player, const glm::vec3& move_direction)
 {
-    const auto transform = player.entity.GetComponent<TransformComponent>(scene);
+    auto& transform = player.entity.GetComponent<TransformComponent>();
 
     // Limited air control - same direction as ground movement, at reduced authority
-    transform->position += move_direction * player.move_speed * Application::GetDeltaTime();
-    ApplyGravity(player, *transform);
+    transform.position += move_direction * player.move_speed * Application::GetDeltaTime();
+    ApplyGravity(player, transform);
 
     if (player.is_grounded)
-        SwitchToState(scene, player, glm::dot(move_direction, move_direction) > 0.001f ? PlayerState::Run : PlayerState::Idle);
+        SwitchToState(player, glm::dot(move_direction, move_direction) > 0.001f ? PlayerState::Run : PlayerState::Idle);
 }
 
-void SwitchToState(Scene& scene, Player& player, u8 new_state)
+void SwitchToState(Player& player, u8 new_state)
 {
     if (player.state == new_state)
         return;
 
     player.state = new_state;
-    PlayAnimationForState(scene, player, new_state);
+    PlayAnimationForState(player, new_state);
 }
 
-void PlayAnimationForState(Scene& scene, Player& player, u8 state)
+void PlayAnimationForState(Player& player, u8 state)
 {
-    const auto ac = player.entity.GetComponent<AnimatorComponent>(scene);
+    auto& ac = player.entity.GetComponent<AnimatorComponent>();
 
     u8 clip_index = Assets::AnimationIdle;
     bool loop = true;
@@ -149,7 +133,7 @@ void PlayAnimationForState(Scene& scene, Player& player, u8 state)
     if (clip == NULL)
         return;
 
-    Animators::CrossfadeTo(ac->animator, *clip, k_AnimationCrossfadeDuration, loop);
+    Animators::CrossfadeTo(ac.animator, *clip, k_AnimationCrossfadeDuration, loop);
 }
 
 void ApplyGravity(Player& player, TransformComponent& transform)
@@ -196,8 +180,8 @@ void FaceMoveDirection(Player& player, TransformComponent& transform, const glm:
 
 glm::vec3 GetCameraRelativeMoveDirection()
 {
-    const float input_x = Input::GetAxisGamepad(InputAxis::Horizontal);
-    const float input_z = Input::GetAxisGamepad(InputAxis::Vertical);
+    const float input_x = Input::GetAxis(InputAxis::Horizontal);
+    const float input_z = Input::GetAxis(InputAxis::Vertical);
 
     if (fabsf(input_x) < 0.001f && fabsf(input_z) < 0.001f)
         return glm::vec3(0.f);
@@ -218,4 +202,18 @@ glm::vec3 GetCameraRelativeMoveDirection()
     const glm::vec3 direction = forward * input_z + right * input_x;
 
     return glm::dot(direction, direction) > 0.0001f ? glm::normalize(direction) : glm::vec3(0.f);
+}
+
+bool HandleJumping(Player& player)
+{
+    const bool jump_check = Input::IsGamepadButtonPressed(GamepadButton::South) || Input::IsKeyPressed(KEY_SPACE);
+    if (jump_check && player.is_grounded)
+    {
+        player.velocity.y = player.jump_speed;
+        player.is_grounded = false;
+        SwitchToState(player, PlayerState::Jump);
+        return true;
+    }
+
+    return false;
 }

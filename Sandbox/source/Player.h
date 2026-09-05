@@ -22,7 +22,7 @@ struct Player
 
     glm::vec3 velocity = glm::vec3(0.f);
     float move_speed = 5.f;      // Units/second while running
-    float turn_smoothing = 15.f; // Higher = snappier turning, lower = smoother/slower (see FaceMoveDirection)
+    float turn_smoothing = 12.f; // Higher = snappier turning, lower = smoother/slower (see FaceMoveDirection)
     float jump_speed = 9.f;      // Initial upward velocity applied on jump
     float gravity = -18.f;       // Downward acceleration applied every frame while airborne
     float ground_height = -1.f;  // World Y considered "grounded"
@@ -30,4 +30,4 @@ struct Player
 };
 
 Player Player_Create(Scene& scene);
-void Player_Update(Scene& scene, Player& player);
+void Player_Update(Player& player);
