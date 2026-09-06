@@ -164,14 +164,14 @@ namespace Nova::Renderer
             .storage_texture_count = 0
         };
 
-        Shader shader_pbr = Shaders::Load("Assets/Shaders/Compiled/PBR_vs.spv", "Assets/Shaders/Compiled/PBR_fs.spv", info_scene_vertex, info_scene_fragment);
-        Shader shader_pbr_skinned = Shaders::Load("Assets/Shaders/Compiled/SkinnedPBR_vs.spv", "Assets/Shaders/Compiled/PBR_fs.spv", info_skinned_scene_vertex, info_scene_fragment);
-        Shader shader_compositing = Shaders::Load("Assets/Shaders/Compiled/Compositing_vs.spv", "Assets/Shaders/Compiled/Compositing_fs.spv", info_compositing_vertex, info_compositing_fragment);
-        Shader shader_hdri_to_cubemap = Shaders::Load("Assets/Shaders/Compiled/Cubemap_vs.spv", "Assets/Shaders/Compiled/EquirectangularToCubemap_fs.spv", info_ibl_vertex, info_ibl_fragment);
-        Shader shader_irradiance = Shaders::Load("Assets/Shaders/Compiled/Cubemap_vs.spv", "Assets/Shaders/Compiled/Irradiance_fs.spv", info_ibl_vertex, info_ibl_fragment);
-        Shader shader_prefilter = Shaders::Load("Assets/Shaders/Compiled/Cubemap_vs.spv", "Assets/Shaders/Compiled/Prefilter_fs.spv", info_ibl_vertex, info_prefilter_fragment);
-        Shader shader_brdf = Shaders::Load("Assets/Shaders/Compiled/BRDF_vs.spv", "Assets/Shaders/Compiled/BRDF_fs.spv");
-        Shader shader_skybox = Shaders::Load("Assets/Shaders/Compiled/Skybox_vs.spv", "Assets/Shaders/Compiled/Skybox_fs.spv", info_ibl_vertex, info_ibl_fragment);
+        Shader shader_pbr = Shaders::Load("SPIR-V/PBR_vs.spv", "SPIR-V/PBR_fs.spv", info_scene_vertex, info_scene_fragment);
+        Shader shader_pbr_skinned = Shaders::Load("SPIR-V/SkinnedPBR_vs.spv", "SPIR-V/PBR_fs.spv", info_skinned_scene_vertex, info_scene_fragment);
+        Shader shader_compositing = Shaders::Load("SPIR-V/Compositing_vs.spv", "SPIR-V/Compositing_fs.spv", info_compositing_vertex, info_compositing_fragment);
+        Shader shader_hdri_to_cubemap = Shaders::Load("SPIR-V/Cubemap_vs.spv", "SPIR-V/EquirectangularToCubemap_fs.spv", info_ibl_vertex, info_ibl_fragment);
+        Shader shader_irradiance = Shaders::Load("SPIR-V/Cubemap_vs.spv", "SPIR-V/Irradiance_fs.spv", info_ibl_vertex, info_ibl_fragment);
+        Shader shader_prefilter = Shaders::Load("SPIR-V/Cubemap_vs.spv", "SPIR-V/Prefilter_fs.spv", info_ibl_vertex, info_prefilter_fragment);
+        Shader shader_brdf = Shaders::Load("SPIR-V/BRDF_vs.spv", "SPIR-V/BRDF_fs.spv");
+        Shader shader_skybox = Shaders::Load("SPIR-V/Skybox_vs.spv", "SPIR-V/Skybox_fs.spv", info_ibl_vertex, info_ibl_fragment);
 
         // Initialize all of the graphics pipelines
         const auto shader_info = (PipelineShaderInfo){
@@ -364,12 +364,16 @@ namespace Nova::Renderer
         RegisterCommand(command);
     }
 
-    void DrawModel(const Model& model, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)
+    void DrawModel(const Model& model, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale, std::span<const Material> material_overrides)
     {
         const glm::mat4 transform = Meshes::CalculateTransform(position, rotation, scale);
 
         for (const Mesh& mesh : model.meshes)
-            Renderer::DrawMesh(mesh, transform, model.materials[mesh.material_index]);
+        {
+            const bool has_override = mesh.material_index < material_overrides.size();
+            const Material& material = !has_override ? model.materials[mesh.material_index] : material_overrides[mesh.material_index];
+            Renderer::DrawMesh(mesh, transform, material);
+        }
     }
 
     void DrawAnimatedModel(const AnimatedModel& model, const Animator& animator, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale)

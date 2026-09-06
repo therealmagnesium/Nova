@@ -20,6 +20,9 @@ namespace Nova::Scenes
     void Runtime_OnUpdate(Scene& scene);
     void Runtime_OnRender(Scene& scene);
 
+    void RenderAllStandardModelsAndPrimitives(Scene& scene);
+    void RenderAllAnimatedModels(Scene& scene);
+
     Scene Create(u64 entity_count_estimate)
     {
         Scene scene;
@@ -150,31 +153,8 @@ namespace Nova::Scenes
 
     void Editor_OnRender(Scene& scene)
     {
-        // Render all standard models in the scene
-        for (Entity entity : Views::Create<TransformComponent, MeshRendererComponent>(scene))
-        {
-            const auto& transform = entity.GetComponent<TransformComponent>();
-            const auto& mesh_renderer = entity.GetComponent<MeshRendererComponent>();
-
-            if (!AssetManager::IsHandleValid(mesh_renderer.asset_model))
-                continue;
-
-            const auto model = AssetManager::GetAsset<Model>(mesh_renderer.asset_model);
-            Renderer::DrawModel(*model, transform.position, transform.rotation, transform.scale);
-        }
-
-        // Render all animated models in the scene
-        for (Entity entity : Views::Create<TransformComponent, AnimatorComponent>(scene))
-        {
-            const auto& transform = entity.GetComponent<TransformComponent>();
-            const auto& ac = entity.GetComponent<AnimatorComponent>();
-
-            if (!AssetManager::IsHandleValid(ac.asset_model) || !ac.animator.IsValid())
-                continue;
-
-            const auto model = AssetManager::GetAsset<AnimatedModel>(ac.asset_model);
-            Renderer::DrawAnimatedModel(*model, ac.animator, transform.position, transform.rotation, transform.scale);
-        }
+        RenderAllStandardModelsAndPrimitives(scene);
+        RenderAllAnimatedModels(scene);
     }
 
     void Runtime_OnUpdate(Scene& scene)
@@ -211,20 +191,46 @@ namespace Nova::Scenes
 
     void Runtime_OnRender(Scene& scene)
     {
-        // Render all standard models in the scene
-        for (Entity entity : Views::Create<TransformComponent, MeshRendererComponent>(scene))
+        RenderAllStandardModelsAndPrimitives(scene);
+        RenderAllAnimatedModels(scene);
+    }
+
+    void RenderAllStandardModelsAndPrimitives(Scene& scene)
+    {
+        for (Entity entity : Views::Create<TransformComponent, MeshFilterComponent, MeshRendererComponent>(scene))
         {
             const auto& transform = entity.GetComponent<TransformComponent>();
-            const auto& mesh_renderer = entity.GetComponent<MeshRendererComponent>();
+            const auto& filter = entity.GetComponent<MeshFilterComponent>();
+            const auto& renderer = entity.GetComponent<MeshRendererComponent>();
 
-            if (!AssetManager::IsHandleValid(mesh_renderer.asset_model))
-                continue;
+            switch (filter.source_type)
+            {
+                case MeshSource::Primitive:
+                {
+                    const Material& material = !renderer.material_overrides.empty() ? renderer.material_overrides[0] : Stub_Material;
+                    const glm::mat4 transform_matrix = transform.CalculateMatrix();
+                    Renderer::DrawPrimitive(filter.primitive, transform_matrix, material);
+                    break;
+                }
 
-            const auto model = AssetManager::GetAsset<Model>(mesh_renderer.asset_model);
-            Renderer::DrawModel(*model, transform.position, transform.rotation, transform.scale);
+                case MeshSource::Model:
+                {
+                    if (!AssetManager::IsHandleValid(filter.asset_model))
+                        continue;
+
+                    const Model* model = AssetManager::GetAsset<Model>(filter.asset_model);
+                    Renderer::DrawModel(*model, transform.position, transform.rotation, transform.scale, renderer.material_overrides);
+                    break;
+                }
+
+                default:
+                    break;
+            }
         }
+    }
 
-        // Render all animated models in the scene
+    void RenderAllAnimatedModels(Scene& scene)
+    {
         for (Entity entity : Views::Create<TransformComponent, AnimatorComponent>(scene))
         {
             const auto& transform = entity.GetComponent<TransformComponent>();

@@ -21,6 +21,13 @@ namespace Nova
         _Length,
     };
 
+    enum class MeshSource : u8
+    {
+        None = 0,
+        Primitive,
+        Model,
+    };
+
     struct Vertex
     {
         glm::vec3 position; // Attribute 0

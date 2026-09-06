@@ -49,6 +49,8 @@ namespace Nova
             this->rotation = rotation;
             this->scale = scale;
         }
+
+        inline glm::mat4 CalculateMatrix() const { return Meshes::CalculateTransform(position, rotation, scale); }
     };
 
     struct PerspectiveCameraComponent : public Component
@@ -73,28 +75,42 @@ namespace Nova
 
     struct MeshFilterComponent : public Component
     {
-        PrimitiveMesh primitive;
-        Material material;
+        MeshSource source_type = MeshSource::None;
+        PrimitiveMesh primitive = PrimitiveMesh::None;
+        AssetHandle asset_model = AssetHandle_Invalid;
 
         MeshFilterComponent() = default;
         MeshFilterComponent(const MeshFilterComponent&) = default;
-        MeshFilterComponent(PrimitiveMesh primitive, const Material& material)
+
+        // Procedural geometry - no asset involved
+        MeshFilterComponent(PrimitiveMesh primitive)
         {
+            this->source_type = MeshSource::Primitive;
             this->primitive = primitive;
-            this->material = material;
+        }
+
+        // A multi-mesh Model asset loaded through the Asset Manager
+        MeshFilterComponent(AssetHandle asset_model)
+        {
+            if (!AssetManager::IsHandleValid(asset_model))
+            {
+                WARN("MeshFilterComponent::MeshFilterComponent - %s", "Component left uninitialized since \"asset_model\" was an invalid handle");
+                return;
+            }
+
+            this->source_type = MeshSource::Model;
+            this->asset_model = asset_model;
         }
     };
 
     struct MeshRendererComponent : public Component
     {
-        AssetHandle asset_model = AssetHandle_Invalid; // Standard model
+        std::vector<Material> material_overrides; // Empty = use the MeshFilter source's own default material(s)
 
         MeshRendererComponent() = default;
         MeshRendererComponent(const MeshRendererComponent&) = default;
-        MeshRendererComponent(AssetHandle asset_model)
-        {
-            this->asset_model = asset_model;
-        }
+        MeshRendererComponent(const Material& material) : material_overrides{ material } {}
+        MeshRendererComponent(std::vector<Material> materials) : material_overrides(std::move(materials)) {}
     };
 
     struct AnimatorComponent : public Component
