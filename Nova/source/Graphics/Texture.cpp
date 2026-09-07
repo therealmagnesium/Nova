@@ -5,8 +5,8 @@
 
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_filesystem.h>
-#include <stb_image.h>
 #include <algorithm>
+#include <stb_image.h>
 
 namespace Nova::Textures
 {
@@ -388,7 +388,10 @@ namespace Nova::Textures
         SDL_GPUTextureCreateInfo info = {};
         info.type = SDL_GPU_TEXTURETYPE_2D;
         info.format = TextureFormatToSDL(entry.metadata.format);
-        info.usage = msaa == MSAASamples::One ? SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER : SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
+        if (msaa > MSAASamples::One)
+            info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET; // Pure offscreen rendering scratch space
+        else
+            info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER; // presentation/read presentation target
         info.width = entry.metadata.width;
         info.height = entry.metadata.height;
         info.layer_count_or_depth = 1;

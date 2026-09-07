@@ -21,7 +21,7 @@ namespace Nova
         template <typename T>
         inline const T& GetComponent() const
         {
-            Scene* context = Scenes::GetActive();
+            const Scene* context = Scenes::GetActive();
             ASSERT(context != NULL, "Entity::GetComponent - Cannot retrieve component since there is no active scene set to be the context!");
             return context->registry.GetComponent<T>(id);
         }

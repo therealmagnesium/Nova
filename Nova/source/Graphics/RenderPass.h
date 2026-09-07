@@ -1,6 +1,6 @@
 #pragma once
 #include "Core/Base.h"
-#include "Graphics/Texture.h"
+#include "Graphics/Framebuffer.h"
 
 #include <glm/vec4.hpp>
 
@@ -23,38 +23,27 @@ namespace Nova
         ResolveAndStore
     };
 
-    struct ColorTargetInfo
+    struct RenderPassSpecification
     {
         glm::vec4 clear_color = glm::vec4(0.f, 0.f, 0.f, 1.f);
-        TextureHandle texture = NULL;
-        TextureHandle texture_msaa_resolve = NULL;
-        GPULoadOp load_op = GPULoadOp::Load;
-        GPUStoreOp store_op = GPUStoreOp::Store;
-        u8 layer = 0;
-        u8 mip_level = 0;
+        float clear_depth = 1.f;
+        GPULoadOp color_load_op = GPULoadOp::Clear;
+        GPUStoreOp color_store_op = GPUStoreOp::Store;
+        GPULoadOp depth_load_op = GPULoadOp::Clear;
+        GPUStoreOp depth_store_op = GPUStoreOp::Discard;
     };
 
-    struct DepthStencilTargetInfo
-    {
-        TextureHandle texture = NULL;
-        float clear_depth = 0.f;
-        GPULoadOp load_op = GPULoadOp::Load;
-        GPUStoreOp store_op = GPUStoreOp::Store;
-
-        inline bool operator==(const DepthStencilTargetInfo& other) const
-        {
-            return texture == other.texture && clear_depth == other.clear_depth &&
-                   load_op == other.load_op && store_op == other.store_op;
-        }
-        inline bool operator!=(const DepthStencilTargetInfo& other) const { return !(*this == other); }
-    };
-
-    inline const ColorTargetInfo Stub_ColorTargetInfo;
-    inline const DepthStencilTargetInfo Stub_DepthStencilTargetInfo;
+    inline const RenderPassSpecification Stub_RenderPassSpecification;
 
     namespace RenderPasses
     {
-        RenderPassHandle Begin(const ColorTargetInfo* color_target_infos, u8 color_target_count, const DepthStencilTargetInfo& info);
+        /**
+         * @brief Begins a hardware render pass using a structured engine Framebuffer.
+         * @param framebuffer [in] The framebuffer containing our rendering targets. Pass NULL or Stub_Framebuffer to target the swapchain.
+         * @param spec [in] The explicit behavioral load/store configurations applied across this pass execution.
+         * @return An abstract render pass handle used for binding graphics pipelines.
+         */
+        RenderPassHandle Begin(const Framebuffer* framebuffer, const RenderPassSpecification& spec);
         void End(RenderPassHandle render_pass);
     }
 }

@@ -27,7 +27,7 @@ namespace Nova
         AnisotropicClamp,
     };
 
-    enum class MSAASamples
+    enum class MSAASamples : u8
     {
         One = 0,
         Two,

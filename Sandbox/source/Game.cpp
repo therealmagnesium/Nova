@@ -19,15 +19,14 @@ struct GameState
     EnvironmentMap environment_map;
     DirectionalLight sun;
     Camera3D camera_editor;
-    Texture attachment_hdr;
-    Texture attachment_resolve;
-    Texture attachment_depth;
+    Framebuffer framebuffer;
 
     AssetHandle assets[Assets::_Length];
     bool show_demo_window = true;
 };
 
 static GameState state;
+static constexpr u64 k_ExpectedEntityCount = 10;
 
 namespace Game
 {
@@ -45,6 +44,7 @@ namespace Game
         state.assets[Assets::ModelRobot] = AssetManager::ImportByPath("Assets/Models/Robot.fbx", AssetType::ModelAnimated);
         state.assets[Assets::TextureGrid] = AssetManager::ImportByPath("Assets/Textures/Grid.png", AssetType::Texture);
 
+        // Setup materials used by primitive meshes
         state.material_grid.texture_albedo = *AssetManager::GetAsset<Texture>(GetAsset(Assets::TextureGrid));
         state.material_red.albedo = glm::vec4(1.f, 0.f, 0.f, 1.f);
         state.material_red.metallic = 0.65f;
@@ -63,20 +63,37 @@ namespace Game
         state.sun.intensity = 2.f;
         Renderer::SetSun(state.sun);
 
-        state.scene_editor = Scenes::Create(10);
-        state.scene_runtime = Scenes::Create(10);
+        // Create the editor and runtime scenes
+        state.scene_editor = Scenes::Create(k_ExpectedEntityCount);
+        state.scene_runtime = Scenes::Create(k_ExpectedEntityCount);
 
+        // Set the current scene context to be the editor scene and create the player
         Scenes::SetActive(state.scene_editor);
         state.player = Player_Create(state.scene_editor);
 
-        // Create the HDR framebuffer attachments
+        // Create the framebuffer by specifying it's attachments
         const Window& window = Application::GetWindow();
         const MSAASamples msaa = Application::GetMSAASamples();
-        state.attachment_hdr = Textures::CreateFramebufferAttachmentHDR(window.width, window.height, msaa);
-        state.attachment_resolve = Textures::CreateFramebufferAttachmentHDR(window.width, window.height, MSAASamples::One);
-        state.attachment_depth = Textures::CreateFramebufferAttachmentDepth(window.width, window.height, msaa);
+        const FramebufferSpecification framebuffer_spec = {
+            .width = window.width,
+            .height = window.height,
+            .attachments = {
+                FramebufferAttachmentSpecification{
+                    .format = TextureFormat::RGBA16F,
+                    .msaa = msaa,
+                    .type = FramebufferAttachmentType::Color,
+                    .requires_resolve = true,
+                },
+                FramebufferAttachmentSpecification{
+                    .format = TextureFormat::Depth32F,
+                    .msaa = msaa,
+                    .type = FramebufferAttachmentType::DepthStencil,
+                },
+            }
+        };
+        state.framebuffer = Framebuffers::Create(framebuffer_spec);
 
-        // Setup settings for the scene
+        // Setup cameras render settings for the scene
         ResetCameraEditor();
         ResetCameraGame();
         Renderer::SetExposure(1.f);
@@ -86,17 +103,10 @@ namespace Game
     {
         // If the window is resized, recreate the the HDR framebuffer attachments
         const Window& window = Application::GetWindow();
-        const MSAASamples msaa = Application::GetMSAASamples();
         if (Windows::IsResizing(window))
-        {
-            Textures::Unload(state.attachment_hdr);
-            Textures::Unload(state.attachment_resolve);
-            Textures::Unload(state.attachment_depth);
-            state.attachment_hdr = Textures::CreateFramebufferAttachmentHDR(window.width, window.height, msaa);
-            state.attachment_resolve = Textures::CreateFramebufferAttachmentHDR(window.width, window.height, MSAASamples::One);
-            state.attachment_depth = Textures::CreateFramebufferAttachmentDepth(window.width, window.height, msaa);
-        }
+            Framebuffers::Resize(state.framebuffer, window.width, window.height);
 
+        // Check if the user wants to switch between editor and runtime
         if (Input::IsKeyPressed(KEY_F5) || Input::IsGamepadButtonPressed(GamepadButton::Start))
         {
             const Scene* active_scene = Scenes::GetActive();
@@ -172,10 +182,7 @@ namespace Game
         Scenes::Destroy(state.scene_editor);
         Scenes::Destroy(state.scene_runtime);
         IBL::Free(state.environment_map);
-
-        Textures::Unload(state.attachment_hdr);
-        Textures::Unload(state.attachment_resolve);
-        Textures::Unload(state.attachment_depth);
+        Framebuffers::Destroy(state.framebuffer);
     }
 
     AssetHandle GetAsset(AssetIndex index) { return state.assets[index]; }
@@ -207,23 +214,21 @@ namespace Game
 
     void RenderPass_SceneHDR()
     {
-        const ColorTargetInfo hdr_info = {
-            .clear_color = glm::vec4(0.01f, 0.01f, 0.01f, 1.f), // Note: Colors are not in linear space after compositing pass
-            .texture = Textures::GetHandle(state.attachment_hdr),
-            .texture_msaa_resolve = Textures::GetHandle(state.attachment_resolve),
-            .load_op = GPULoadOp::Clear,
-            .store_op = GPUStoreOp::Resolve,
-        };
+        const Texture& attachment_hdr = Framebuffers::GetColorAttachment(state.framebuffer, 0);
+        const Texture& attachment_resolve = Framebuffers::GetResolveAttachment(state.framebuffer, 0);
 
-        const DepthStencilTargetInfo ds_info = {
-            .texture = Textures::GetHandle(state.attachment_depth),
+        // Specify the scene pass
+        const RenderPassSpecification render_pass_spec = {
+            .clear_color = glm::vec4(0.01f, 0.01f, 0.01f, 1.f), // Note: Colors are not in linear space after compositing pass
             .clear_depth = 1.f,
-            .load_op = GPULoadOp::Clear,
-            .store_op = GPUStoreOp::Discard,
+            .color_load_op = GPULoadOp::Clear,
+            .color_store_op = GPUStoreOp::Resolve,
+            .depth_load_op = GPULoadOp::Clear,
+            .depth_store_op = GPUStoreOp::Discard,
         };
 
         // Renders the scene to the HDR framebuffer
-        const RenderPassHandle scene_pass = RenderPasses::Begin(&hdr_info, 1, ds_info);
+        const RenderPassHandle scene_pass = RenderPasses::Begin(&state.framebuffer, render_pass_spec);
         Scenes::RenderSubsystems(*Scenes::GetActive());
         Renderer::DrawPrimitive(PrimitiveMesh::Plane, Meshes::CalculateTransform(glm::vec3(0.f, -1.f, 0.f), glm::vec3(0.f), glm::vec3(10.f, 1.f, 10.f)), state.material_grid);
         Renderer::DrawPrimitive(PrimitiveMesh::Cone, Meshes::CalculateTransform(glm::vec3(4.f, 0.f, 0.f)), state.material_red);
@@ -235,23 +240,21 @@ namespace Game
 
     void RenderPass_PostProcessing()
     {
-        const ColorTargetInfo swapchain_info = {
-            .clear_color = glm::vec4(0.12, 0.12, 0.12, 1.f),
-            .texture = NULL, // Resorts to using the renderer's swapchain texture
-            .load_op = GPULoadOp::Clear,
-            .store_op = GPUStoreOp::Store,
-        };
+        const Texture& attachment_resolve = Framebuffers::GetResolveAttachment(state.framebuffer, 0);
 
-        const DepthStencilTargetInfo ds_info = {
-            .texture = NULL, // Resorts to using the renderer's default depth-stencil texture
+        // Specify the post processing / compositing pass
+        const RenderPassSpecification render_pass_spec = {
+            .clear_color = glm::vec4(0.12f, 0.12f, 0.12f, 1.f),
             .clear_depth = 1.f,
-            .load_op = GPULoadOp::Clear,
-            .store_op = GPUStoreOp::Discard,
+            .color_load_op = GPULoadOp::Clear,
+            .color_store_op = GPUStoreOp::Store,
+            .depth_load_op = GPULoadOp::Clear,
+            .depth_store_op = GPUStoreOp::Discard,
         };
 
         // Renders the HDR framebuffer onto a fullscreen quad and applies post-processing effects
-        const RenderPassHandle post_processing_pass = RenderPasses::Begin(&swapchain_info, 1, ds_info);
-        Renderer::DrawTextureCompositing(state.attachment_resolve);
+        const RenderPassHandle post_processing_pass = RenderPasses::Begin(NULL, render_pass_spec);
+        Renderer::DrawTextureCompositing(attachment_resolve);
         UI::Display(post_processing_pass);
         RenderPasses::End(post_processing_pass);
     }

@@ -12,6 +12,7 @@
 #include "Graphics/Animator.h"
 #include "Graphics/Buffers.h"
 #include "Graphics/Camera.h"
+#include "Graphics/Framebuffer.h"
 #include "Graphics/IBL.h"
 #include "Graphics/Lights.h"
 #include "Graphics/Mesh.h"

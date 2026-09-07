@@ -1,0 +1,11 @@
+#pragma once
+
+namespace Editor
+{
+    void OnCreate();
+    void OnShutdown();
+    void OnEvent();
+    void OnUpdate();
+    void OnRender();
+    void OnRenderUI();
+}
