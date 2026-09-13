@@ -4,6 +4,7 @@
 #include "ECS/View.h"
 
 #include "Graphics/Renderer.h"
+#include "Graphics/Lights.h"
 
 #include "Core/Application.h"
 #include "Core/AssetManager.h"
@@ -34,6 +35,20 @@ namespace Nova::Scenes
         };
         std::apply(ReserveSpaceForComponents, scene.registry.pool_components);
 
+        Entity main_camera = CreateEntity(scene, "Main Camera");
+        auto& transform_camera = scene.registry.GetComponent<TransformComponent>(main_camera.id);
+        auto& cc = scene.registry.AddComponent<PerspectiveCameraComponent>(main_camera.id);
+        cc.is_primary = true;
+        cc.camera.fov = 75.f;
+        cc.camera.clip_near = 0.1f;
+        cc.camera.clip_far = 500.f;
+        transform_camera.position = glm::vec3(2.f, 5.f, 4.f);
+
+        Entity sun = CreateEntity(scene, "Directional Light");
+        auto& transform_sun = scene.registry.GetComponent<TransformComponent>(sun.id);
+        const auto& dlc = scene.registry.AddComponent<DirectionalLightComponent>(sun.id, glm::vec4(0.82f, 0.96f, 0.88f, 1.f), 1.f, true);
+        transform_sun.rotation = glm::vec3(-0.6f, -0.92f, -0.8f);
+
         return scene;
     }
 
@@ -48,6 +63,7 @@ namespace Nova::Scenes
 
         scene.registry.free_indices.clear();
         scene.registry.next_available_index = 0;
+        scene.entity_count = 0;
     }
 
     Entity CreateEntity(Scene& scene, const string& tag)
@@ -55,9 +71,10 @@ namespace Nova::Scenes
         Entity entity;
         entity.id = scene.registry.CreateEntityID();
 
-        entity.AddComponent<InternalComponent>(tag, true);
-        entity.AddComponent<TransformComponent>();
+        scene.registry.AddComponent<InternalComponent>(entity.id, tag, true);
+        scene.registry.AddComponent<TransformComponent>(entity.id);
 
+        scene.entity_count++;
         return entity;
     }
 
@@ -84,8 +101,8 @@ namespace Nova::Scenes
         // Recycle the entity ID so it can be reused by CreateEntity
         scene.registry.free_indices.push_back(entity.id);
 
-        // Invalidate the entity instance passed in
         entity.id = -1;
+        scene.entity_count--;
     }
 
     void Play(Scene& scene) { scene.state = SceneState::Runtime; }
@@ -149,6 +166,16 @@ namespace Nova::Scenes
             auto& cc = entity.GetComponent<PerspectiveCameraComponent>();
             cc.camera.position = transform.position;
         }
+
+        for (Entity entity : Views::Create<TransformComponent, DirectionalLightComponent>(scene))
+        {
+            const auto& transform = entity.GetComponent<TransformComponent>();
+            auto& dlc = entity.GetComponent<DirectionalLightComponent>();
+            dlc.light.direction = transform.rotation;
+
+            if (dlc.is_primary)
+                Renderer::SetSun(dlc.light);
+        }
     }
 
     void Editor_OnRender(Scene& scene)
@@ -173,7 +200,6 @@ namespace Nova::Scenes
             if (cc.is_primary)
                 primary_runtime_camera = &cc.camera;
         }
-
         Renderer::SetPrimaryCamera(primary_runtime_camera);
 
         // Update all animated models' animators in the scene

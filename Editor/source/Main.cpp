@@ -6,7 +6,7 @@ using namespace Nova;
 int main(int argc, char** argv)
 {
     const AppConfig config = {
-        .name = "Sandbox Project",
+        .name = "Nova Editor",
         .callbacks = {
             .on_create = Editor::OnCreate,
             .on_event = Editor::OnEvent,

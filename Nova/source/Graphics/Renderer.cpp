@@ -179,7 +179,7 @@ namespace Nova::Renderer
             .outdoor_meshes_skinned = &shader_pbr_skinned,
             .indoor_meshes = &shader_pbr,
             .wireframe_meshes = &shader_pbr,
-            .post_processing = &shader_compositing,
+            .compositing = &shader_compositing,
             .ibl_equirectangular_to_cubemap = &shader_hdri_to_cubemap,
             .ibl_irradiance = &shader_irradiance,
             .ibl_prefilter = &shader_prefilter,
@@ -426,12 +426,13 @@ namespace Nova::Renderer
         RegisterCommand(command);
     }
 
-    void DrawTextureCompositing(const Texture& screen_texture)
+    void DrawTextureCompositing(const Texture& screen_texture, bool targets_swapchain)
     {
         const RenderPassHandle render_pass = Renderer::GetActiveRenderPass();
         const Mesh& mesh_compositing = GetPrimitiveMesh(PrimitiveMesh::Quad);
+        const GPUPipeline pipeline = targets_swapchain ? GPUPipeline::PostProcessing : GPUPipeline::PostProcessingImGui;
 
-        Pipelines::Bind(GPUPipeline::PostProcessing, render_pass);
+        Pipelines::Bind(pipeline, render_pass);
         Buffers::Bind(mesh_compositing.buffer_index);
         Buffers::Bind(mesh_compositing.buffer_vertex);
         Textures::Bind(screen_texture);
@@ -507,14 +508,14 @@ namespace Nova::Renderer
             .matrix_normal = glm::transpose(glm::inverse(command.transform))
         };
 
-        const glm::vec4 albedo_linear = glm::vec4(powf(command.material->albedo.r, 2.2f), powf(command.material->albedo.g, 2.2f), powf(command.material->albedo.b, 2.2f), powf(command.material->albedo.a, 2.2f));
+        // const glm::vec4 albedo_linear = glm::vec4(powf(command.material->albedo.r, 2.2f), powf(command.material->albedo.g, 2.2f), powf(command.material->albedo.b, 2.2f), powf(command.material->albedo.a, 2.2f));
         const FragmentData frag_data = {
             .data_light = {
                 .direction_intensity = glm::vec4(state.active_sun->direction, state.active_sun->intensity),
                 .color = state.active_sun->color,
             },
             .data_material = {
-                .albedo = albedo_linear,
+                .albedo = command.material->albedo,
                 .pbr = glm::vec4(command.material->texture_metallic.IsValid() ? 1.f : command.material->metallic, command.material->texture_roughness.IsValid() ? 1.f : command.material->roughness, 0.f, 0.f),
             },
             .camera_position = glm::vec4(state.primary_camera->position, 0.f),
@@ -538,6 +539,7 @@ namespace Nova::Renderer
     TextureHandle GetSwapchainHandle() { return state.texture_swapchain.handle; }
     const Texture& GetTextureSwapchain() { return state.texture_swapchain.metadata; }
     const Texture& GetTextureDepthStencil() { return state.texture_depth_stencil; }
+    const Texture& GetTextureDefaultWhite() { return state.texture_default_white; }
     const glm::mat4& GetMatrixView() { return state.matrix_view; }
     const glm::mat4& GetMatrixProjection() { return state.matrix_projection; }
     const Mesh& GetPrimitiveMesh(PrimitiveMesh primitive) { return state.primitives[static_cast<u8>(primitive)]; }

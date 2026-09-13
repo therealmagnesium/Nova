@@ -11,6 +11,7 @@ Makefile
 *.make
 *.spv
 *.blend1
+.claudeignore
 compile_commands.json
 nova_codebase.txt
 gemini.sh

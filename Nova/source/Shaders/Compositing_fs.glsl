@@ -11,10 +11,9 @@ layout (location = 0) out vec4 result;
 
 void main()
 {
-    const vec2 screen_uv = vec2(v_uv.x, 1.f - v_uv.y); // Still don't know why the screen texture is flipped if I don't flip the UV
     const float gamma = 2.2f; // Might add this as a uniform
 
-    result = texture(texture_screen, screen_uv);
+    result = texture(texture_screen, v_uv);
     result.rgb = vec3(1.f) - exp(-result.rgb * settings.exposure); // HDR tone mapping
     result.rgb = pow(result.rgb, vec3(1.f / gamma)); // Gamma correction
 }

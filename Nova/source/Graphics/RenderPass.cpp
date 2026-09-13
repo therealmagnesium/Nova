@@ -17,7 +17,7 @@ namespace Nova::RenderPasses
             return NULL;
 
         // Determine if we are rendering to a user custom Framebuffer or falling back to the engine Swapchain
-        const bool use_custom_framebuffer = (framebuffer != NULL && framebuffer->IsValid());
+        const bool use_custom_framebuffer = framebuffer != NULL && framebuffer->IsValid();
 
         u32 color_target_count = 0;
         SDL_GPUColorTargetInfo color_infos[8] = {}; // SDL_gpu supports up to 8 MRT configurations simultaneously
@@ -55,7 +55,7 @@ namespace Nova::RenderPasses
                 info.resolve_layer = 0;
                 info.mip_level = 0;
                 info.layer_or_depth_plane = 0;
-                info.cycle = false;
+                info.cycle = spec.color_load_op == GPULoadOp::Clear;
             }
         }
         else
@@ -69,7 +69,7 @@ namespace Nova::RenderPasses
             info.clear_color = (SDL_FColor){ spec.clear_color.r, spec.clear_color.g, spec.clear_color.b, spec.clear_color.a };
             info.load_op = GPULoadOpToSDL(spec.color_load_op);
             info.store_op = GPUStoreOpToSDL(spec.color_store_op);
-            info.cycle = false;
+            info.cycle = spec.depth_load_op == GPULoadOp::Clear;
         }
 
         // Configure depth-stencil descriptor attachments mapping setup

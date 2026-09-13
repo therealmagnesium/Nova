@@ -47,7 +47,7 @@ namespace Nova::Framebuffers
             .spec = spec,
             .metadata = framebuffer
         };
-        cache[framebuffer.id] = cache_entry;
+        cache[framebuffer.id] = std::move(cache_entry);
 
         INFO("Framebuffer ID %u successfully generated [%dx%d] with %zu color targets.",
              framebuffer.id, framebuffer.width,

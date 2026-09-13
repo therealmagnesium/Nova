@@ -7,6 +7,7 @@
 
 #include "Graphics/Animator.h"
 #include "Graphics/Camera.h"
+#include "Graphics/Lights.h"
 #include "Graphics/Model.h"
 
 #include <glm/vec3.hpp>
@@ -143,6 +144,21 @@ namespace Nova
                 if (i == 0)
                     Animators::Play(animator, *clip, true);
             }
+        }
+    };
+
+    struct DirectionalLightComponent : public Component
+    {
+        DirectionalLight light;
+        bool is_primary;
+
+        DirectionalLightComponent() = default;
+        DirectionalLightComponent(const DirectionalLightComponent&) = default;
+        DirectionalLightComponent(const glm::vec4& color, float intensity = 1.f, bool is_primary = false)
+        {
+            this->light.color = color;
+            this->light.intensity = intensity;
+            this->is_primary = is_primary;
         }
     };
 }

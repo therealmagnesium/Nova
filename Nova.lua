@@ -6,32 +6,37 @@
 framework_root = path.getabsolute(".") -- resolves to wherever Nova.lua lives
 
 function LinkNova()
-    local nova_build_path = framework_root .. "/bin/%{cfg.buildcfg}-%{cfg.system}/Nova"
-    local nova_build = ""
+	local nova_build_path = framework_root .. "/bin/%{cfg.buildcfg}-%{cfg.system}/Nova"
+	local nova_build = ""
 
-    filter("system:windows")
-    nova_build = nova_build_path .. "/libNova.dll"
+	filter("system:windows")
+	nova_build = nova_build_path .. "/libNova.dll"
 
-    filter("system:linux")
-    nova_build = nova_build_path .. "/libNova.so"
+	filter("system:linux")
+	nova_build = nova_build_path .. "/libNova.so"
 
-    postbuildcommands({
-        "echo Copying Nova.[dll/so] to %{cfg.buildtarget.abspath}...",
-        "{COPYFILE} " .. nova_build .. " %{cfg.buildtarget.directory}",
-    })
+	postbuildcommands({
+		"echo Copying Nova.[dll/so] to %{cfg.buildtarget.abspath}...",
+		"{COPYFILE} " .. nova_build .. " %{cfg.buildtarget.directory}",
+	})
 
-    includedirs({
-        framework_root .. "/Nova/source",
-        framework_root .. "/vendor/glm",
-        framework_root .. "/vendor/imgui/include",
-    })
+	includedirs({
+		framework_root .. "/Nova/source",
+		framework_root .. "/vendor/glm",
+		framework_root .. "/vendor/imgui/include",
+	})
 
-    links({
-        "Nova",
-        "imgui", -- only for ImGui::ShowDemoWindow()
-    })
+	links({
+		"Nova",
+		"imgui", -- only for ImGui::ShowDemoWindow()
+	})
 
-    filter("system:windows")
-    filter("system:linux")
-    filter({}) -- reset filters
+	filter("system:windows")
+	filter("system:linux")
+
+	filter("action:export-compile-commands")
+	buildoptions({ "-std=c++23" })
+	filter({})
+
+	filter({}) -- reset filters
 end

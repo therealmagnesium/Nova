@@ -33,7 +33,7 @@ namespace Nova::IBL
 
         glm::mat4 captureProjection = glm::perspectiveRH_ZO(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
         captureProjection[1][1] *= -1;
-        glm::mat4 captureViews[] = {
+        const glm::mat4 captureViews[] = {
             glm::lookAt(glm::vec3(0), glm::vec3(1, 0, 0), glm::vec3(0, -1, 0)),  // +X
             glm::lookAt(glm::vec3(0), glm::vec3(-1, 0, 0), glm::vec3(0, -1, 0)), // -X
             glm::lookAt(glm::vec3(0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1)),   // +Y

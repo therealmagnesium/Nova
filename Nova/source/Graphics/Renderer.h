@@ -4,6 +4,7 @@
 #include "Graphics/Texture.h"
 
 #include <glm/glm.hpp>
+#include <span>
 
 namespace Nova
 {
@@ -29,7 +30,7 @@ namespace Nova
         void DrawMesh(const Mesh& mesh, const glm::mat4& transform, const Material& material);
         void DrawModel(const Model& model, const glm::vec3& position = glm::vec3(0.f), const glm::vec3& rotation = glm::vec3(0.f), const glm::vec3& scale = glm::vec3(1.f), std::span<const Material> material_overrides = {});
         void DrawAnimatedModel(const AnimatedModel& model, const Animator& animator, const glm::vec3& position = glm::vec3(0.f), const glm::vec3& rotation = glm::vec3(0.f), const glm::vec3& scale = glm::vec3(1.f));
-        void DrawTextureCompositing(const Texture& screen_texture);
+        void DrawTextureCompositing(const Texture& screen_texture, bool targets_swapchain = true);
         void DrawSkybox(const EnvironmentMap& environment_map);
 
         float GetExposure();
@@ -39,6 +40,7 @@ namespace Nova
         TextureHandle GetSwapchainHandle();
         const Texture& GetTextureSwapchain();
         const Texture& GetTextureDepthStencil();
+        const Texture& GetTextureDefaultWhite();
         const glm::mat4& GetMatrixView();
         const glm::mat4& GetMatrixProjection();
         const Mesh& GetPrimitiveMesh(PrimitiveMesh primitive);

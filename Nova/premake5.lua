@@ -57,6 +57,7 @@ links({
 	"dl",
 	"pthread",
 	"m",
+	"freetype",
 })
 
 filter("configurations:Debug")
@@ -66,5 +67,9 @@ symbols("on")
 filter("configurations:Release")
 defines({ "RELEASE" })
 optimize("on")
+
+filter("action:export-compile-commands")
+buildoptions({ "-std=c++23" })
+filter({})
 
 filter({})

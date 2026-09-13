@@ -10,6 +10,7 @@ namespace Nova
     struct Component;
     struct InternalComponent;
     struct TransformComponent;
+    struct DirectionalLightComponent;
     struct PerspectiveCameraComponent;
     struct MeshFilterComponent;
     struct MeshRendererComponent;
@@ -19,6 +20,7 @@ namespace Nova
     using ComponentPool = std::tuple<
         std::vector<InternalComponent>,
         std::vector<TransformComponent>,
+        std::vector<DirectionalLightComponent>,
         std::vector<PerspectiveCameraComponent>,
         std::vector<MeshFilterComponent>,
         std::vector<MeshRendererComponent>,
@@ -122,6 +124,7 @@ namespace Nova
     struct Scene
     {
         EntityRegistry registry;
+        u64 entity_count = 0;
         SceneState state = SceneState::Editor;
     };
 

@@ -332,6 +332,7 @@ namespace Nova::Textures
         const std::filesystem::path path_base = SDL_GetBasePath();
         const std::filesystem::path path_full = path_base / path;
 
+        stbi_set_flip_vertically_on_load(false);
         s32 width, height, channels = 0;
         float* image_data = stbi_loadf(path_full.c_str(), &width, &height, &channels, STBI_rgb_alpha);
         if (image_data == NULL)

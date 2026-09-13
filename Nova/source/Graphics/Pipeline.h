@@ -13,6 +13,7 @@ namespace Nova
         IndoorMeshes,
         WireframeMeshes,
         PostProcessing,
+        PostProcessingImGui,
         IBL_EquirectangularToCubemap,
         IBL_Irradiance,
         IBL_Prefilter,
@@ -27,7 +28,7 @@ namespace Nova
         Shader* outdoor_meshes_skinned = NULL;
         Shader* indoor_meshes = NULL;
         Shader* wireframe_meshes = NULL;
-        Shader* post_processing = NULL;
+        Shader* compositing = NULL;
         Shader* ibl_equirectangular_to_cubemap = NULL;
         Shader* ibl_irradiance = NULL;
         Shader* ibl_prefilter = NULL;
@@ -41,5 +42,7 @@ namespace Nova
         void Shutdown();
         void Bind(GPUPipeline pipeline, const RenderPassHandle render_pass);
         void ResetBindingCache();
+
+        void* GetRawPipelineHandle(GPUPipeline pipeline);
     }
 }

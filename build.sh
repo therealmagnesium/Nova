@@ -10,12 +10,23 @@ copy-assets() {
 	compile-shaders
 	echo "Copying assets..."
 	cp -r "Sandbox/Assets/" "bin/${config_type^}-${platform}/Sandbox/"
-	cp -r "bin/SPIR-V/" "bin/${config_type^}-${platform}/Sandbox"
+	cp -r "Editor/Assets/" "bin/${config_type^}-${platform}/NovaEditor/"
+	cp -r "bin/SPIR-V/" "bin/${config_type^}-${platform}/Sandbox/"
+	cp -r "bin/SPIR-V/" "bin/${config_type^}-${platform}/NovaEditor/"
 }
 
 run-sandbox() {
-	local app_path="bin/${config_type^}-${platform}/Sandbox/Sandbox"
-	./"${app_path}"
+	local app_name="Sandbox"
+	local path="bin/${config_type^}-${platform}/Sandbox/"
+	cd "${path}"
+	./"${app_name}"
+}
+
+run-editor() {
+	local app_name="NovaEditor"
+	local path="bin/${config_type^}-${platform}/NovaEditor/"
+	cd "${path}"
+	./"${app_name}"
 }
 
 ask-platform() {
@@ -83,7 +94,7 @@ compile-shaders() {
 
 build-cmake-dependencies() {
 	local build_dir_sdl="vendor/SDL3/build"
-	if [[ ! -d "$build_dir_sdl" ]]; then
+	if [[ ! -d "${build_dir_sdl}" ]]; then
 		echo "Building SDL3..."
 		cmake -G "Unix Makefiles" -S vendor/SDL3 -B $build_dir_sdl \
 			-DCMAKE_BUILD_TYPE=Release \
@@ -97,7 +108,7 @@ build-cmake-dependencies() {
 	fi
 
 	local build_dir_assimp="vendor/assimp/build"
-	if [[ ! -d "$build_dir_assimp" ]]; then
+	if [[ ! -d "${build_dir_assimp}" ]]; then
 		echo "Building Assimp..."
 		cmake -G "Ninja" -DASSIMP_BUILD_TESTS=OFF \
 			-DASSIMP_INSTALL=OFF \
@@ -112,6 +123,9 @@ build-cmake-dependencies() {
 
 build-nova() {
 	echo "Building Nova-${config_type^}-${platform^}..."
+	premake5 export-compile-commands
+	cp compile_commands/debug_x64.json ./compile_commands.json
+
 	premake5 $premake_config
 
 	if [[ $premake_config != "gmake" ]]; then
@@ -123,32 +137,54 @@ build-nova() {
 	make_config+="_x64"
 
 	echo "Start building with $cores cores..."
-	bear -- make all -s -j$cores config=$make_config
+	make all -s -j$cores config=$make_config
 
 	copy-assets
+	echo "Finished building Nova, Nova Editor, and the testbed application Sandbox..."
 
-	local should_run="n"
-	read -p "Would you like to run the sandbox project? (y | n) > " should_run
+	local app_to_run=0
+	echo "1) Nova Editor"
+	echo "2) Sandbox"
+	read -p "Please select which app you would like to run (Ctrl+C to quit): " app_to_run
 
-	if [[ $should_run == "y" || $should_run == "yes" ]]; then
+	case "${app_to_run}" in
+	1)
+		run-editor
+		;;
+	2)
 		run-sandbox
-	fi
+		;;
+	*)
+		;;
+	esac
 }
 
-if [[ "$1" == "clean" ]]; then
+case "$1" in
+"clean")
 	clean
 	exit
-elif [[ "$1" == "copy-assets" ]]; then
+	;;
+"copy-assets")
 	config_type="$2"
 	platform="$3"
 	copy-assets
 	exit
-elif [[ "$1" == "run-sandbox" ]]; then
+	;;
+"run-sandbox")
 	ask-platform
 	ask-config-type
 	run-sandbox
 	exit
-fi
+	;;
+"run-editor")
+	ask-platform
+	ask-config-type
+	run-editor
+	exit
+	;;
+*)
+	;;
+esac
 
 setup-config
 if [[ $? != 0 ]]; then

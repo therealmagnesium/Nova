@@ -20,8 +20,9 @@ namespace Nova::Cameras
 
     void UpdateEditor(Camera3D& camera, float pan_speed, float orbit_sensitivity)
     {
+        /*
         if (ImGui::GetIO().WantCaptureMouse)
-            return;
+            return;*/
 
         const float scroll_delta = Input::GetMouseScroll().y;
         const float trigger_delta = Input::GetAxisGamepad(GamepadAxis::RightTrigger) - Input::GetAxisGamepad(GamepadAxis::LeftTrigger);
@@ -64,13 +65,15 @@ namespace Nova::Cameras
 
     glm::mat4 GetMatrixView3D(const Camera3D& camera)
     {
-        return glm::lookAt(camera.position, camera.target, k_WorldUp);
+        return glm::lookAtRH(camera.position, camera.target, k_WorldUp);
     }
 
     glm::mat4 GetMatrixProjection3D(const Camera3D& camera)
     {
         const float aspect_ratio = (float)Application::GetScreenWidth() / (float)Application::GetScreenHeight();
-        return glm::perspectiveRH_ZO(glm::radians(camera.fov), aspect_ratio, camera.clip_near, camera.clip_far);
+        glm::mat4 projection = glm::perspectiveRH_ZO(glm::radians(camera.fov), aspect_ratio, camera.clip_near, camera.clip_far);
+        projection[1][1] *= -1.f;
+        return projection;
     }
 
     void Camera3D_Pan(Camera3D& camera, const glm::vec2& delta, float pan_speed)
