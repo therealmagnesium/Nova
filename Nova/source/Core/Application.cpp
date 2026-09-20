@@ -2,6 +2,7 @@
 #include "Core/Log.h"
 #include "Core/Random.h"
 #include "Graphics/Renderer.h"
+#include "ECS/Scene.h"
 #include "UI/UI.h"
 
 #include <SDL3/SDL.h>
@@ -73,6 +74,11 @@ namespace Nova::Application
 
             Windows::HandleEvents(app->window);
             app->config.callbacks.on_event();
+
+            Scene* const active_scene = Scenes::GetActive();
+            if (Scenes::GetActive() != NULL)
+                Scenes::FlushPendingRemoval(*active_scene);
+
             app->config.callbacks.on_update();
 
             if (Renderer::BeginFrame())

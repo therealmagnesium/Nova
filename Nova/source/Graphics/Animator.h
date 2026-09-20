@@ -20,7 +20,7 @@ namespace Nova
     // A single character's runtime animation state. One Animator per animated instance in
     // the scene - two characters playing the same AnimationClip each need their own Animator,
     // since playback time and bone_matrices are per-instance.
-    struct Animator : public Asset
+    struct Animator
     {
         const Skeleton* skeleton = NULL;
 
@@ -31,7 +31,7 @@ namespace Nova
 
         // Final skinning matrices (global_inverse * bone_world * bone_offset), recomputed every
         // Update() call. This is exactly what gets uploaded to the GPU bone matrix SSBO per draw.
-        glm::mat4 bone_matrices[MAX_BONES]{glm::mat4(1.f)};
+        glm::mat4 bone_matrices[MAX_BONES]{ glm::mat4(1.f) };
 
         inline bool IsValid() const { return skeleton != NULL && skeleton->IsValid(); }
     };

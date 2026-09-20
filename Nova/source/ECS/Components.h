@@ -21,14 +21,13 @@ namespace Nova
 
     struct InternalComponent : public Component
     {
-        string tag;
+        std::string tag;
         UUID id;
         bool is_active = false;
-        // TODO: Maybe store the scene context in here?
 
         InternalComponent() = default;
         InternalComponent(const InternalComponent&) = default;
-        InternalComponent(const string& tag, bool is_active = true)
+        InternalComponent(const std::string& tag, bool is_active = true)
         {
             this->tag = tag;
             this->is_active = is_active;
@@ -52,6 +51,12 @@ namespace Nova
         }
 
         inline glm::mat4 CalculateMatrix() const { return Meshes::CalculateTransform(position, rotation, scale); }
+        inline void Reset()
+        {
+            this->position = glm::vec3(0.f);
+            this->rotation = glm::vec3(0.f);
+            this->scale = glm::vec3(1.f);
+        }
     };
 
     struct PerspectiveCameraComponent : public Component
@@ -93,14 +98,15 @@ namespace Nova
         // A multi-mesh Model asset loaded through the Asset Manager
         MeshFilterComponent(AssetHandle asset_model)
         {
+            this->source_type = MeshSource::Model;
+            this->asset_model = asset_model;
+
+            /*
             if (!AssetManager::IsHandleValid(asset_model))
             {
                 WARN("MeshFilterComponent::MeshFilterComponent - %s", "Component left uninitialized since \"asset_model\" was an invalid handle");
                 return;
-            }
-
-            this->source_type = MeshSource::Model;
-            this->asset_model = asset_model;
+            }*/
         }
     };
 
@@ -150,7 +156,7 @@ namespace Nova
     struct DirectionalLightComponent : public Component
     {
         DirectionalLight light;
-        bool is_primary;
+        bool is_primary = false;
 
         DirectionalLightComponent() = default;
         DirectionalLightComponent(const DirectionalLightComponent&) = default;

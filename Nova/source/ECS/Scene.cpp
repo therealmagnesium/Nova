@@ -46,7 +46,7 @@ namespace Nova::Scenes
 
         Entity sun = CreateEntity(scene, "Directional Light");
         auto& transform_sun = scene.registry.GetComponent<TransformComponent>(sun.id);
-        const auto& dlc = scene.registry.AddComponent<DirectionalLightComponent>(sun.id, glm::vec4(0.82f, 0.96f, 0.88f, 1.f), 1.f, true);
+        const auto& dlc = scene.registry.AddComponent<DirectionalLightComponent>(sun.id, glm::vec4(0.96f, 0.92f, 0.88f, 1.f), 1.f, true);
         transform_sun.rotation = glm::vec3(-0.6f, -0.92f, -0.8f);
 
         return scene;
@@ -66,7 +66,7 @@ namespace Nova::Scenes
         scene.entity_count = 0;
     }
 
-    Entity CreateEntity(Scene& scene, const string& tag)
+    Entity CreateEntity(Scene& scene, const std::string& tag)
     {
         Entity entity;
         entity.id = scene.registry.CreateEntityID();
@@ -83,24 +83,7 @@ namespace Nova::Scenes
         if (entity.id < 0)
             return;
 
-        // Reset all components for this entity ID using template fold expressions
-        const auto ResetEntityComponents = [id = entity.id](auto&... component_vectors)
-        {
-            auto reset_component = [id](auto& vec)
-            {
-                if (id < static_cast<EntityID>(vec.size()) && vec[id].has)
-                {
-                    using ComponentType = typename std::decay_t<decltype(vec)>::value_type;
-                    vec[id] = ComponentType(); // Reset to default constructed state
-                }
-            };
-            (reset_component(component_vectors), ...);
-        };
-        std::apply(ResetEntityComponents, scene.registry.pool_components);
-
-        // Recycle the entity ID so it can be reused by CreateEntity
-        scene.registry.free_indices.push_back(entity.id);
-
+        scene.pending_removal.push_back(entity.id);
         entity.id = -1;
         scene.entity_count--;
     }
@@ -144,6 +127,30 @@ namespace Nova::Scenes
         }
     }
 
+    void FlushPendingRemoval(Scene& scene)
+    {
+        for (const EntityID id : scene.pending_removal)
+        {
+            // Reset all components for this entity ID using template fold expressions
+            const auto ResetEntityComponents = [id](auto&... component_vectors)
+            {
+                auto reset_component = [id](auto& vec)
+                {
+                    if (id < static_cast<EntityID>(vec.size()) && vec[id].has)
+                    {
+                        using ComponentType = typename std::decay_t<decltype(vec)>::value_type;
+                        vec[id] = ComponentType(); // Reset to default constructed state
+                    }
+                };
+                (reset_component(component_vectors), ...);
+            };
+            std::apply(ResetEntityComponents, scene.registry.pool_components);
+            scene.registry.free_indices.push_back(id);
+        }
+
+        scene.pending_removal.clear();
+    }
+
     void Copy(const Scene& source, Scene& destination)
     {
         if (&source == &destination)
@@ -153,6 +160,7 @@ namespace Nova::Scenes
         }
 
         destination.registry = source.registry;
+        destination.pending_removal.clear();
     }
 
     void Editor_OnUpdate(Scene& scene)
@@ -169,12 +177,18 @@ namespace Nova::Scenes
 
         for (Entity entity : Views::Create<TransformComponent, DirectionalLightComponent>(scene))
         {
+            const auto& internal = entity.GetComponent<InternalComponent>();
             const auto& transform = entity.GetComponent<TransformComponent>();
             auto& dlc = entity.GetComponent<DirectionalLightComponent>();
             dlc.light.direction = transform.rotation;
 
-            if (dlc.is_primary)
+            if (dlc.is_primary && internal.is_active)
+            {
                 Renderer::SetSun(dlc.light);
+                break;
+            }
+            else
+                Renderer::SetSun(Stub_DirectionalLight);
         }
     }
 
@@ -225,6 +239,10 @@ namespace Nova::Scenes
     {
         for (Entity entity : Views::Create<TransformComponent, MeshFilterComponent, MeshRendererComponent>(scene))
         {
+            const auto& internal = entity.GetComponent<InternalComponent>();
+            if (!internal.is_active)
+                continue;
+
             const auto& transform = entity.GetComponent<TransformComponent>();
             const auto& filter = entity.GetComponent<MeshFilterComponent>();
             const auto& renderer = entity.GetComponent<MeshRendererComponent>();
@@ -259,6 +277,10 @@ namespace Nova::Scenes
     {
         for (Entity entity : Views::Create<TransformComponent, AnimatorComponent>(scene))
         {
+            const auto& internal = entity.GetComponent<InternalComponent>();
+            if (!internal.is_active)
+                continue;
+
             const auto& transform = entity.GetComponent<TransformComponent>();
             const auto& ac = entity.GetComponent<AnimatorComponent>();
 

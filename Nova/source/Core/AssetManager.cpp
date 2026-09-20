@@ -240,7 +240,7 @@ namespace Nova::AssetManager
             if (metadata.type == type)
                 handles.emplace_back(handle);
 
-        return handles;
+        return std::move(handles);
     }
 
     Asset* LoadAsset(AssetHandle handle, AssetMetadata& metadata)

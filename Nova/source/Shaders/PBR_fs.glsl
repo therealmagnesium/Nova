@@ -145,7 +145,7 @@ void main()
     vec4 F0 = vec4(vec3(0.04), 1.f); 
     F0 = mix(F0, albedo, metallic);
 
-    const vec4 Lo = CalculateDirectLighting(F0, normal_world, V, albedo, metallic, roughness);
-    const vec4 ambience = CalculateIndirectLighting(F0, normal_world, V, R, albedo, metallic, roughness);
-    result = vec4((ambience + Lo).rgb, albedo.a);
+    const vec3 Lo = CalculateDirectLighting(F0, normal_world, V, albedo, metallic, roughness).rgb;
+    const vec3 ambience = CalculateIndirectLighting(F0, normal_world, V, R, albedo, metallic, roughness).rgb;
+    result = vec4(ambience + Lo, albedo.a);
 }

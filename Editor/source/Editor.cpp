@@ -1,4 +1,5 @@
 #include "Editor.h"
+#include "Panels/Inspector.h"
 #include "Panels/SceneHierarchy.h"
 #include "Panels/SceneViewport.h"
 #include <Nova.h>
@@ -14,7 +15,7 @@ struct EditorState
     Scene scene_editor;
     Scene scene_runtime;
     Camera3D camera_editor;
-    bool show_demo_window = true;
+    bool show_demo_window = false;
 };
 
 static EditorState state;
@@ -111,10 +112,10 @@ namespace Editor
     void OnUpdate()
     {
         Scene* active_scene = Scenes::GetActive();
+        Scenes::UpdateSubsystems(*active_scene);
+
         if (active_scene->state == SceneState::Editor && SceneViewportPanel::IsHovered())
             Cameras::UpdateEditor(state.camera_editor, 1.f, 12.f);
-
-        Scenes::UpdateSubsystems(*active_scene);
     }
 
     void OnRender()
@@ -130,6 +131,7 @@ namespace Editor
 
         ImGui::DockSpaceOverViewport();
         SceneHierarchyPanel::Display();
+        InspectorPanel::Display();
         SceneViewportPanel::Display(viewport_texture);
 
         if (state.show_demo_window)

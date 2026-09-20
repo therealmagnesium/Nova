@@ -3,6 +3,7 @@
 #include "Core/Log.h"
 #include <tuple>
 #include <vector>
+#include <string>
 
 namespace Nova
 {
@@ -50,7 +51,7 @@ namespace Nova
         {
             static_assert(std::is_base_of_v<Component, T>, "EntityRegistry::GetComponent - T must derive from Component!");
             std::vector<T>& components = std::get<std::vector<T>>(pool_components);
-            ASSERT(entity_id >= 0 && entity_id < static_cast<EntityID>(components.size()) && components[entity_id].has, "EntityRegistry::GetComponent - Invalid entity ID!");
+            ASSERT(entity_id >= 0 && entity_id < static_cast<EntityID>(components.size()) && components[entity_id].has, "EntityRegistry::GetComponent - Invalid entity ID %ld!", entity_id);
 
             return components[entity_id];
         }
@@ -61,7 +62,7 @@ namespace Nova
         {
             static_assert(std::is_base_of_v<Component, T>, "EntityRegistry::GetComponent - T must derive from Component!");
             const std::vector<T>& components = std::get<std::vector<T>>(pool_components);
-            ASSERT(entity_id >= 0 && entity_id < static_cast<EntityID>(components.size()) && components[entity_id].has, "EntityRegistry::GetComponent - Invalid entity ID!");
+            ASSERT(entity_id >= 0 && entity_id < static_cast<EntityID>(components.size()) && components[entity_id].has, "EntityRegistry::GetComponent - Invalid entity ID %ld!", entity_id);
 
             return components[entity_id];
         }
@@ -70,8 +71,18 @@ namespace Nova
         inline bool HasComponent(EntityID entity_id) const
         {
             static_assert(std::is_base_of_v<Component, T>, "EntityRegistry::HasComponent - T must derive from Component!");
+            const auto& components = std::get<std::vector<T>>(pool_components);
+
+            // Bounds check the vector first, then return the structural flag safely
+            if (entity_id == static_cast<EntityID>(components.size()))
+                return false;
+
+            return components[entity_id].has;
+
+            /*
+            static_assert(std::is_base_of_v<Component, T>, "EntityRegistry::HasComponent - T must derive from Component!");
             const auto& component = GetComponent<T>(entity_id);
-            return component.has;
+            return component.has;*/
         }
 
         template <typename T, typename... Args>
@@ -124,6 +135,7 @@ namespace Nova
     struct Scene
     {
         EntityRegistry registry;
+        std::vector<EntityID> pending_removal;
         u64 entity_count = 0;
         SceneState state = SceneState::Editor;
     };
@@ -133,13 +145,14 @@ namespace Nova
         Scene Create(u64 entity_count_estimate);
         void Destroy(Scene& scene);
 
-        Entity CreateEntity(Scene& scene, const string& tag = "Entity"); // TODO: Pass in UUID
+        Entity CreateEntity(Scene& scene, const std::string& tag = "Entity"); // TODO: Pass in UUID
         void DestroyEntity(Scene& scene, Entity& entity);
 
         void Play(Scene& scene);
         void Stop(Scene& scene);
         void UpdateSubsystems(Scene& scene);
         void RenderSubsystems(Scene& scene);
+        void FlushPendingRemoval(Scene& scene);
         void Copy(const Scene& source, Scene& destination);
 
         Scene* GetActive();

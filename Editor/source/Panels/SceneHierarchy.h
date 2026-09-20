@@ -3,6 +3,7 @@
 
 namespace SceneHierarchyPanel
 {
-    void SetSelectionContext(Nova::Entity entity);
     void Display();
+    Nova::Entity GetSelectionContext();
+    void SetSelectionContext(Nova::Entity entity);
 }
