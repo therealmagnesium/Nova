@@ -7,3 +7,6 @@
 [submodule "vendor/assimp"]
 	path = vendor/assimp
 	url = git@github.com:assimp/assimp.git
+[submodule "vendor/yaml-cpp"]
+	path = vendor/yaml-cpp
+	url = git@github.com:jbeder/yaml-cpp.git

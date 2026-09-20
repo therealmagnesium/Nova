@@ -21,6 +21,7 @@ includedirs({
 	"%{wks.location}/vendor/imgui/include",
 	"%{wks.location}/vendor/assimp/include",
 	"%{wks.location}/vendor/assimp/build/include", -- assimp/config.h
+	"%{wks.location}/vendor/yaml-cpp/include", -- assimp/config.h
 })
 
 libdirs({
