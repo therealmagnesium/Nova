@@ -15,12 +15,13 @@ struct InspectorState
     bool should_display = true;
 };
 
-static InspectorState state;
+local InspectorState state;
 
 namespace InspectorPanel
 {
     void DisplayTagInput(Entity selection_context);
     void DisplayComponents(Entity selection_context);
+    void DisplayAddComponentButton(Entity selection_context);
     std::string PrimitiveToString(PrimitiveMesh primitive);
 
     template <typename T, typename UIFunction>
@@ -37,6 +38,7 @@ namespace InspectorPanel
             DisplayTagInput(selection_context);
 
         DisplayComponents(selection_context);
+        DisplayAddComponentButton(selection_context);
 
         ImGui::End();
     }
@@ -159,8 +161,51 @@ namespace InspectorPanel
             }
         };
 
-        const auto DrawMeshRendererComponent = [](MeshRendererComponent& component)
+        const auto DrawMeshRendererComponent = [selection_context](MeshRendererComponent& component)
         {
+            if (!selection_context.HasComponent<MeshFilterComponent>())
+                return;
+
+            const auto& mesh_filter = selection_context.GetComponent<MeshFilterComponent>();
+            const float column_width = 150.f;
+
+            switch (mesh_filter.source_type)
+            {
+                case MeshSource::Primitive:
+                {
+                    const AssetHandle material_handle = !component.material_overrides.empty() ? component.material_overrides[0].handle : AssetHandle_Invalid;
+                    const std::string preview = component.material_overrides.empty() ? "Select Material" : AssetManager::GetAssetPath(material_handle);
+                    ImGui::Text("Material");
+                    ImGui::SameLine(column_width - ImGui::GetCursorPosX());
+                    ImGui::SetNextItemWidth(-1.f);
+                    if (ImGui::BeginCombo("##Material", preview.c_str()))
+                    {
+                        const std::vector<AssetHandle> materials = AssetManager::GetAllHandlesOfType(AssetType::Material);
+                        for (const AssetHandle handle : materials)
+                        {
+                            const std::filesystem::path path = AssetManager::GetAssetPath(handle);
+                            if (ImGui::Selectable(path.string().c_str(), component.material_overrides[0].handle == handle))
+                            {
+                                Material const* material = AssetManager::GetAsset<Material>(handle);
+                                if (!component.material_overrides.empty())
+                                    component.material_overrides[0] = *material;
+                                else
+                                    component.material_overrides.push_back(*material);
+                            }
+                        }
+
+                        ImGui::EndCombo();
+                    }
+
+                    break;
+                }
+
+                case MeshSource::Model:
+                    break;
+
+                default:
+                    break;
+            }
         };
 
         const auto DrawAnimatorComponent = [](AnimatorComponent& component)
@@ -294,6 +339,65 @@ namespace InspectorPanel
 
             if (remove_component)
                 entity.RemoveComponent<T>();
+        }
+    }
+
+    void DisplayAddComponentButton(Entity selection_context)
+    {
+        if (!selection_context.IsValid())
+            return;
+
+        const ImGuiStyle& style = ImGui::GetStyle();
+        const float avail_width = ImGui::GetContentRegionAvail().x;
+        const float line_height = ImGui::GetFontSize() + style.FramePadding.y * 2.f;
+        const ImVec2 button_size = ImVec2(avail_width * 0.85f, line_height);
+        const float button_offset = style.WindowPadding.x + ((avail_width - button_size.x) * 0.5f);
+
+        ImGui::Separator();
+
+        ImGui::SetCursorPosX(button_offset);
+        if (ImGui::Button("Add Component", button_size))
+            ImGui::OpenPopup("Popup Add Component");
+
+        if (ImGui::BeginPopup("Popup Add Component"))
+        {
+            const bool add_mesh_filter = ImGui::MenuItem("Mesh Filter");
+            const bool add_mesh_renderer = ImGui::MenuItem("Mesh Renderer");
+            const bool add_animator = ImGui::MenuItem("Animator");
+            const bool add_perspective = ImGui::MenuItem("Perspective Camera");
+            const bool add_directional_light = ImGui::MenuItem("Directional Light");
+
+            if (add_mesh_filter)
+            {
+                selection_context.AddComponent<MeshFilterComponent>(PrimitiveMesh::Cube);
+                ImGui::CloseCurrentPopup();
+            }
+
+            if (add_mesh_renderer)
+            {
+                selection_context.AddComponent<MeshRendererComponent>();
+                ImGui::CloseCurrentPopup();
+            }
+
+            if (add_animator)
+            {
+                selection_context.AddComponent<AnimatorComponent>();
+                ImGui::CloseCurrentPopup();
+            }
+
+            if (add_perspective)
+            {
+                selection_context.AddComponent<PerspectiveCameraComponent>(false);
+                ImGui::CloseCurrentPopup();
+            }
+
+            if (add_directional_light)
+            {
+                selection_context.AddComponent<DirectionalLightComponent>(glm::vec4(0.96f, 0.92f, 0.88f, 1.f), 1.f, false);
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
         }
     }
 

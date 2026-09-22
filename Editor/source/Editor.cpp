@@ -1,4 +1,5 @@
 #include "Editor.h"
+#include "Panels/ContentBrowser.h"
 #include "Panels/Inspector.h"
 #include "Panels/SceneHierarchy.h"
 #include "Panels/SceneViewport.h"
@@ -76,6 +77,7 @@ namespace Editor
         Scenes::SetActive(state.scene_editor);
 
         ResetCameraEditor();
+        ContentBrowserPanel::Init();
     }
 
     void OnShutdown()
@@ -130,6 +132,7 @@ namespace Editor
         const Texture& viewport_texture = Framebuffers::GetColorAttachment(state.framebuffer_viewport_composite, 0);
 
         ImGui::DockSpaceOverViewport();
+        ContentBrowserPanel::Display();
         SceneHierarchyPanel::Display();
         InspectorPanel::Display();
         SceneViewportPanel::Display(viewport_texture);

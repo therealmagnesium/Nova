@@ -15,11 +15,11 @@ struct SceneViewportState
     bool should_display = true;
 };
 
-static SceneViewportState state;
-static constexpr u32 k_ViewportFlags = ImGuiWindowFlags_NoTitleBar |
-                                       ImGuiWindowFlags_NoDecoration |
-                                       ImGuiWindowFlags_NoScrollbar |
-                                       ImGuiWindowFlags_NoScrollWithMouse;
+local SceneViewportState state;
+local constexpr u32 k_ViewportFlags = ImGuiWindowFlags_NoTitleBar |
+                                      ImGuiWindowFlags_NoDecoration |
+                                      ImGuiWindowFlags_NoScrollbar |
+                                      ImGuiWindowFlags_NoScrollWithMouse;
 
 namespace SceneViewportPanel
 {

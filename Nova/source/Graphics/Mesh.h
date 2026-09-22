@@ -46,7 +46,7 @@ namespace Nova
         glm::vec4 bone_weights = glm::vec4(0.f); // Attribute 5
     };
 
-    struct Material
+    struct Material : public Asset
     {
         glm::vec4 albedo = glm::vec4(1.f);
         Texture texture_albedo = Stub_Texture;

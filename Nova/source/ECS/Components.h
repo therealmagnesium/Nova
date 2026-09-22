@@ -117,7 +117,7 @@ namespace Nova
         MeshRendererComponent() = default;
         MeshRendererComponent(const MeshRendererComponent&) = default;
         MeshRendererComponent(const Material& material) : material_overrides{ material } {}
-        MeshRendererComponent(std::vector<Material> materials) : material_overrides(std::move(materials)) {}
+        MeshRendererComponent(const std::vector<Material>& materials) : material_overrides(std::move(materials)) {}
     };
 
     struct AnimatorComponent : public Component

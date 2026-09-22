@@ -16,6 +16,9 @@ typedef int32_t s32;   //!< 32-bit signed integer.
 typedef int64_t s64;   //!< 64-bit signed integer.
 typedef intptr_t sptr; //!< Pointer-sized signed integer.
 
+#define local static
+#define local_persist static
+
 #define V2_FMT "<%.3f, %.3f>"
 #define V3_FMT "<%.3f, %.3f, %.3f>"
 #define V4_FMT "<%.3f, %.3f, %.3f, %.3f>"
