@@ -103,16 +103,15 @@ namespace SceneHierarchyPanel
         if (!state.should_display || state.context == NULL)
             return;
 
-        if (ImGui::Begin("Scene Hierarchy", &state.should_display))
-        {
+        ImGui::Begin("Scene Hierarchy", &state.should_display);
 
-            const bool should_deselect = ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
-            if (should_deselect)
-                state.selection_context = Stub_Entity;
+        const bool should_deselect = ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+        if (should_deselect)
+            state.selection_context = Stub_Entity;
 
-            DisplayCreateEntityPopup();
-            DisplaySceneHierarchy();
-        }
+        DisplayCreateEntityPopup();
+        DisplaySceneHierarchy();
+
         ImGui::End();
     }
 
@@ -160,7 +159,7 @@ namespace SceneHierarchyPanel
                                             ImGuiTableFlags_RowBg |
                                             ImGuiTableFlags_NoBordersInBody;
 
-        if (ImGui::BeginTable("Scene Heirarchy Table", 1, table_flags))
+        if (ImGui::BeginTable("Table Scene Heirarchy", 1, table_flags))
         {
             for (Entity entity : Views::Create<InternalComponent>(*state.context))
                 DisplayNode(entity);

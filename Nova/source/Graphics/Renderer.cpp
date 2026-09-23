@@ -3,6 +3,7 @@
 #include "Graphics/Camera.h"
 #include "Graphics/IBL.h"
 #include "Graphics/Lights.h"
+#include "Graphics/Material.h"
 #include "Graphics/Mesh.h"
 #include "Graphics/Model.h"
 #include "Graphics/Pipeline.h"

@@ -1,4 +1,5 @@
 #include "Editor.h"
+#include "Panels/AssetRegistry.h"
 #include "Panels/ContentBrowser.h"
 #include "Panels/Inspector.h"
 #include "Panels/SceneHierarchy.h"
@@ -132,6 +133,7 @@ namespace Editor
         const Texture& viewport_texture = Framebuffers::GetColorAttachment(state.framebuffer_viewport_composite, 0);
 
         ImGui::DockSpaceOverViewport();
+        AssetRegistryPanel::Display();
         ContentBrowserPanel::Display();
         SceneHierarchyPanel::Display();
         InspectorPanel::Display();

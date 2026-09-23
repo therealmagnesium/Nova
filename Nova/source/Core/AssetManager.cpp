@@ -154,7 +154,7 @@ namespace Nova::AssetManager
         return type;
     }
 
-    std::filesystem::path GetAssetPath(AssetHandle handle) { return assets->registry.at(handle).path; }
+    std::filesystem::path GetAssetPath(AssetHandle handle) { return assets->registry.contains(handle) ? assets->registry.at(handle).path : ""; }
     std::filesystem::path GetAssetPathAbsolute(AssetHandle handle)
     {
         const std::filesystem::path path = GetAssetPath(handle);
@@ -257,6 +257,14 @@ namespace Nova::AssetManager
                     asset = new AnimationClip(std::move(animation));
                     asset->handle = handle;
                 }
+                break;
+            }
+
+            case AssetType::Material:
+            {
+                Material material = Materials::Import(metadata.path);
+                asset = new Material(std::move(material));
+                asset->handle = handle;
                 break;
             }
 

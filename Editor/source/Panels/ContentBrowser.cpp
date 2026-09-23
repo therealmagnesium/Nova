@@ -1,4 +1,5 @@
 #include "Panels/ContentBrowser.h"
+#include "Panels/SceneHierarchy.h"
 #include "MenuAction.h"
 
 #include <imgui.h>
@@ -26,7 +27,12 @@ local constexpr auto Callback_CreateFolder = [](Scene& scene)
 };
 local constexpr auto Callback_CreateMaterial = [](Scene& scene)
 {
+    const std::filesystem::path path = state.path_working / "Material.mat";
+    Materials::Export(path);
 
+    const AssetHandle asset_material = AssetManager::ImportByPath(path, AssetType::Material);
+    Material* const material = AssetManager::GetAsset<Material>(asset_material);
+    Materials::Export(path, *material);
 };
 
 local const MenuAction k_CreateActions[] = {
@@ -72,6 +78,7 @@ namespace ContentBrowserPanel
     }
 
     std::filesystem::path GetSelectionContext() { return state.path_selection; }
+    void SetSelectionContext(const std::filesystem::path& path) { state.path_selection = path; }
 
     void DisplayCreateAssetPopup()
     {
@@ -137,13 +144,15 @@ namespace ContentBrowserPanel
         if (state.path_working != state.path_assets)
         {
             const float text_width = ImGui::CalcTextSize("<-").x;
+            const std::string path_text = std::filesystem::relative(state.path_working, state.path_assets.parent_path());
+            ImGui::TextUnformatted(path_text.c_str());
             ImGui::SameLine(ImGui::GetContentRegionAvail().x - text_width);
-        }
 
-        if (state.path_working != state.path_assets && ImGui::Button("<-"))
-        {
-            const std::filesystem::path path_parent = state.path_working.parent_path();
-            state.path_working = path_parent;
+            if (ImGui::Button("<-"))
+            {
+                const std::filesystem::path path_parent = state.path_working.parent_path();
+                state.path_working = path_parent;
+            }
         }
 
         u32 entry_index = 0;
@@ -154,14 +163,19 @@ namespace ContentBrowserPanel
             if (entry.is_directory())
             {
                 const std::string directory_name = entry.path().filename().string();
-                if (ImGui::Button(directory_name.c_str()))
+
+                ImGui::Button(directory_name.c_str());
+                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
                     state.path_working /= directory_name;
             }
             else if (entry.is_regular_file())
             {
                 const std::string file_name = entry.path().filename();
                 if (ImGui::Button(file_name.c_str()))
+                {
                     state.path_selection = entry.path();
+                    SceneHierarchyPanel::SetSelectionContext(Stub_Entity);
+                }
             }
 
             if (ImGui::BeginPopupContextItem())
@@ -171,11 +185,21 @@ namespace ContentBrowserPanel
                     try
                     {
                         const std::filesystem::path& path = entry.path();
+
+                        if (AssetManager::IsAssetRegisteredByPath(path))
+                        {
+                            const AssetHandle handle = AssetManager::FindAssetHandleByPath(path);
+                            AssetManager::Remove(handle);
+                        }
+
                         const bool removed = entry.is_directory()
                                                  ? std::filesystem::remove_all(path) > 0
                                                  : std::filesystem::remove(path);
                         if (removed)
+                        {
                             INFO("Deleted %s from disk successfully", path.string().c_str());
+                            state.path_selection.clear();
+                        }
                         else
                             WARN("Something went wrong deleting %s", path.string().c_str());
                     }

@@ -1,6 +1,7 @@
 #pragma once
 #include "Core/Asset.h"
 #include "Graphics/Animation.h"
+#include "Graphics/Material.h"
 #include "Graphics/Mesh.h"
 
 #include <filesystem>

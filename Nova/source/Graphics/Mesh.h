@@ -2,7 +2,6 @@
 #include "Core/Base.h"
 #include "Graphics/Buffers.h"
 #include "Graphics/Pipeline.h"
-#include "Graphics/Texture.h"
 
 #include <glm/glm.hpp>
 
@@ -46,17 +45,6 @@ namespace Nova
         glm::vec4 bone_weights = glm::vec4(0.f); // Attribute 5
     };
 
-    struct Material : public Asset
-    {
-        glm::vec4 albedo = glm::vec4(1.f);
-        Texture texture_albedo = Stub_Texture;
-        Texture texture_normal = Stub_Texture;
-        Texture texture_metallic = Stub_Texture;
-        Texture texture_roughness = Stub_Texture;
-        float metallic = 0.f;
-        float roughness = 1.f;
-    };
-
     struct Mesh
     {
         GPUBuffer buffer_vertex;
@@ -66,8 +54,6 @@ namespace Nova
         u32 material_index = 0;
         GPUPipeline pipeline = GPUPipeline::OutdoorMeshes;
     };
-
-    inline const Material Stub_Material;
 
     namespace Meshes
     {

@@ -26,6 +26,7 @@ includedirs({
 
 libdirs({
 	"%{wks.location}/vendor/SDL3/build",
+	"%{wks.location}/vendor/yaml-cpp/build",
 	"%{wks.location}/vendor/stb_image/bin",
 	"%{wks.location}/vendor/imgui/bin",
 	"%{wks.location}/vendor/assimp/build/lib",
@@ -37,6 +38,7 @@ links({
 	"stb_image",
 	"assimp",
 	"imgui",
+	"yaml-cpp",
 	"z",
 })
 linkoptions({ "-Wl,--end-group" })

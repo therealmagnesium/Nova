@@ -1,5 +1,5 @@
 #include "Panels/Inspector.h"
-#include "ECS/View.h"
+#include "Panels/ContentBrowser.h"
 #include "Panels/SceneHierarchy.h"
 
 #include <imgui.h>
@@ -22,6 +22,9 @@ namespace InspectorPanel
     void DisplayTagInput(Entity selection_context);
     void DisplayComponents(Entity selection_context);
     void DisplayAddComponentButton(Entity selection_context);
+    void DisplayAssetControls(AssetType asset_type, AssetHandle asset_handle, const std::filesystem::path& browser_selection);
+    AssetType PathToAssetType(const std::filesystem::path& path);
+    AssetType GuessAssetTypeFromPath(const std::filesystem::path& path);
     std::string PrimitiveToString(PrimitiveMesh primitive);
 
     template <typename T, typename UIFunction>
@@ -35,12 +38,21 @@ namespace InspectorPanel
         Entity selection_context = SceneHierarchyPanel::GetSelectionContext();
 
         if (ImGui::Begin("Inspector", &state.should_display))
+        {
             DisplayTagInput(selection_context);
+            DisplayComponents(selection_context);
+            DisplayAddComponentButton(selection_context);
 
-        DisplayComponents(selection_context);
-        DisplayAddComponentButton(selection_context);
+            const std::filesystem::path browser_selection = ContentBrowserPanel::GetSelectionContext();
+            if (!selection_context.IsValid() && !browser_selection.empty())
+            {
+                const AssetType asset_type = PathToAssetType(browser_selection);
+                const AssetHandle asset_handle = AssetManager::FindAssetHandleByPath(browser_selection);
+                DisplayAssetControls(asset_type, asset_handle, browser_selection);
+            }
 
-        ImGui::End();
+            ImGui::End();
+        }
     }
 
     void DisplayTagInput(Entity selection_context)
@@ -68,6 +80,9 @@ namespace InspectorPanel
 
     void DisplayComponents(Entity selection_context)
     {
+        if (!selection_context.IsValid())
+            return;
+
         const auto DrawTransformComponent = [](TransformComponent& component)
         {
             const float column_width = 150.f;
@@ -174,7 +189,7 @@ namespace InspectorPanel
                 case MeshSource::Primitive:
                 {
                     const AssetHandle material_handle = !component.material_overrides.empty() ? component.material_overrides[0].handle : AssetHandle_Invalid;
-                    const std::string preview = component.material_overrides.empty() ? "Select Material" : AssetManager::GetAssetPath(material_handle);
+                    const std::string preview = component.material_overrides.empty() ? "Select Material" : AssetManager::GetAssetPath(material_handle).stem();
                     ImGui::Text("Material");
                     ImGui::SameLine(column_width - ImGui::GetCursorPosX());
                     ImGui::SetNextItemWidth(-1.f);
@@ -183,8 +198,9 @@ namespace InspectorPanel
                         const std::vector<AssetHandle> materials = AssetManager::GetAllHandlesOfType(AssetType::Material);
                         for (const AssetHandle handle : materials)
                         {
-                            const std::filesystem::path path = AssetManager::GetAssetPath(handle);
-                            if (ImGui::Selectable(path.string().c_str(), component.material_overrides[0].handle == handle))
+                            const std::string name = AssetManager::GetAssetPath(handle).stem();
+                            const bool is_selected = component.material_overrides.empty() ? false : component.material_overrides[0].handle == handle;
+                            if (ImGui::Selectable(name.c_str(), is_selected))
                             {
                                 Material const* material = AssetManager::GetAsset<Material>(handle);
                                 if (!component.material_overrides.empty())
@@ -399,6 +415,125 @@ namespace InspectorPanel
 
             ImGui::EndPopup();
         }
+    }
+
+    void DisplayAssetControls(AssetType asset_type, AssetHandle asset_handle, const std::filesystem::path& browser_selection)
+    {
+        if (!AssetManager::IsHandleValid(asset_handle))
+        {
+            const ImGuiStyle& style = ImGui::GetStyle();
+            const float avail_width = ImGui::GetContentRegionAvail().x;
+            const float line_height = ImGui::GetFontSize() + style.FramePadding.y * 2.f;
+            const ImVec2 button_size = ImVec2(avail_width * 0.85f, line_height);
+            const float button_offset = style.WindowPadding.x + ((avail_width - button_size.x) * 0.5f);
+            const std::string_view message = "This asset hasn't been imported to the registry yet,\n import it to start editing its properties.";
+
+            ImGui::TextUnformatted(message.data(), message.data() + message.size());
+            ImGui::SetCursorPosX(button_offset);
+            if (ImGui::Button("Import", button_size))
+            {
+                const AssetType type = PathToAssetType(browser_selection);
+                AssetManager::ImportByPath(browser_selection, type);
+            }
+
+            return;
+        }
+
+        switch (asset_type)
+        {
+            case AssetType::AudioClip:
+            {
+                ImGui::TextUnformatted("[AUDIO CLIP CONTROLS PLACEHOLDER]");
+                break;
+            }
+            case AssetType::AnimationClip:
+            {
+                ImGui::TextUnformatted("[ANIMATION CLIP CONTROLS PLACEHOLDER]");
+                break;
+            }
+            case AssetType::Material:
+            {
+                ImGui::TextUnformatted("[MATERIAL CONTROLS PLACEHOLDER]");
+                break;
+            }
+            case AssetType::Model:
+            {
+                ImGui::TextUnformatted("[STANDARD MODEL CONTROLS PLACEHOLDER]");
+                break;
+            }
+            case AssetType::ModelAnimated:
+            {
+                ImGui::TextUnformatted("[ANIMATED MODEL CONTROLS PLACEHOLDER]");
+                break;
+            }
+            case AssetType::Texture:
+            {
+                ImGui::TextUnformatted("[TEXTURE CONTROLS PLACEHOLDER]");
+                break;
+            }
+
+            default:
+                ImGui::TextUnformatted("[UNSUPPORTED ASSET TYPE PLACEHOLDER]");
+                break;
+        }
+    }
+
+    AssetType PathToAssetType(const std::filesystem::path& path)
+    {
+        local_persist std::unordered_map<std::filesystem::path, AssetType> path_cache;
+
+        const auto cached = path_cache.find(path);
+        if (cached != path_cache.end())
+            return cached->second;
+
+        // Trust the registry first - it's authoritative, and it already
+        // disambiguates cases (like .fbx) that extension alone can't.
+        AssetType type = AssetType::Invalid;
+        if (AssetManager::IsAssetRegisteredByPath(path))
+        {
+            const AssetHandle handle = AssetManager::FindAssetHandleByPath(path);
+            type = AssetManager::GetAssetType(handle);
+        }
+
+        // Not imported yet - fall back to a best-effort guess.
+        if (type == AssetType::Invalid)
+            type = GuessAssetTypeFromPath(path);
+
+        path_cache.emplace(path, type);
+        return type;
+    }
+
+    AssetType GuessAssetTypeFromPath(const std::filesystem::path& path)
+    {
+        local_persist const std::unordered_map<std::filesystem::path, AssetType> k_ExtensionMap = {
+            { ".png", AssetType::Texture },
+            { ".jpg", AssetType::Texture },
+            { ".jpeg", AssetType::Texture },
+            { ".hdr", AssetType::Texture },
+            { ".wav", AssetType::AudioClip },
+            { ".mp3", AssetType::AudioClip },
+            { ".ogg", AssetType::AudioClip },
+            { ".mat", AssetType::Material },
+        };
+
+        const std::filesystem::path extension = path.extension();
+
+        if (extension == ".fbx")
+        {
+            // Folder convention resolves what the extension alone can't.
+            // NOTE: still can't tell Model apart from ModelAnimated this way -
+            // that needs to actually inspect the file for a skeleton. Defaulting
+            // to Model until that exists.
+            for (const auto& segment : path)
+            {
+                if (segment == "Animations")
+                    return AssetType::AnimationClip;
+            }
+            return AssetType::Model;
+        }
+
+        const auto it = k_ExtensionMap.find(extension);
+        return it != k_ExtensionMap.end() ? it->second : AssetType::Invalid;
     }
 
     std::string PrimitiveToString(PrimitiveMesh primitive)
