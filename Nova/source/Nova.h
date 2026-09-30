@@ -3,9 +3,11 @@
 #include "Core/Asset.h"
 #include "Core/AssetManager.h"
 #include "Core/Base.h"
+#include "Core/FileDialogs.h"
 #include "Core/Input.h"
 #include "Core/KeyCodes.h"
 #include "Core/Log.h"
+#include "Core/Project.h"
 #include "Core/Random.h"
 
 #include "Graphics/Animation.h"

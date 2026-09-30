@@ -1,4 +1,5 @@
 #include "Core/Application.h"
+#include "Core/FileDialogs.h"
 #include "Core/Log.h"
 #include "Core/Random.h"
 #include "Graphics/Renderer.h"
@@ -32,6 +33,7 @@ namespace Nova::Application
 
         context = app;
         app->window = Windows::Create(config.screen_width, config.screen_height, config.name);
+        FileDialogs::Init();
         Random::Init();
         AssetManager::Init(&app->assets);
         Renderer::Init();
@@ -49,6 +51,7 @@ namespace Nova::Application
 
         UI::Shutdown();
         AssetManager::Clean();
+        FileDialogs::Shutdown();
         Renderer::Shutdown();
         Windows::Destroy(app->window);
         SDL_Quit();

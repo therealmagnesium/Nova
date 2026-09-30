@@ -365,14 +365,14 @@ namespace Nova::Renderer
         RegisterCommand(command);
     }
 
-    void DrawModel(const Model& model, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale, std::span<const Material> material_overrides)
+    void DrawModel(const Model& model, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale, std::span<const AssetHandle> material_overrides)
     {
         const glm::mat4 transform = Meshes::CalculateTransform(position, rotation, scale);
 
         for (const Mesh& mesh : model.meshes)
         {
-            const bool has_override = mesh.material_index < material_overrides.size();
-            const Material& material = !has_override ? model.materials[mesh.material_index] : material_overrides[mesh.material_index];
+            const bool has_override = mesh.material_index < material_overrides.size() && AssetManager::IsHandleValid(material_overrides[mesh.material_index]);
+            const Material& material = has_override ? *AssetManager::GetAsset<Material>(material_overrides[mesh.material_index]) : model.materials[mesh.material_index];
             Renderer::DrawMesh(mesh, transform, material);
         }
     }

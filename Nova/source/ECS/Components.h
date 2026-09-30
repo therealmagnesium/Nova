@@ -112,12 +112,12 @@ namespace Nova
 
     struct MeshRendererComponent : public Component
     {
-        std::vector<Material> material_overrides; // Empty = use the MeshFilter source's own default material(s)
+        std::vector<AssetHandle> material_overrides; // Empty/invalid entry = use MeshFilter source's own default material(s
 
         MeshRendererComponent() = default;
         MeshRendererComponent(const MeshRendererComponent&) = default;
-        MeshRendererComponent(const Material& material) : material_overrides{ material } {}
-        MeshRendererComponent(const std::vector<Material>& materials) : material_overrides(std::move(materials)) {}
+        MeshRendererComponent(AssetHandle material) : material_overrides{ material } {}
+        MeshRendererComponent(const std::vector<AssetHandle>& materials) : material_overrides(materials) {}
     };
 
     struct AnimatorComponent : public Component

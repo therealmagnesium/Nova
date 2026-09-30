@@ -10,25 +10,28 @@ local constexpr u8 k_MaxNameCharacters = 32;
 
 struct ContentBrowserState
 {
-    std::filesystem::path path_assets;
-    std::filesystem::path path_working;
     std::filesystem::path path_selection;
+    Texture texture_file = Stub_Texture;
+    Texture texture_folder = Stub_Texture;
     char input_folder_name[k_MaxNameCharacters + 1] = {};
     bool show_folder_popup = false;
+    bool show_project_create_modal = false;
     bool should_display = true;
 };
 
 local ContentBrowserState state;
 
-local constexpr ImGuiWindowFlags k_Flags = ImGuiWindowFlags_None;
+local constexpr ImGuiWindowFlags k_FlagsWindow = ImGuiWindowFlags_None;
+local constexpr ImGuiWindowFlags k_FlagsModal = ImGuiWindowFlags_AlwaysAutoResize;
 local constexpr auto Callback_CreateFolder = [](Scene& scene)
 {
     state.show_folder_popup = true;
 };
 local constexpr auto Callback_CreateMaterial = [](Scene& scene)
 {
-    const std::filesystem::path path = state.path_working / "Material.mat";
-    Materials::Export(path);
+    const std::filesystem::path path = std::filesystem::current_path() / "Material.mat";
+    if (!std::filesystem::exists(path))
+        Materials::Export(path);
 
     const AssetHandle asset_material = AssetManager::ImportByPath(path, AssetType::Material);
     Material* const material = AssetManager::GetAsset<Material>(asset_material);
@@ -53,23 +56,20 @@ local const MenuAction k_CreateActions[] = {
 
 namespace ContentBrowserPanel
 {
+    void DisplayProjectSetupModal();
     void DisplayCreateAssetPopup();
     void DisplayCreateFolderPopup();
     void DisplayContentBrowser();
 
     void Init()
     {
-        state.path_assets = std::filesystem::current_path() / "Assets";
-        state.path_working = state.path_assets;
     }
 
     void Display()
     {
-        ImGui::Begin("Content Browser", &state.should_display, k_Flags);
-        const bool should_deselect = ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
-        if (should_deselect)
-            state.path_selection.clear();
+        ImGui::Begin("Content Browser", &state.should_display, k_FlagsWindow);
 
+        DisplayProjectSetupModal();
         DisplayCreateAssetPopup();
         DisplayCreateFolderPopup();
         DisplayContentBrowser();
@@ -79,6 +79,100 @@ namespace ContentBrowserPanel
 
     std::filesystem::path GetSelectionContext() { return state.path_selection; }
     void SetSelectionContext(const std::filesystem::path& path) { state.path_selection = path; }
+
+    void DisplayProjectSetupModal()
+    {
+        Project& project = Projects::GetContext();
+
+        const char* modal_project_select = "Select A Project";
+        const char* modal_project_create = "Create A New Project";
+
+        // Trigger the secondary modal next frame if flagged
+        if (state.show_project_create_modal)
+        {
+            ImGui::OpenPopup(modal_project_create);
+            state.show_project_create_modal = false;
+        }
+        else if (!project.IsValid() && !ImGui::IsPopupOpen(modal_project_create))
+            ImGui::OpenPopup(modal_project_select);
+
+        if (ImGui::BeginPopupModal(modal_project_select, NULL, k_FlagsModal))
+        {
+            ImGui::TextUnformatted("No valid project selected, please create or load an existing project.");
+            if (ImGui::Button("Create"))
+            {
+                const FileDialogFilter filter("Project", "nproj");
+                if (FileDialogs::AskSave(&filter, 1))
+                {
+                    const std::filesystem::path& path_selected = FileDialogs::GetPathSelected();
+                    project.path_config = path_selected;
+                    project.path_directory = path_selected.parent_path();
+
+                    ImGui::CloseCurrentPopup();
+                    state.show_project_create_modal = true;
+
+                    const std::string stem = path_selected.stem();
+                    stem.copy(state.input_folder_name, sizeof(state.input_folder_name) - 1);
+                }
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Load"))
+            {
+                const FileDialogFilter filter("Project", "nproj");
+                if (FileDialogs::AskOpen(&filter, 1))
+                {
+                    const std::filesystem::path& path_selected = FileDialogs::GetPathSelected();
+                    project = Projects::Import(path_selected);
+                    std::filesystem::current_path(Projects::GetAssetPath(project));
+
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            ImGui::EndPopup();
+        }
+
+        if (ImGui::BeginPopupModal(modal_project_create, NULL, k_FlagsModal))
+        {
+            if (ImGui::InputText("##Name", state.input_folder_name, sizeof(char) * k_MaxNameCharacters, ImGuiInputTextFlags_EnterReturnsTrue))
+                project.name = std::string_view(state.input_folder_name);
+
+            if (ImGui::Button("Create"))
+            {
+                if (state.input_folder_name[0] != '\0')
+                {
+                    project.name = std::string(state.input_folder_name);
+                    std::fill(std::begin(state.input_folder_name), std::end(state.input_folder_name), '\0');
+                }
+
+                const std::filesystem::path& path_selected = FileDialogs::GetPathSelected();
+                Projects::Export(path_selected, project);
+
+                try
+                {
+                    std::filesystem::current_path(project.path_directory);
+                    if (std::filesystem::create_directory("Assets"))
+                        INFO("Created Assets folder for project \"%s\" successfully", project.name.c_str());
+                    else
+                        ERROR("ContentBrowserPanel::Display - Failed to create Assets folder for project \"%s\"", project.name.c_str());
+                }
+                catch (const std::filesystem::filesystem_error& e)
+                {
+                    ERROR("ContentBrowserPanel::Display - Failed to create assets directory for project \"%s\" (std::filesystem): %s", project.name.c_str(), e.what());
+                }
+
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel"))
+                ImGui::CloseCurrentPopup();
+
+            ImGui::EndPopup();
+        }
+
+        const bool should_deselect = ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+        if (should_deselect)
+            state.path_selection.clear();
+    }
 
     void DisplayCreateAssetPopup()
     {
@@ -121,10 +215,10 @@ namespace ContentBrowserPanel
 
                 try
                 {
-                    if (std::filesystem::create_directory(state.path_working / folder_name))
-                        INFO("Created folder %s successfully", (state.path_working / folder_name).string().c_str());
+                    if (std::filesystem::create_directory(folder_name))
+                        INFO("Created folder %s successfully", (std::filesystem::current_path() / folder_name).string().c_str());
                     else
-                        WARN("Something went wrong with creating folder %s", (state.path_working / folder_name).string().c_str());
+                        WARN("Something went wrong with creating folder %s", (std::filesystem::current_path() / folder_name).string().c_str());
 
                     ImGui::CloseCurrentPopup();
                 }
@@ -141,22 +235,25 @@ namespace ContentBrowserPanel
 
     void DisplayContentBrowser()
     {
-        if (state.path_working != state.path_assets)
+        const Project& project = Projects::GetContext();
+        const std::filesystem::path path_assets = Projects::GetAssetPath(project);
+
+        if (std::filesystem::current_path() != path_assets)
         {
             const float text_width = ImGui::CalcTextSize("<-").x;
-            const std::string path_text = std::filesystem::relative(state.path_working, state.path_assets.parent_path());
+            const std::string path_text = Projects::GetAssetPathRelative(std::filesystem::current_path(), project);
             ImGui::TextUnformatted(path_text.c_str());
             ImGui::SameLine(ImGui::GetContentRegionAvail().x - text_width);
 
             if (ImGui::Button("<-"))
             {
-                const std::filesystem::path path_parent = state.path_working.parent_path();
-                state.path_working = path_parent;
+                const std::filesystem::path path_parent = std::filesystem::current_path().parent_path();
+                std::filesystem::current_path(path_parent);
             }
         }
 
         u32 entry_index = 0;
-        for (const auto& entry : std::filesystem::directory_iterator(state.path_working))
+        for (const auto& entry : std::filesystem::directory_iterator(std::filesystem::current_path()))
         {
             ImGui::PushID(entry_index++);
 
@@ -166,7 +263,10 @@ namespace ContentBrowserPanel
 
                 ImGui::Button(directory_name.c_str());
                 if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                    state.path_working /= directory_name;
+                {
+                    std::filesystem::path path_working = std::filesystem::current_path();
+                    std::filesystem::current_path(path_working / directory_name);
+                }
             }
             else if (entry.is_regular_file())
             {
@@ -180,6 +280,11 @@ namespace ContentBrowserPanel
 
             if (ImGui::BeginPopupContextItem())
             {
+                state.path_selection = entry.path();
+
+                if (ImGui::MenuItem("Open in File Explorer"))
+                    FileDialogs::OpenExplorer(state.path_selection.parent_path());
+
                 if (ImGui::MenuItem("Delete"))
                 {
                     try

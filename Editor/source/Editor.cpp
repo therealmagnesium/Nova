@@ -4,8 +4,8 @@
 #include "Panels/Inspector.h"
 #include "Panels/SceneHierarchy.h"
 #include "Panels/SceneViewport.h"
-#include <Nova.h>
 #include <imgui.h>
+#include <imgui_internal.h>
 
 using namespace Nova;
 
@@ -110,6 +110,13 @@ namespace Editor
             WARN("Position: " V3_FMT, V3_OPEN(state.camera_editor.position));
             WARN("Target: " V3_FMT, V3_OPEN(state.camera_editor.target));
         }
+
+        if (Input::IsKeyDown(KEY_LEFT_CTRL) && Input::IsKeyPressed(KEY_U))
+        {
+            const Project& project = Projects::GetContext();
+            const std::filesystem::path path_layout = project.path_directory / "UI-Layout.ini";
+            ImGui::SaveIniSettingsToDisk(path_layout.string().c_str());
+        }
     }
 
     void OnUpdate()
@@ -119,6 +126,18 @@ namespace Editor
 
         if (active_scene->state == SceneState::Editor && SceneViewportPanel::IsHovered())
             Cameras::UpdateEditor(state.camera_editor, 1.f, 12.f);
+
+        if (Projects::ClearPendingLayoutLoad())
+        {
+            const Project& project = Projects::GetContext();
+            const std::filesystem::path path_layout = project.path_directory / "UI-Layout.ini";
+
+            if (std::filesystem::exists(path_layout))
+            {
+                ImGui::LoadIniSettingsFromMemory("", 0);
+                ImGui::LoadIniSettingsFromDisk(path_layout.string().c_str());
+            }
+        }
     }
 
     void OnRender()

@@ -26,10 +26,11 @@ namespace Nova::UI
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+        io.IniFilename = NULL;
 
         const Window& window = Application::GetWindow();
-        SDL_Window* sdl_window = static_cast<SDL_Window*>(window.handle);
-        SDL_GPUDevice* sdl_device = static_cast<SDL_GPUDevice*>(window.gpu_device);
+        SDL_Window* const sdl_window = static_cast<SDL_Window*>(window.handle);
+        SDL_GPUDevice* const sdl_device = static_cast<SDL_GPUDevice*>(window.gpu_device);
 
         // Setup Platform/Renderer backends
         ImGui_ImplSDL3_InitForSDLGPU(sdl_window);

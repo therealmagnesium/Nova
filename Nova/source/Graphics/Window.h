@@ -3,6 +3,9 @@
 
 namespace Nova
 {
+    using WindowHandle = void*;
+    using GPUDeviceHandle = void*;
+
     enum WindowState : u8
     {
         NOVA_WINDOWSTATE_INVALID = 0,
@@ -15,8 +18,8 @@ namespace Nova
     struct Window
     {
         string title = "Untitled";
-        void* handle = NULL;
-        void* gpu_device = NULL;
+        WindowHandle handle = NULL;
+        GPUDeviceHandle gpu_device = NULL;
         u16 width = 0;
         u16 height = 0;
         u8 state = NOVA_WINDOWSTATE_INVALID;

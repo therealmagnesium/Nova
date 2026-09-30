@@ -251,7 +251,8 @@ namespace Nova::Scenes
             {
                 case MeshSource::Primitive:
                 {
-                    const Material& material = !renderer.material_overrides.empty() ? renderer.material_overrides[0] : Stub_Material;
+                    const bool check = !renderer.material_overrides.empty() && AssetManager::IsHandleValid(renderer.material_overrides[0]);
+                    const Material& material = check ? *AssetManager::GetAsset<Material>(renderer.material_overrides[0]) : Stub_Material;
                     const glm::mat4 transform_matrix = transform.CalculateMatrix();
                     Renderer::DrawPrimitive(filter.primitive, transform_matrix, material);
                     break;

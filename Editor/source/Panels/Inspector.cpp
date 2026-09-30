@@ -44,7 +44,7 @@ namespace InspectorPanel
             DisplayAddComponentButton(selection_context);
 
             const std::filesystem::path browser_selection = ContentBrowserPanel::GetSelectionContext();
-            if (!selection_context.IsValid() && !browser_selection.empty())
+            if (!selection_context.IsValid() && !browser_selection.empty() && std::filesystem::is_regular_file(browser_selection))
             {
                 const AssetType asset_type = PathToAssetType(browser_selection);
                 const AssetHandle asset_handle = AssetManager::FindAssetHandleByPath(browser_selection);
@@ -188,25 +188,31 @@ namespace InspectorPanel
             {
                 case MeshSource::Primitive:
                 {
-                    const AssetHandle material_handle = !component.material_overrides.empty() ? component.material_overrides[0].handle : AssetHandle_Invalid;
-                    const std::string preview = component.material_overrides.empty() ? "Select Material" : AssetManager::GetAssetPath(material_handle).stem();
+                    const AssetHandle material_handle = !component.material_overrides.empty() ? component.material_overrides[0] : AssetHandle_Invalid;
+                    const bool preview_check = component.material_overrides.empty() || !AssetManager::IsHandleValid(component.material_overrides[0]);
+                    const std::string preview = preview_check ? "Select Material" : AssetManager::GetAssetPath(material_handle).stem();
+
                     ImGui::Text("Material");
                     ImGui::SameLine(column_width - ImGui::GetCursorPosX());
                     ImGui::SetNextItemWidth(-1.f);
                     if (ImGui::BeginCombo("##Material", preview.c_str()))
                     {
+                        const bool none_selected = component.material_overrides.empty() ? true : component.material_overrides[0] == AssetHandle_Invalid;
+                        if (ImGui::Selectable("None", none_selected))
+                            if (!component.material_overrides.empty())
+                                component.material_overrides[0] = AssetHandle_Invalid;
+
                         const std::vector<AssetHandle> materials = AssetManager::GetAllHandlesOfType(AssetType::Material);
                         for (const AssetHandle handle : materials)
                         {
                             const std::string name = AssetManager::GetAssetPath(handle).stem();
-                            const bool is_selected = component.material_overrides.empty() ? false : component.material_overrides[0].handle == handle;
+                            const bool is_selected = component.material_overrides.empty() ? false : component.material_overrides[0] == handle;
                             if (ImGui::Selectable(name.c_str(), is_selected))
                             {
-                                Material const* material = AssetManager::GetAsset<Material>(handle);
                                 if (!component.material_overrides.empty())
-                                    component.material_overrides[0] = *material;
+                                    component.material_overrides[0] = handle;
                                 else
-                                    component.material_overrides.push_back(*material);
+                                    component.material_overrides.push_back(handle);
                             }
                         }
 
@@ -439,6 +445,9 @@ namespace InspectorPanel
             return;
         }
 
+        const Project& project = Projects::GetContext();
+        const std::filesystem::path path_relative = Projects::GetAssetPathRelative(browser_selection, project);
+
         switch (asset_type)
         {
             case AssetType::AudioClip:
@@ -453,7 +462,36 @@ namespace InspectorPanel
             }
             case AssetType::Material:
             {
-                ImGui::TextUnformatted("[MATERIAL CONTROLS PLACEHOLDER]");
+                const float column_width = 150.f;
+                Material* const material = AssetManager::GetAsset<Material>(asset_handle);
+
+                ImGui::TextUnformatted(path_relative.string().c_str());
+
+                ImGui::TextUnformatted("Albedo");
+                ImGui::SameLine(column_width - ImGui::GetCursorPosX());
+                ImGui::ColorEdit3("##Material Albedo", &material->albedo.r, ImGuiColorEditFlags_HDR | ImGuiColorEditFlags_Float);
+
+                ImGui::TextUnformatted("Metallic");
+                ImGui::SameLine(column_width - ImGui::GetCursorPosX());
+                ImGui::SetNextItemWidth(-1.f);
+                ImGui::DragFloat("##Material Metallic", &material->metallic, 0.01f, 0.f, 1.f);
+
+                ImGui::TextUnformatted("Roughness");
+                ImGui::SameLine(column_width - ImGui::GetCursorPosX());
+                ImGui::SetNextItemWidth(-1.f);
+                ImGui::DragFloat("##Material Roughness", &material->roughness, 0.01f, 0.f, 1.f);
+
+                ImGui::Separator();
+
+                const ImGuiStyle& style = ImGui::GetStyle();
+                const float avail_width = ImGui::GetContentRegionAvail().x;
+                const float line_height = ImGui::GetFontSize() + style.FramePadding.y * 2.f;
+                const ImVec2 button_size = ImVec2(avail_width * 0.85f, line_height);
+                const float button_offset = style.WindowPadding.x + ((avail_width - button_size.x) * 0.5f);
+                ImGui::SetCursorPosX(button_offset);
+                if (ImGui::Button("Save", button_size))
+                    Materials::Export(browser_selection, *material);
+
                 break;
             }
             case AssetType::Model:

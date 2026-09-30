@@ -3,9 +3,28 @@
 #include <yaml-cpp/yaml.h>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
+#include <filesystem>
 
 namespace YAML
 {
+    template <>
+    struct convert<std::filesystem::path>
+    {
+        local Node encode(const std::filesystem::path& rhs)
+        {
+            return Node(rhs.string());
+        }
+
+        local bool decode(const Node& node, std::filesystem::path& rhs)
+        {
+            if (!node.IsScalar())
+                return false;
+
+            rhs = node.as<std::string>();
+            return true;
+        }
+    };
+
     template <>
     struct convert<glm::vec3>
     {
