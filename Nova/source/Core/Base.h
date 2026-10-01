@@ -41,10 +41,10 @@ public:
     string(const char* format, ...);
     ~string();
 
-    inline const char* c_str() const { return !m_IsHeapAllocated ? m_BufferInline : m_BufferHeap; }
+    inline const char* c_str() const { return !m_IsHeapAllocated ? m_BufferStack : m_BufferHeap; }
     inline bool IsHeapAllocated() const { return m_IsHeapAllocated; }
 
-    inline bool operator==(const string& rhs) const { return !m_IsHeapAllocated ? strcmp(m_BufferInline, rhs.m_BufferInline) == 0 : strcmp(m_BufferHeap, rhs.m_BufferHeap) == 0; }
+    inline bool operator==(const string& rhs) const { return !m_IsHeapAllocated ? strcmp(m_BufferStack, rhs.m_BufferStack) == 0 : strcmp(m_BufferHeap, rhs.m_BufferHeap) == 0; }
     inline bool operator!=(const string& rhs) const { return !(*this == rhs); }
 
     inline string& operator=(const string& rhs)
@@ -57,8 +57,10 @@ public:
         return *this;
     }
 
+    void clear() noexcept;
+
 private:
-    char m_BufferInline[64] = {};
+    char m_BufferStack[64] = {};
     char* m_BufferHeap = NULL;
     bool m_IsHeapAllocated = false;
 };

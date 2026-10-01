@@ -2,6 +2,7 @@
 #include "Core/AssetManager.h"
 #include "Core/Serialization.h"
 #include "Core/Log.h"
+#include "Core/Project.h"
 
 #include <yaml-cpp/yaml.h>
 #include <fstream>
@@ -15,7 +16,7 @@ namespace Nova::Materials
         try
         {
             const YAML::Node root = YAML::LoadFile(path);
-            material.handle = root["Material"].as<AssetHandle>();
+            // material.handle = root["Material"].as<AssetHandle>();
             material.albedo = root["Albedo"].as<glm::vec4>();
             material.metallic = root["Metallic"].as<float>();
             material.roughness = root["Roughness"].as<float>();
@@ -61,14 +62,18 @@ namespace Nova::Materials
         out << YAML::Key << "Texture Roughness" << YAML::Value << material.texture_roughness.handle;
         out << YAML::EndMap;
 
+        const Project& project = Projects::GetContext();
+        const std::filesystem::path path_absolute = Projects::GetAssetPathAbsolute(path, project);
+
         try
         {
-            std::ofstream fout(path);
+            std::ofstream fout(path_absolute);
             fout << out.c_str();
         }
         catch (const std::filesystem::filesystem_error& e)
         {
-            ERROR("Materials::Export - Failed to export material \"%s\"! (std::filesystem): %s", path.string().c_str(), e.what());
+            ERROR("Materials::Export - Failed to export material \"%s\"! (std::filesystem): %s", path_absolute.string().c_str(), e.what());
         }
+        INFO("Material \"%s\" exported successfully", path.string().c_str());
     }
 }

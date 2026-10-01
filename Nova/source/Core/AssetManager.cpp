@@ -102,14 +102,20 @@ namespace Nova::AssetManager
     void ImportByPath(const std::filesystem::path& path, AssetType type, AssetHandle handle)
     {
         const Project& project = Projects::GetContext();
+        std::filesystem::path path_absolute = path;
+        if (project.IsValid() && path.is_relative())
+            path_absolute = Projects::GetAssetPathAbsolute(path, project);
 
         AssetMetadata metadata;
-        metadata.path = project.IsValid() ? Projects::GetAssetPathRelative(path, project) : path;
+        metadata.path = project.IsValid() ? Projects::GetAssetPathRelative(path_absolute, project) : path;
         metadata.name = path.stem().c_str();
         metadata.type = type;
 
         if (metadata.type == AssetType::Invalid)
+        {
+            ERROR("AssetManager::ImportByPath - Cannot import asset %s since it has not been assigned a valid AssetType!", path.string().c_str());
             return;
+        }
 
         const AssetHandle valid_handle = IsAssetRegisteredByPath(metadata.path) ? FindAssetHandleByPath(metadata.path) : handle;
         Asset* asset = (IsAssetRegisteredByPath(metadata.path) && IsAssetLoaded(valid_handle)) ? assets->loaded_assets.at(valid_handle) : LoadAsset(valid_handle, metadata);
@@ -158,11 +164,6 @@ namespace Nova::AssetManager
     }
 
     std::filesystem::path GetAssetPath(AssetHandle handle) { return assets->registry.contains(handle) ? assets->registry.at(handle).path : ""; }
-    std::filesystem::path GetAssetPathAbsolute(AssetHandle handle)
-    {
-        const std::filesystem::path path = GetAssetPath(handle);
-        return path;
-    }
 
     bool IsAssetTypeRegistered(AssetType type)
     {

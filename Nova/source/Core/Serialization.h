@@ -8,6 +8,24 @@
 namespace YAML
 {
     template <>
+    struct convert<string>
+    {
+        local Node encode(const string& rhs)
+        {
+            return Node(rhs.c_str());
+        }
+
+        local bool decode(const Node& node, string& rhs)
+        {
+            if (!node.IsScalar())
+                return false;
+
+            rhs = node.as<std::string_view>().data();
+            return true;
+        }
+    };
+
+    template <>
     struct convert<std::filesystem::path>
     {
         local Node encode(const std::filesystem::path& rhs)
@@ -86,6 +104,12 @@ namespace YAML
     {
         out << YAML::Flow;
         out << YAML::BeginSeq << v.x << v.y << v.z << v.w << YAML::EndSeq;
+        return out;
+    }
+
+    inline YAML::Emitter& operator<<(YAML::Emitter& out, const string& s)
+    {
+        out << s.c_str();
         return out;
     }
 }

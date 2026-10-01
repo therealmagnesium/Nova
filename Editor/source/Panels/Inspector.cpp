@@ -448,9 +448,6 @@ namespace InspectorPanel
             return;
         }
 
-        const Project& project = Projects::GetContext();
-        const std::filesystem::path path_relative = Projects::GetAssetPathRelative(browser_selection, project);
-
         switch (asset_type)
         {
             case AssetType::AudioClip:
@@ -468,7 +465,7 @@ namespace InspectorPanel
                 const float column_width = 150.f;
                 Material* const material = AssetManager::GetAsset<Material>(asset_handle);
 
-                ImGui::TextUnformatted(path_relative.string().c_str());
+                ImGui::TextUnformatted(browser_selection.string().c_str());
 
                 ImGui::TextUnformatted("Albedo");
                 ImGui::SameLine(column_width - ImGui::GetCursorPosX());

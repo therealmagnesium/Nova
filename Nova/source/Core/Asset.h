@@ -35,4 +35,7 @@ namespace Nova
     };
 
     inline const AssetHandle AssetHandle_Invalid = 0;
+
+    std::string_view AssetTypeToStringView(AssetType type);
+    AssetType StringViewToAssetType(std::string_view view);
 }

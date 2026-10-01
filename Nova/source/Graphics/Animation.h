@@ -108,6 +108,7 @@ namespace Nova
         mutable std::unordered_map<const Skeleton*, BoundAnimationClip> bindings_by_skeleton;
 
         inline bool IsValid() const { return !channels.empty() && duration > 0.f; }
+        inline AssetType GetType() const override { return AssetType::AnimationClip; }
     };
 
     inline const AnimationClip Stub_AnimationClip;

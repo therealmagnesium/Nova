@@ -93,6 +93,8 @@ namespace Editor
     void OnEvent()
     {
         const Window& window = Application::GetWindow();
+        const Project& project = Projects::GetContext();
+
         if (Windows::IsResizing(window))
         {
             Framebuffers::Resize(state.framebuffer_hdr, window.width, window.height);
@@ -105,16 +107,13 @@ namespace Editor
         if (Input::IsKeyPressed(KEY_F2) || Input::IsGamepadButtonPressed(GamepadButton::Back))
             ResetCameraEditor();
 
-        if (Input::IsKeyPressed(KEY_C))
+        if (Input::IsKeyDown(KEY_LEFT_CTRL))
         {
-            WARN("Position: " V3_FMT, V3_OPEN(state.camera_editor.position));
-            WARN("Target: " V3_FMT, V3_OPEN(state.camera_editor.target));
-        }
+            if (Input::IsKeyPressed(KEY_U))
+                UI::ExportLayout(project);
 
-        if (Input::IsKeyDown(KEY_LEFT_CTRL) && Input::IsKeyPressed(KEY_U))
-        {
-            const Project& project = Projects::GetContext();
-            UI::ExportLayout(project);
+            if (Input::IsKeyPressed(KEY_S))
+                Projects::Export(project.path_config, project);
         }
     }
 

@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ranges>
 
 string::string(const string& other)
 {
@@ -14,7 +15,7 @@ string::string(const string& other)
     }
     else
     {
-        memcpy(m_BufferInline, other.m_BufferInline, 64);
+        memcpy(m_BufferStack, other.m_BufferStack, 64);
         m_IsHeapAllocated = false;
     }
 }
@@ -36,7 +37,7 @@ string::string(const char* format, ...)
         }
 
         va_start(args, format);
-        vsnprintf(m_BufferInline, 64, format, args);
+        vsnprintf(m_BufferStack, 64, format, args);
         va_end(args);
     }
     else
@@ -56,10 +57,17 @@ string::string(const char* format, ...)
 
 string::~string()
 {
+    clear();
+}
+
+void string::clear() noexcept
+{
     if (m_IsHeapAllocated)
     {
         free(m_BufferHeap);
         m_BufferHeap = NULL;
         m_IsHeapAllocated = false;
     }
+    else
+        std::ranges::fill(m_BufferStack, '\0');
 }

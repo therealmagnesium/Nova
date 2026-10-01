@@ -146,12 +146,15 @@ namespace Nova::UI
             ImGui::LoadIniSettingsFromMemory("", 0);
             ImGui::LoadIniSettingsFromDisk(path_layout.string().c_str());
         }
+
+        INFO("Imported UI layout from \"%s\" successfully", path_layout.string().c_str());
     }
 
     void ExportLayout(const Project& project)
     {
         const std::filesystem::path path_layout = project.path_directory / k_LayoutFilename;
         ImGui::SaveIniSettingsToDisk(path_layout.string().c_str());
+        INFO("Exported UI layout to \"%s\" successfully", path_layout.string().c_str());
     }
 
     void SetupTheme_ComfyDarkCyan()

@@ -15,6 +15,8 @@ namespace Nova
         Texture texture_roughness = Stub_Texture;
         float metallic = 0.f;
         float roughness = 1.f;
+
+        inline AssetType GetType() const override { return AssetType::Material; }
     };
 
     inline const Material Stub_Material;

@@ -13,6 +13,8 @@ namespace Nova
     {
         std::vector<Mesh> meshes;
         std::vector<Material> materials;
+
+        inline AssetType GetType() const override { return AssetType::Model; }
     };
 
     struct AnimatedModel : public Asset
@@ -20,6 +22,8 @@ namespace Nova
         Skeleton skeleton;
         std::vector<Mesh> meshes;
         std::vector<Material> materials;
+
+        inline AssetType GetType() const override { return AssetType::ModelAnimated; }
     };
 
     namespace Models

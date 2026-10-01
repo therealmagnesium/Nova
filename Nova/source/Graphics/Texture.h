@@ -55,6 +55,7 @@ namespace Nova
         inline bool IsValid() const { return id != 0; }
         inline bool operator==(const Texture& other) const { return id == other.id; }
         inline bool operator!=(const Texture& other) const { return !(*this == other); }
+        inline AssetType GetType() const override { return AssetType::Texture; }
     };
 
     inline const Texture Stub_Texture;
