@@ -23,8 +23,6 @@ namespace InspectorPanel
     void DisplayComponents(Entity selection_context);
     void DisplayAddComponentButton(Entity selection_context);
     void DisplayAssetControls(AssetType asset_type, AssetHandle asset_handle, const std::filesystem::path& browser_selection);
-    AssetType PathToAssetType(const std::filesystem::path& path);
-    AssetType GuessAssetTypeFromPath(const std::filesystem::path& path);
     std::string PrimitiveToString(PrimitiveMesh primitive);
 
     template <typename T, typename UIFunction>
@@ -514,64 +512,6 @@ namespace InspectorPanel
                 ImGui::TextUnformatted("[UNSUPPORTED ASSET TYPE PLACEHOLDER]");
                 break;
         }
-    }
-
-    AssetType PathToAssetType(const std::filesystem::path& path)
-    {
-        local_persist std::unordered_map<std::filesystem::path, AssetType> path_cache;
-
-        const auto cached = path_cache.find(path);
-        if (cached != path_cache.end())
-            return cached->second;
-
-        // Trust the registry first - it's authoritative, and it already
-        // disambiguates cases (like .fbx) that extension alone can't.
-        AssetType type = AssetType::Invalid;
-        if (AssetManager::IsAssetRegisteredByPath(path))
-        {
-            const AssetHandle handle = AssetManager::FindAssetHandleByPath(path);
-            type = AssetManager::GetAssetType(handle);
-        }
-
-        // Not imported yet - fall back to a best-effort guess.
-        if (type == AssetType::Invalid)
-            type = GuessAssetTypeFromPath(path);
-
-        path_cache.emplace(path, type);
-        return type;
-    }
-
-    AssetType GuessAssetTypeFromPath(const std::filesystem::path& path)
-    {
-        local_persist const std::unordered_map<std::filesystem::path, AssetType> k_ExtensionMap = {
-            { ".png", AssetType::Texture },
-            { ".jpg", AssetType::Texture },
-            { ".jpeg", AssetType::Texture },
-            { ".hdr", AssetType::Texture },
-            { ".wav", AssetType::AudioClip },
-            { ".mp3", AssetType::AudioClip },
-            { ".ogg", AssetType::AudioClip },
-            { ".mat", AssetType::Material },
-        };
-
-        const std::filesystem::path extension = path.extension();
-
-        if (extension == ".fbx")
-        {
-            // Folder convention resolves what the extension alone can't.
-            // NOTE: still can't tell Model apart from ModelAnimated this way -
-            // that needs to actually inspect the file for a skeleton. Defaulting
-            // to Model until that exists.
-            for (const auto& segment : path)
-            {
-                if (segment == "Animations")
-                    return AssetType::AnimationClip;
-            }
-            return AssetType::Model;
-        }
-
-        const auto it = k_ExtensionMap.find(extension);
-        return it != k_ExtensionMap.end() ? it->second : AssetType::Invalid;
     }
 
     std::string PrimitiveToString(PrimitiveMesh primitive)

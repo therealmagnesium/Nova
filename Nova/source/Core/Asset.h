@@ -38,4 +38,7 @@ namespace Nova
 
     std::string_view AssetTypeToStringView(AssetType type);
     AssetType StringViewToAssetType(std::string_view view);
+    AssetType GuessAssetTypeFromPath(const std::filesystem::path& path);
+    AssetType PathToAssetType(const std::filesystem::path& path);
+
 }

@@ -83,6 +83,7 @@ namespace Editor
 
     void OnShutdown()
     {
+        ContentBrowserPanel::Shutdown();
         IBL::Free(state.environment_map);
         Scenes::Destroy(state.scene_editor);
         Scenes::Destroy(state.scene_runtime);
