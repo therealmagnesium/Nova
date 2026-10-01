@@ -67,7 +67,7 @@ namespace Nova::Shaders
         }
 
         size_t code_size;
-        u8* code = (u8*)SDL_LoadFile(path.c_str(), &code_size);
+        u8* code = static_cast<u8*>(SDL_LoadFile(path.c_str(), &code_size));
         if (code == NULL)
         {
             ERROR("Shaders::Load - Failed to load shader %s from disk!", path.c_str());

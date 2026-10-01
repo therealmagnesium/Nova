@@ -55,7 +55,7 @@ namespace Nova::RenderPasses
                 info.resolve_layer = 0;
                 info.mip_level = 0;
                 info.layer_or_depth_plane = 0;
-                info.cycle = spec.color_load_op == GPULoadOp::Clear;
+                info.cycle = false;
             }
         }
         else
@@ -69,7 +69,7 @@ namespace Nova::RenderPasses
             info.clear_color = (SDL_FColor){ spec.clear_color.r, spec.clear_color.g, spec.clear_color.b, spec.clear_color.a };
             info.load_op = GPULoadOpToSDL(spec.color_load_op);
             info.store_op = GPUStoreOpToSDL(spec.color_store_op);
-            info.cycle = spec.depth_load_op == GPULoadOp::Clear;
+            info.cycle = false;
         }
 
         // Configure depth-stencil descriptor attachments mapping setup

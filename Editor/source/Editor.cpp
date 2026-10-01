@@ -114,8 +114,7 @@ namespace Editor
         if (Input::IsKeyDown(KEY_LEFT_CTRL) && Input::IsKeyPressed(KEY_U))
         {
             const Project& project = Projects::GetContext();
-            const std::filesystem::path path_layout = project.path_directory / "UI-Layout.ini";
-            ImGui::SaveIniSettingsToDisk(path_layout.string().c_str());
+            UI::ExportLayout(project);
         }
     }
 
@@ -130,13 +129,7 @@ namespace Editor
         if (Projects::ClearPendingLayoutLoad())
         {
             const Project& project = Projects::GetContext();
-            const std::filesystem::path path_layout = project.path_directory / "UI-Layout.ini";
-
-            if (std::filesystem::exists(path_layout))
-            {
-                ImGui::LoadIniSettingsFromMemory("", 0);
-                ImGui::LoadIniSettingsFromDisk(path_layout.string().c_str());
-            }
+            UI::ImportLayout(project);
         }
     }
 

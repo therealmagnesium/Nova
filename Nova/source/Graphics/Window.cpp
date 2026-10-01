@@ -15,8 +15,8 @@ namespace Nova::Windows
 {
     Window Create(u16 width, u16 height, const string& title)
     {
-        SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
-        SDL_Window* handle = SDL_CreateWindow(title.c_str(), width, height, flags);
+        const SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+        SDL_Window* const handle = SDL_CreateWindow(title.c_str(), width, height, flags);
 
         if (handle == NULL)
         {
@@ -26,8 +26,8 @@ namespace Nova::Windows
 
         SDL_SetWindowPosition(handle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 
-        SDL_GPUShaderFormat formats = SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_MSL;
-        SDL_GPUDevice* device = SDL_CreateGPUDevice(formats, true, NULL);
+        const SDL_GPUShaderFormat formats = SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_MSL;
+        SDL_GPUDevice* const device = SDL_CreateGPUDevice(formats, true, NULL);
 
         if (device == NULL)
         {
@@ -56,8 +56,8 @@ namespace Nova::Windows
 
     void Destroy(Window& window)
     {
-        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
-        SDL_Window* handle = static_cast<SDL_Window*>(window.handle);
+        SDL_GPUDevice* const device = static_cast<SDL_GPUDevice*>(window.gpu_device);
+        SDL_Window* const handle = static_cast<SDL_Window*>(window.handle);
 
         SDL_WaitForGPUIdle(device);
         SDL_ReleaseWindowFromGPUDevice(device, handle);

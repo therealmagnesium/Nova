@@ -46,9 +46,12 @@ namespace InspectorPanel
             const std::filesystem::path browser_selection = ContentBrowserPanel::GetSelectionContext();
             if (!selection_context.IsValid() && !browser_selection.empty() && std::filesystem::is_regular_file(browser_selection))
             {
-                const AssetType asset_type = PathToAssetType(browser_selection);
-                const AssetHandle asset_handle = AssetManager::FindAssetHandleByPath(browser_selection);
-                DisplayAssetControls(asset_type, asset_handle, browser_selection);
+                const Project& project = Projects::GetContext();
+                const std::filesystem::path path_relative = Projects::GetAssetPathRelative(browser_selection, project);
+
+                const AssetType asset_type = PathToAssetType(path_relative);
+                const AssetHandle asset_handle = AssetManager::FindAssetHandleByPath(path_relative);
+                DisplayAssetControls(asset_type, asset_handle, path_relative);
             }
 
             ImGui::End();

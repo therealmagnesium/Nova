@@ -28,6 +28,7 @@ namespace Nova::FileDialogs
         }
 
         path_default = std::filesystem::current_path();
+        is_initialized = true;
         INFO("%s", "File Dialogs were initialized successfully");
     }
 
@@ -54,7 +55,7 @@ namespace Nova::FileDialogs
             return false;
 
         path_selected = path_out;
-        free(path_out);
+        NFD::FreePath(path_out);
 
         return true;
     }
@@ -73,7 +74,7 @@ namespace Nova::FileDialogs
             return false;
 
         path_selected = path_out;
-        free(path_out);
+        NFD::FreePath(path_out);
 
         // Ensure the path has the correct extension based on the first filter
         if (filters != NULL && filter_count > 0)

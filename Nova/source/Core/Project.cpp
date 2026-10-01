@@ -1,6 +1,7 @@
 #include "Core/Project.h"
 #include "Core/Log.h"
 #include "Core/Serialization.h"
+#include "UI/UI.h"
 
 #include <yaml-cpp/yaml.h>
 #include <fstream>
@@ -54,15 +55,13 @@ namespace Nova::Projects
             return;
         }
 
-        const std::filesystem::path path_layout = project.path_directory / "UI-Layout.ini";
-        ImGui::SaveIniSettingsToDisk(path_layout.string().c_str());
-
+        UI::ExportLayout(project);
         INFO("Project was successfully exported to \"%s\"", path.string().c_str());
     }
 
     std::filesystem::path GetStartScenePath(const Project& project) { return project.path_directory / project.path_assets / project.path_scene_start; }
     std::filesystem::path GetAssetPath(const Project& project) { return project.path_directory / project.path_assets; }
-    std::filesystem::path GetAssetPathAbsolute(const std::filesystem::path& path, const Project& project) { return std::filesystem::absolute(project.path_directory / project.path_assets / path); }
+    std::filesystem::path GetAssetPathAbsolute(const std::filesystem::path& path, const Project& project) { return std::filesystem::absolute(project.path_directory / path); }
     std::filesystem::path GetAssetPathRelative(const std::filesystem::path& path, const Project& project) { return std::filesystem::proximate(path, project.path_directory); }
 
     Project& GetContext() { return active_project; }

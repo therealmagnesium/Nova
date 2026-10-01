@@ -11,6 +11,8 @@
 
 namespace Nova::UI
 {
+    local const char* k_LayoutFilename = "UI-Layout.ini";
+
     void SetupTheme_ComfyDarkCyan();
     void SetupTheme_DarkPastel();
     void SetupTheme_DeepDark();
@@ -133,6 +135,23 @@ namespace Nova::UI
                 SetupTheme_Moonlight();
                 break;
         }
+    }
+
+    void ImportLayout(const Project& project)
+    {
+        const std::filesystem::path path_layout = project.path_directory / k_LayoutFilename;
+
+        if (std::filesystem::exists(path_layout))
+        {
+            ImGui::LoadIniSettingsFromMemory("", 0);
+            ImGui::LoadIniSettingsFromDisk(path_layout.string().c_str());
+        }
+    }
+
+    void ExportLayout(const Project& project)
+    {
+        const std::filesystem::path path_layout = project.path_directory / k_LayoutFilename;
+        ImGui::SaveIniSettingsToDisk(path_layout.string().c_str());
     }
 
     void SetupTheme_ComfyDarkCyan()

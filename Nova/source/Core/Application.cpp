@@ -12,6 +12,17 @@ namespace Nova::Application
 {
     static App* context = NULL;
 
+    local u32 CountOpenFDs()
+    {
+        u32 count = 0;
+        std::error_code ec;
+        for (const auto& entry : std::filesystem::directory_iterator("/proc/self/fd", ec))
+            count++;
+
+        // The iterator holds one descriptor of its own
+        return count > 0 ? count - 1 : 0;
+    }
+
     App* Create(const AppConfig& config)
     {
         App* app = new App();

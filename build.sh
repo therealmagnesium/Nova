@@ -134,7 +134,9 @@ build-cmake-dependencies() {
 	local build_dir_nfd="vendor/nfd/build"
 	if [[ ! -d "${build_dir_nfd}" ]]; then
 		echo "Building Native File Dialog (Extended)..."
-		cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -S vendor/nfd -B $build_dir_nfd
+		cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release \
+			-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+			-DNFD_PORTAL=ON -S vendor/nfd -B $build_dir_nfd
 		cd $build_dir_nfd
 		make -j$cores
 		cd ../../..

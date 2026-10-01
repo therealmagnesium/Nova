@@ -1,5 +1,6 @@
 #pragma once
 #include "Graphics/RenderPass.h"
+#include "Core/Project.h"
 
 namespace Nova
 {
@@ -25,5 +26,8 @@ namespace Nova
         FontHandle AddFont(const std::filesystem::path& path, float font_size, bool bind_on_load = false);
         void BindFont(FontHandle font);
         void SetTheme(UITheme theme);
+
+        void ImportLayout(const Project& project);
+        void ExportLayout(const Project& project);
     }
 }
