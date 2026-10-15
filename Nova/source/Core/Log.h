@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <deque>
+#include <string>
 
 namespace Nova
 {
@@ -28,8 +30,29 @@ namespace Nova
         Count,
     };
 
+    enum class LogLevel : u8
+    {
+        Info,
+        Warn,
+        Error,
+        Fatal
+    };
+
+    struct LogEntry
+    {
+        LogLevel level;
+        std::string text;
+    };
+
+    namespace Logs
+    {
+        void Push(LogLevel level, const char* text); // Log.cpp: ring buffer capped at 2048 entries
+        const std::deque<LogEntry>& GetEntries();
+        void Clear();
+    }
+
     template <typename... Args>
-    inline void Log(const char* prefix, const char* message, TextColor color, Args... args)
+    inline void Log(LogLevel level, const char* prefix, const char* message, TextColor color, Args... args)
     {
         const char* color_table[(u32)TextColor::Count] = {
             "\x1b[30m", // Black
@@ -50,20 +73,17 @@ namespace Nova
             "\x1b[97m", // Light white
         };
 
-        char format_buffer[8192]{};
-        sprintf(format_buffer, "%s%s %s \033[0m", color_table[(u32)color], prefix, message);
-
-        char text_buffer[8192]{};
-        sprintf(text_buffer, format_buffer, args...);
-
-        puts(text_buffer);
+        char text_buffer[8192] = {};
+        snprintf(text_buffer, sizeof(text_buffer), message, args...);
+        Logs::Push(level, text_buffer); // Plain text, no ANSI codes
+        printf("%s%s %s \033[0m\n", color_table[(u32)color], prefix, text_buffer);
     }
 }
 
-#define INFO(message, ...) Nova::Log("Info:", message, Nova::TextColor::Green, ##__VA_ARGS__)
-#define WARN(message, ...) Nova::Log("Warn:", message, Nova::TextColor::Yellow, ##__VA_ARGS__)
-#define ERROR(message, ...) Nova::Log("Error:", message, Nova::TextColor::LightRed, ##__VA_ARGS__)
-#define FATAL(message, ...) Nova::Log("Fatal:", message, Nova::TextColor::Red, ##__VA_ARGS__)
+#define INFO(message, ...) Nova::Log(Nova::LogLevel::Info, "Info:", message, Nova::TextColor::Green, ##__VA_ARGS__)
+#define WARN(message, ...) Nova::Log(Nova::LogLevel::Warn, "Warn:", message, Nova::TextColor::Yellow, ##__VA_ARGS__)
+#define ERROR(message, ...) Nova::Log(Nova::LogLevel::Error, "Error:", message, Nova::TextColor::LightRed, ##__VA_ARGS__)
+#define FATAL(message, ...) Nova::Log(Nova::LogLevel::Fatal, "Fatal:", message, Nova::TextColor::Red, ##__VA_ARGS__)
 
 #define ASSERT(expression, message, ...)   \
     {                                      \

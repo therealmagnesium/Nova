@@ -1,5 +1,6 @@
 #include "Editor.h"
 #include "Panels/AssetRegistry.h"
+#include "Panels/Console.h"
 #include "Panels/ContentBrowser.h"
 #include "Panels/Inspector.h"
 #include "Panels/SceneHierarchy.h"
@@ -156,6 +157,7 @@ namespace Editor
 
         ImGui::DockSpaceOverViewport();
         AssetRegistryPanel::Display();
+        ConsolePanel::Display();
         ContentBrowserPanel::Display();
         SceneHierarchyPanel::Display();
         InspectorPanel::Display();

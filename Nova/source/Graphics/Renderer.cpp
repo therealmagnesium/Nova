@@ -233,7 +233,7 @@ namespace Nova::Renderer
 
         state.primitives[static_cast<u8>(PrimitiveMesh::Quad)] = Meshes::GenerateQuad();
         state.primitives[static_cast<u8>(PrimitiveMesh::Cube)] = Meshes::GenerateCube();
-        state.primitives[static_cast<u8>(PrimitiveMesh::Sphere)] = Meshes::GenerateSphere(32, 16);
+        state.primitives[static_cast<u8>(PrimitiveMesh::Sphere)] = Meshes::GenerateSphere(64, 32);
         state.primitives[static_cast<u8>(PrimitiveMesh::Plane)] = Meshes::GeneratePlane();
         state.primitives[static_cast<u8>(PrimitiveMesh::Cone)] = Meshes::GenerateCone();
         state.primitives[static_cast<u8>(PrimitiveMesh::Pyramid)] = Meshes::GeneratePyramid();

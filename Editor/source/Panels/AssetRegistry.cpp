@@ -6,8 +6,15 @@ using namespace Nova;
 
 struct AssetRegistryState
 {
+    ImGuiTextFilter filter;
     AssetHandle asset_to_delete = AssetHandle_Invalid;
     bool should_display = true;
+};
+
+struct RegistryRow
+{
+    AssetHandle handle = AssetHandle_Invalid;
+    const AssetMetadata* metadata = NULL;
 };
 
 local AssetRegistryState state;
@@ -39,6 +46,32 @@ namespace AssetRegistryPanel
 
     void DisplayAssetRegistry()
     {
+        state.filter.Draw("##Asset Filter", -1.f);
+
+        std::vector<RegistryRow> rows;
+        for (const auto& [handle, metadata] : AssetManager::GetRegistry())
+        {
+            const std::string_view type = AssetTypeToStringView(metadata.type);
+            const std::string path = metadata.path.string();
+            const bool matches = !state.filter.IsActive() ||
+                                 state.filter.PassFilter(metadata.name.c_str()) ||
+                                 state.filter.PassFilter(path.c_str()) ||
+                                 state.filter.PassFilter(type.data(), type.data() + type.size());
+            if (matches)
+                rows.emplace_back(handle, &metadata);
+        }
+
+        const auto SortAssets = [](const RegistryRow& a, const RegistryRow& b)
+        {
+            if (a.metadata->type != b.metadata->type)
+                return a.metadata->type < b.metadata->type;
+            return strcmp(a.metadata->name.c_str(), b.metadata->name.c_str()) < 0;
+        };
+
+        std::sort(rows.begin(), rows.end(), SortAssets);
+
+        ImGui::TextDisabled("%zu / %u assets", rows.size(), AssetManager::GetTotalAssetCount());
+
         if (ImGui::BeginTable("Table Asset Registry", k_ColumnCount, k_FlagsTable))
         {
             ImGui::TableSetupColumn("Type");
@@ -47,9 +80,8 @@ namespace AssetRegistryPanel
             ImGui::TableSetupColumn("Handle");
             ImGui::TableHeadersRow();
 
-            const AssetRegistry& registry = AssetManager::GetRegistry();
-            for (const auto& [handle, metadata] : registry)
-                DisplayNode(handle, metadata);
+            for (const RegistryRow& row : rows)
+                DisplayNode(row.handle, *row.metadata);
 
             ImGui::EndTable();
         }
