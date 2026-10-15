@@ -51,7 +51,7 @@ namespace Nova::Scenes
         Entity sun = CreateEntity(scene, "Directional Light");
         auto& transform_sun = scene.registry.GetComponent<TransformComponent>(sun.id);
         const auto& dlc = scene.registry.AddComponent<DirectionalLightComponent>(sun.id, glm::vec4(0.96f, 0.92f, 0.88f, 1.f), 1.f, true);
-        transform_sun.rotation = glm::vec3(-0.6f, -0.92f, -0.8f);
+        transform_sun.rotation = glm::vec3(-50.f, -30.f, 0.f);
 
         return scene;
     }
@@ -455,7 +455,9 @@ namespace Nova::Scenes
             const auto& internal = entity.GetComponent<InternalComponent>();
             const auto& transform = entity.GetComponent<TransformComponent>();
             auto& dlc = entity.GetComponent<DirectionalLightComponent>();
-            dlc.light.direction = transform.rotation;
+
+            // Light travels along the entity's forward (-Z) axis; the shader negates this to get L
+            dlc.light.direction = glm::normalize(glm::mat3(transform.CalculateMatrix()) * glm::vec3(0.f, 0.f, -1.f));
 
             if (dlc.is_primary && internal.is_active)
             {

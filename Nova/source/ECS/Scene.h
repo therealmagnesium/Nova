@@ -76,7 +76,7 @@ namespace Nova
             const auto& components = std::get<std::vector<T>>(pool_components);
 
             // Bounds check the vector first, then return the structural flag safely
-            if (entity_id == static_cast<EntityID>(components.size()))
+            if (entity_id < 0 || entity_id >= static_cast<EntityID>(components.size()))
                 return false;
 
             return components[entity_id].has;

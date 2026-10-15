@@ -8,7 +8,7 @@ namespace Nova
     {
         switch (type)
         {
-            case AssetType::AnimationClip: return "Animation CLip";
+            case AssetType::AnimationClip: return "Animation Clip";
             case AssetType::AudioClip: return "Audio Clip";
             case AssetType::Material: return "Material";
             case AssetType::Model: return "Standard Model";

@@ -84,27 +84,49 @@ namespace Nova::Renderer
         std::vector<RenderCommand> translucent;
     };
 
-    struct RenderState
+    struct RenderMatrices
     {
-        BoneMatrixPool bone_matrix_pool;
-        glm::mat4 matrix_view;
-        glm::mat4 matrix_projection;
-        Mesh primitives[static_cast<u8>(PrimitiveMesh::_Length)];
-        SwapchainTexture texture_swapchain;
-        Texture texture_default_white;
-        Texture texture_default_normal;
-        Texture texture_depth_stencil;
-        const DirectionalLight* active_sun = NULL;
-        const EnvironmentMap* active_environment_map = NULL;
-        RenderPassHandle active_render_pass = NULL;
-        Camera3D* primary_camera = NULL;
-        SDL_GPUCommandBuffer* command_buffer = NULL;
+        BoneMatrixPool bone_pool;
+        glm::mat4 view;
+        glm::mat4 projection;
+    };
+
+    struct RenderTextures
+    {
+        SwapchainTexture swapchain;
+        Texture depth_stencil;
+        Texture default_white;
+        Texture default_normal;
+    };
+
+    struct RenderSettings
+    {
+        float exposure = 1.f;
+        bool wireframe_enabled = false;
+    };
+
+    struct DebugStats
+    {
         u32 vertex_buffer_count = 0;
         u32 index_buffer_count = 0;
         u32 storage_buffer_count = 0;
-        float exposure = 1.f;
-        GPUPipeline pipeline_index = GPUPipeline::OutdoorMeshes;
-        bool wireframe_enabled = false;
+    };
+
+    struct RenderState
+    {
+        RenderMatrices matrices;
+        RenderTextures textures;
+        DebugStats stats;
+        RenderSettings settings;
+
+        Mesh primitives[static_cast<u8>(PrimitiveMesh::_Length)];
+
+        DirectionalLight active_sun = Stub_DirectionalLight;
+        const EnvironmentMap* active_environment_map = NULL;
+        RenderPassHandle active_render_pass = NULL;
+        Camera3D* primary_camera = NULL;
+
+        SDL_GPUCommandBuffer* command_buffer = NULL;
     };
 
     static RenderState state;
@@ -204,10 +226,10 @@ namespace Nova::Renderer
         // Setup texture samplers and default textures
         const Window& window = Application::GetWindow();
         Textures::SetupSamplers();
-        state.texture_default_white = Textures::LoadDefaultWhite();
-        state.texture_default_normal = Textures::LoadDefaultNormal();
-        state.texture_depth_stencil = Textures::CreateFramebufferAttachmentDepth(window.width, window.height);
-        state.texture_swapchain.metadata = Stub_Texture; // Gets written in "BeginFrame"
+        state.textures.default_white = Textures::LoadDefaultWhite();
+        state.textures.default_normal = Textures::LoadDefaultNormal();
+        state.textures.depth_stencil = Textures::CreateFramebufferAttachmentDepth(window.width, window.height);
+        state.textures.swapchain.metadata = Stub_Texture; // Gets written in "BeginFrame"
 
         state.primitives[static_cast<u8>(PrimitiveMesh::Quad)] = Meshes::GenerateQuad();
         state.primitives[static_cast<u8>(PrimitiveMesh::Cube)] = Meshes::GenerateCube();
@@ -220,10 +242,10 @@ namespace Nova::Renderer
         // Pre-allocate every bone matrix pool slot up front - see BoneMatrixPool's comment above.
         const u32 bone_buffer_size = static_cast<u32>(sizeof(glm::mat4) * MAX_BONES);
         for (u32 i = 0; i < MAX_ANIMATED_DRAWS_PER_FRAME; i++)
-            state.bone_matrix_pool.buffers[i] = Buffers::Create(GPUBufferType::Storage, bone_buffer_size);
+            state.matrices.bone_pool.buffers[i] = Buffers::Create(GPUBufferType::Storage, bone_buffer_size);
 
         // One persistent staging buffer sized for the whole pool, created once and reused every frame.
-        state.bone_matrix_pool.upload_stream = Buffers::CreateUploadStream(bone_buffer_size * MAX_ANIMATED_DRAWS_PER_FRAME);
+        state.matrices.bone_pool.upload_stream = Buffers::CreateUploadStream(bone_buffer_size * MAX_ANIMATED_DRAWS_PER_FRAME);
 
         Renderer::SetSun(Stub_DirectionalLight);
 
@@ -237,14 +259,14 @@ namespace Nova::Renderer
         for (Mesh& primitive : state.primitives)
             Meshes::Destroy(primitive);
 
-        Textures::Unload(state.texture_default_white);
-        Textures::Unload(state.texture_default_normal);
-        Textures::Unload(state.texture_depth_stencil);
+        Textures::Unload(state.textures.default_white);
+        Textures::Unload(state.textures.default_normal);
+        Textures::Unload(state.textures.depth_stencil);
         Textures::FreeSamplers();
 
-        Buffers::DestroyUploadStream(state.bone_matrix_pool.upload_stream);
+        Buffers::DestroyUploadStream(state.matrices.bone_pool.upload_stream);
         for (u32 i = 0; i < MAX_ANIMATED_DRAWS_PER_FRAME; i++)
-            Buffers::Destroy(state.bone_matrix_pool.buffers[i]);
+            Buffers::Destroy(state.matrices.bone_pool.buffers[i]);
 
         Pipelines::Shutdown();
     }
@@ -278,14 +300,14 @@ namespace Nova::Renderer
 
         if (state.primary_camera != NULL)
         {
-            state.matrix_view = Cameras::GetMatrixView3D(*state.primary_camera);
-            state.matrix_projection = Cameras::GetMatrixProjection3D(*state.primary_camera);
+            state.matrices.view = Cameras::GetMatrixView3D(*state.primary_camera);
+            state.matrices.projection = Cameras::GetMatrixProjection3D(*state.primary_camera);
         }
 
-        state.texture_swapchain.handle = swapchain_handle;
-        state.texture_swapchain.metadata.width = swapchain_width;
-        state.texture_swapchain.metadata.height = swapchain_height;
-        state.texture_swapchain.metadata.channel_count = 4;
+        state.textures.swapchain.handle = swapchain_handle;
+        state.textures.swapchain.metadata.width = swapchain_width;
+        state.textures.swapchain.metadata.height = swapchain_height;
+        state.textures.swapchain.metadata.channel_count = 4;
 
         return true;
     }
@@ -298,13 +320,13 @@ namespace Nova::Renderer
         Pipelines::ResetBindingCache();
         Buffers::ResetBindingCache();
 
-        state.matrix_view = glm::mat4(1.f);
-        state.matrix_projection = glm::mat4(1.f);
-        state.bone_matrix_pool.next_slot = 0;
+        state.matrices.view = glm::mat4(1.f);
+        state.matrices.projection = glm::mat4(1.f);
+        state.matrices.bone_pool.next_slot = 0;
 
         // Flush every bone-matrix write queued this frame as ONE copy pass on its own command
         // buffer, submitted before the render command buffer.
-        Buffers::StreamFlush(state.bone_matrix_pool.upload_stream);
+        Buffers::StreamFlush(state.matrices.bone_pool.upload_stream);
     }
 
     void Flush()
@@ -349,7 +371,7 @@ namespace Nova::Renderer
             return;
 
         const glm::vec3 world_pos = glm::vec3(transform[3]);
-        const glm::vec4 view_pos = state.matrix_view * glm::vec4(world_pos, 1.f);
+        const glm::vec4 view_pos = state.matrices.view * glm::vec4(world_pos, 1.f);
         const float view_depth = view_pos.z;
 
         const RenderCommand command = {
@@ -382,17 +404,17 @@ namespace Nova::Renderer
         if (state.active_render_pass == NULL || state.primary_camera == NULL || !animator.IsValid())
             return;
 
-        if (state.bone_matrix_pool.next_slot >= MAX_ANIMATED_DRAWS_PER_FRAME)
+        if (state.matrices.bone_pool.next_slot >= MAX_ANIMATED_DRAWS_PER_FRAME)
         {
             WARN("%s", "Renderer::DrawAnimatedModel - Exceeded MAX_ANIMATED_DRAWS_PER_FRAME, dropping draw call! Consider raising the pool size.");
             return;
         }
 
-        GPUBuffer& bone_matrix_buffer = state.bone_matrix_pool.buffers[state.bone_matrix_pool.next_slot++];
+        GPUBuffer& bone_matrix_buffer = state.matrices.bone_pool.buffers[state.matrices.bone_pool.next_slot++];
         const u32 bone_count = static_cast<u32>(animator.skeleton->bones.size());
         const u32 size = static_cast<u32>(sizeof(glm::mat4)) * bone_count;
-        const u32 offset = Buffers::StreamWrite(state.bone_matrix_pool.upload_stream, animator.bone_matrices, size);
-        Buffers::StreamQueueCopy(state.bone_matrix_pool.upload_stream, offset, bone_matrix_buffer, size);
+        const u32 offset = Buffers::StreamWrite(state.matrices.bone_pool.upload_stream, animator.bone_matrices, size);
+        Buffers::StreamQueueCopy(state.matrices.bone_pool.upload_stream, offset, bone_matrix_buffer, size);
 
         // The actual GPU-side copy is deferred to EndFrame's StreamFlush call - see Buffers::UploadStream.
         // Binding bone_matrix_buffer below is safe: submission order governs execution order, and
@@ -410,7 +432,7 @@ namespace Nova::Renderer
             return;
 
         const glm::vec3 world_pos = glm::vec3(transform[3]);
-        const glm::vec4 view_pos = state.matrix_view * glm::vec4(world_pos, 1.f);
+        const glm::vec4 view_pos = state.matrices.view * glm::vec4(world_pos, 1.f);
         const float view_depth = view_pos.z;
 
         const RenderCommand command = {
@@ -438,7 +460,7 @@ namespace Nova::Renderer
         Buffers::Bind(mesh_compositing.buffer_vertex);
         Textures::Bind(screen_texture);
 
-        const float exposure = state.exposure;
+        const float exposure = state.settings.exposure;
         SDL_PushGPUFragmentUniformData(state.command_buffer, 0, &exposure, sizeof(float));
         SDL_DrawGPUIndexedPrimitives(static_cast<SDL_GPURenderPass*>(render_pass), mesh_compositing.index_count, 1, 0, 0, 0);
     }
@@ -459,7 +481,7 @@ namespace Nova::Renderer
         Buffers::Bind(mesh_skybox.buffer_index);
         Textures::Bind(environment_map.environment);
 
-        const glm::mat4 mvp_data[2] = { state.matrix_view, state.matrix_projection };
+        const glm::mat4 mvp_data[2] = { state.matrices.view, state.matrices.projection };
         SDL_PushGPUVertexUniformData(state.command_buffer, 0, mvp_data, sizeof(glm::mat4) * LEN(mvp_data));
         SDL_DrawGPUIndexedPrimitives(static_cast<SDL_GPURenderPass*>(state.active_render_pass), mesh_skybox.index_count, 1, 0, 0, 0);
     }
@@ -485,10 +507,10 @@ namespace Nova::Renderer
         if (command.buffer_ssbo_bones != NULL)
             Buffers::Bind(*command.buffer_ssbo_bones);
 
-        Textures::Bind(command.material->texture_albedo.IsValid() ? command.material->texture_albedo : state.texture_default_white, 0);
-        Textures::Bind(command.material->texture_normal.IsValid() ? command.material->texture_normal : state.texture_default_normal, 1);
-        Textures::Bind(command.material->texture_metallic.IsValid() ? command.material->texture_metallic : state.texture_default_white, 2);
-        Textures::Bind(command.material->texture_roughness.IsValid() ? command.material->texture_roughness : state.texture_default_white, 3);
+        Textures::Bind(command.material->texture_albedo.IsValid() ? command.material->texture_albedo : state.textures.default_white, 0);
+        Textures::Bind(command.material->texture_normal.IsValid() ? command.material->texture_normal : state.textures.default_normal, 1);
+        Textures::Bind(command.material->texture_metallic.IsValid() ? command.material->texture_metallic : state.textures.default_white, 2);
+        Textures::Bind(command.material->texture_roughness.IsValid() ? command.material->texture_roughness : state.textures.default_white, 3);
 
         if (state.active_environment_map != NULL && state.active_environment_map->IsValid())
         {
@@ -498,22 +520,22 @@ namespace Nova::Renderer
         }
         else
         {
-            Textures::Bind(state.texture_default_white, 4);
-            Textures::Bind(state.texture_default_white, 5);
-            Textures::Bind(state.texture_default_white, 6);
+            Textures::Bind(state.textures.default_white, 4);
+            Textures::Bind(state.textures.default_white, 5);
+            Textures::Bind(state.textures.default_white, 6);
         }
 
         const MVPData mvp_data = {
             .matrix_model = command.transform,
-            .matrix_view_projection = state.matrix_projection * state.matrix_view,
+            .matrix_view_projection = state.matrices.projection * state.matrices.view,
             .matrix_normal = glm::transpose(glm::inverse(command.transform))
         };
 
         // const glm::vec4 albedo_linear = glm::vec4(powf(command.material->albedo.r, 2.2f), powf(command.material->albedo.g, 2.2f), powf(command.material->albedo.b, 2.2f), powf(command.material->albedo.a, 2.2f));
         const FragmentData frag_data = {
             .data_light = {
-                .direction_intensity = glm::vec4(state.active_sun->direction, state.active_sun->intensity),
-                .color = state.active_sun->color,
+                .direction_intensity = glm::vec4(state.active_sun.direction, state.active_sun.intensity),
+                .color = state.active_sun.color,
             },
             .data_material = {
                 .albedo = command.material->albedo,
@@ -533,34 +555,34 @@ namespace Nova::Renderer
         (!is_transparent ? queue.opaque : queue.translucent).emplace_back(command);
     }
 
-    float GetExposure() { return state.exposure; }
+    float GetExposure() { return state.settings.exposure; }
     void* GetCommandBuffer() { return state.command_buffer; }
     Camera3D* GetPrimaryCamera() { return state.primary_camera; }
     RenderPassHandle GetActiveRenderPass() { return state.active_render_pass; }
-    TextureHandle GetSwapchainHandle() { return state.texture_swapchain.handle; }
-    const Texture& GetTextureSwapchain() { return state.texture_swapchain.metadata; }
-    const Texture& GetTextureDepthStencil() { return state.texture_depth_stencil; }
-    const Texture& GetTextureDefaultWhite() { return state.texture_default_white; }
-    const glm::mat4& GetMatrixView() { return state.matrix_view; }
-    const glm::mat4& GetMatrixProjection() { return state.matrix_projection; }
+    TextureHandle GetSwapchainHandle() { return state.textures.swapchain.handle; }
+    const Texture& GetTextureSwapchain() { return state.textures.swapchain.metadata; }
+    const Texture& GetTextureDepthStencil() { return state.textures.depth_stencil; }
+    const Texture& GetTextureDefaultWhite() { return state.textures.default_white; }
+    const glm::mat4& GetMatrixView() { return state.matrices.view; }
+    const glm::mat4& GetMatrixProjection() { return state.matrices.projection; }
     const Mesh& GetPrimitiveMesh(PrimitiveMesh primitive) { return state.primitives[static_cast<u8>(primitive)]; }
 
-    void SetSun(const DirectionalLight& sun) { state.active_sun = &sun; }
-    void SetExposure(float exposure) { state.exposure = exposure; }
+    void SetSun(const DirectionalLight& sun) { state.active_sun = sun; }
+    void SetExposure(float exposure) { state.settings.exposure = exposure; }
     void SetActiveRenderPass(RenderPassHandle render_pass) { state.active_render_pass = render_pass; }
     void SetPrimaryCamera(Camera3D* camera) { state.primary_camera = camera; }
-    void ToggleWireframeMode() { state.wireframe_enabled = !state.wireframe_enabled; }
-    u32 IncrementVertexBuffers() { return ++state.vertex_buffer_count; }
-    u32 IncrementIndexBuffers() { return ++state.index_buffer_count; }
-    u32 IncrementStorageBuffers() { return ++state.storage_buffer_count; }
-    u32 DecrementVertexBuffers() { return --state.vertex_buffer_count; }
-    u32 DecrementIndexBuffers() { return --state.index_buffer_count; }
-    u32 DecrementStorageBuffers() { return --state.storage_buffer_count; }
+    void ToggleWireframeMode() { state.settings.wireframe_enabled = !state.settings.wireframe_enabled; }
+    u32 IncrementVertexBuffers() { return ++state.stats.vertex_buffer_count; }
+    u32 IncrementIndexBuffers() { return ++state.stats.index_buffer_count; }
+    u32 IncrementStorageBuffers() { return ++state.stats.storage_buffer_count; }
+    u32 DecrementVertexBuffers() { return --state.stats.vertex_buffer_count; }
+    u32 DecrementIndexBuffers() { return --state.stats.index_buffer_count; }
+    u32 DecrementStorageBuffers() { return --state.stats.storage_buffer_count; }
 
     void Callback_OnResize()
     {
         const Window& window = Application::GetWindow();
-        Textures::Unload(state.texture_depth_stencil);
-        state.texture_depth_stencil = Textures::CreateFramebufferAttachmentDepth(window.width, window.height);
+        Textures::Unload(state.textures.depth_stencil);
+        state.textures.depth_stencil = Textures::CreateFramebufferAttachmentDepth(window.width, window.height);
     }
 }
