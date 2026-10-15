@@ -9,4 +9,7 @@ namespace Editor
     void OnUpdate();
     void OnRender();
     void OnRenderUI();
+
+    void Callback_ExportScene();
+    void Callback_ImportStartupScene();
 }

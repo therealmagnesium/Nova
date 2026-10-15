@@ -1,5 +1,6 @@
 #include "Panels/ContentBrowser.h"
 #include "Panels/SceneHierarchy.h"
+#include "Editor.h"
 #include "MenuAction.h"
 
 #include <imgui.h>
@@ -195,8 +196,11 @@ namespace ContentBrowserPanel
                 {
                     const std::filesystem::path& path_selected = FileDialogs::GetPathSelected();
                     project = Projects::Import(path_selected);
-                    std::filesystem::current_path(Projects::GetAssetPath(project));
-
+                    if (project.IsValid())
+                    {
+                        std::filesystem::current_path(Projects::GetAssetPath(project));
+                        Editor::Callback_ImportStartupScene();
+                    }
                     ImGui::CloseCurrentPopup();
                 }
             }
@@ -219,19 +223,18 @@ namespace ContentBrowserPanel
                 const std::filesystem::path& path_selected = FileDialogs::GetPathSelected();
                 Projects::Export(path_selected, project);
 
-                try
+                const std::filesystem::path path_assets = Projects::GetAssetPath(project);
+                std::error_code e;
+                std::filesystem::create_directories(path_assets, e);
+                if (e)
+                    ERROR("ContentBrowserPanel::Display - Failed to create assets directory for project \"%s\": %s", project.name.c_str(), e.message().c_str());
+                else
                 {
-                    std::filesystem::current_path(project.path_directory);
-                    if (std::filesystem::create_directory("Assets"))
-                        INFO("Created Assets folder for project \"%s\" successfully", project.name.c_str());
-                    else
-                        ERROR("ContentBrowserPanel::Display - Failed to create Assets folder for project \"%s\"", project.name.c_str());
-                }
-                catch (const std::filesystem::filesystem_error& e)
-                {
-                    ERROR("ContentBrowserPanel::Display - Failed to create assets directory for project \"%s\" (std::filesystem): %s", project.name.c_str(), e.what());
+                    std::filesystem::current_path(path_assets); // content browser root is now Assets/
+                    INFO("Assets folder for project \"%s\" is ready", project.name.c_str());
                 }
 
+                Editor::Callback_ExportScene();
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
@@ -533,7 +536,7 @@ namespace ContentBrowserPanel
 
             if (e)
             {
-                ERROR("Failed to rename %s -> %s", state.path_selection.string().c_str(), new_path.string().c_str());
+                ERROR("ContentBrowser::DisplayPopupReneame - Failed to rename %s -> %s", state.path_selection.string().c_str(), new_path.string().c_str());
                 ImGui::CloseCurrentPopup();
                 ImGui::EndPopup();
                 return;

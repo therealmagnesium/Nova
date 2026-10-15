@@ -68,5 +68,11 @@ namespace Nova
         Mesh GeneratePyramid();
         Mesh GenerateTorus();
         glm::mat4 CalculateTransform(const glm::vec3& position, const glm::vec3& rotation = glm::vec3(0.f), const glm::vec3& scale = glm::vec3(1.f));
+
+        std::string_view SourceTypeToStringView(const MeshSource source);
+        std::string_view PrimitiveTypeToStringView(const PrimitiveMesh primitive);
+
+        MeshSource StringViewToMeshSource(std::string_view source);
+        PrimitiveMesh StringViewToPrimitive(std::string_view source);
     }
 }

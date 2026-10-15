@@ -427,4 +427,57 @@ namespace Nova::Meshes
         transform = glm::scale(transform, scale);
         return transform;
     }
+
+    std::string_view SourceTypeToStringView(const MeshSource source)
+    {
+        if (source == MeshSource::None)
+            return "None";
+
+        return source == MeshSource::Primitive ? "Primitive" : "Standard Model";
+    }
+
+    std::string_view PrimitiveTypeToStringView(const PrimitiveMesh primitive)
+    {
+        switch (primitive)
+        {
+            case PrimitiveMesh::Quad:
+                return "Quad";
+            case PrimitiveMesh::Cube:
+                return "Cube";
+            case PrimitiveMesh::Sphere:
+                return "Sphere";
+            case PrimitiveMesh::Plane:
+                return "Plane";
+            case PrimitiveMesh::Cone:
+                return "Cone";
+            case PrimitiveMesh::Pyramid:
+                return "Pyramid";
+            case PrimitiveMesh::Torus:
+                return "Torus";
+            default:
+                return "None";
+        }
+    }
+
+    MeshSource StringViewToMeshSource(std::string_view source)
+    {
+        if (source == "Primitive")
+            return MeshSource::Primitive;
+        else if (source == "Standard Model")
+            return MeshSource::Model;
+        else
+            return MeshSource::None;
+    }
+
+    PrimitiveMesh StringViewToPrimitive(std::string_view source)
+    {
+        for (u8 i = 0; i < static_cast<u8>(PrimitiveMesh::_Length); i++)
+        {
+            const PrimitiveMesh primitive = static_cast<PrimitiveMesh>(i);
+            if (PrimitiveTypeToStringView(primitive) == source)
+                return primitive;
+        }
+
+        return PrimitiveMesh::None;
+    }
 }

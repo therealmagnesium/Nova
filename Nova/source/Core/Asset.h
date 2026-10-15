@@ -17,6 +17,7 @@ namespace Nova
         Material,
         Model,
         ModelAnimated,
+        Scene,
         Texture,
         _Length,
     };

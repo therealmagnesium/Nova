@@ -564,16 +564,12 @@ namespace Nova::Textures
     {
         switch (msaa)
         {
-            case MSAASamples::One:
-                return SDL_GPU_SAMPLECOUNT_1;
-            case MSAASamples::Two:
-                return SDL_GPU_SAMPLECOUNT_2;
-            case MSAASamples::Four:
-                return SDL_GPU_SAMPLECOUNT_4;
-            case MSAASamples::Eight:
-                return SDL_GPU_SAMPLECOUNT_8;
+            case MSAASamples::One: return SDL_GPU_SAMPLECOUNT_1;
+            case MSAASamples::Two: return SDL_GPU_SAMPLECOUNT_2;
+            case MSAASamples::Four: return SDL_GPU_SAMPLECOUNT_4;
+            case MSAASamples::Eight: return SDL_GPU_SAMPLECOUNT_8;
+            default: return SDL_GPU_SAMPLECOUNT_1;
         }
-        return SDL_GPU_SAMPLECOUNT_1;
     }
 
     u32 BytesPerPixel(TextureFormat format)
@@ -581,16 +577,11 @@ namespace Nova::Textures
         switch (format)
         {
             case TextureFormat::RGBA8:
-            case TextureFormat::RGBA8_SRGB:
-                return 4; // 1 byte × 4 channels
-            case TextureFormat::RGBA16F:
-                return 8; // 2 bytes × 4 channels
-            case TextureFormat::RGBA32F:
-                return 16; // 4 bytes × 4 channels
-            case TextureFormat::RG16F:
-                return 4; // 2 bytes × 2 channels
-            default:
-                return 4;
+            case TextureFormat::RGBA8_SRGB: return 4; // 1 byte × 4 channels
+            case TextureFormat::RGBA16F: return 8;    // 2 bytes × 4 channels
+            case TextureFormat::RGBA32F: return 16;   // 4 bytes × 4 channels
+            case TextureFormat::RG16F: return 4;      // 2 bytes × 2 channels
+            default: return 4;
         }
     }
 

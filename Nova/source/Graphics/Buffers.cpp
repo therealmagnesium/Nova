@@ -63,6 +63,7 @@ namespace Nova::Buffers
         buffer.type = type;
         buffer.id = CalculateBufferID(buffer.type);
         buffer.handle = buffer_handle;
+
         return buffer;
     }
 
@@ -72,7 +73,7 @@ namespace Nova::Buffers
             return;
 
         const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
+        SDL_GPUDevice* const device = static_cast<SDL_GPUDevice*>(window.gpu_device);
         SDL_ReleaseGPUBuffer(device, static_cast<SDL_GPUBuffer*>(buffer.handle));
 
         switch (buffer.type)
@@ -94,8 +95,8 @@ namespace Nova::Buffers
 
     void Bind(const GPUBuffer& buffer, u32 slot)
     {
-        SDL_GPURenderPass* render_pass = static_cast<SDL_GPURenderPass*>(Renderer::GetActiveRenderPass());
-        SDL_GPUBuffer* handle = static_cast<SDL_GPUBuffer*>(buffer.handle);
+        SDL_GPURenderPass* const render_pass = static_cast<SDL_GPURenderPass*>(Renderer::GetActiveRenderPass());
+        SDL_GPUBuffer* const handle = static_cast<SDL_GPUBuffer*>(buffer.handle);
         const SDL_GPUBufferBinding binding = { .buffer = handle, .offset = 0 };
 
         switch (buffer.type)
@@ -123,7 +124,7 @@ namespace Nova::Buffers
     void Upload(GPUBuffer& buffer, const void* data, u32 size)
     {
         const Window& window = Application::GetWindow();
-        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
+        SDL_GPUDevice* const device = static_cast<SDL_GPUDevice*>(window.gpu_device);
 
         // Create a transfer buffer (CPU-accessible staging area)
         const SDL_GPUTransferBufferCreateInfo transfer_buffer_info = {
@@ -131,7 +132,7 @@ namespace Nova::Buffers
             .size = size
         };
 
-        SDL_GPUTransferBuffer* transfer_buffer = SDL_CreateGPUTransferBuffer(device, &transfer_buffer_info);
+        SDL_GPUTransferBuffer* const transfer_buffer = SDL_CreateGPUTransferBuffer(device, &transfer_buffer_info);
         if (transfer_buffer == NULL)
         {
             ERROR("Buffers::Upload - %s", "Failed to create GPU transfer buffer!");
@@ -144,8 +145,8 @@ namespace Nova::Buffers
         SDL_UnmapGPUTransferBuffer(device, transfer_buffer);
 
         // Record a copy pass to upload from transfer → GPU buffer
-        SDL_GPUCommandBuffer* command_buffer = SDL_AcquireGPUCommandBuffer(device);
-        SDL_GPUCopyPass* copy_pass = SDL_BeginGPUCopyPass(command_buffer);
+        SDL_GPUCommandBuffer* const command_buffer = SDL_AcquireGPUCommandBuffer(device);
+        SDL_GPUCopyPass* const copy_pass = SDL_BeginGPUCopyPass(command_buffer);
 
         const SDL_GPUTransferBufferLocation source = {
             .transfer_buffer = transfer_buffer,

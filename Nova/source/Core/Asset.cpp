@@ -8,20 +8,14 @@ namespace Nova
     {
         switch (type)
         {
-            case AssetType::AnimationClip:
-                return "Animation CLip";
-            case AssetType::AudioClip:
-                return "Audio Clip";
-            case AssetType::Material:
-                return "Material";
-            case AssetType::Model:
-                return "Standard Model";
-            case AssetType::ModelAnimated:
-                return "Animated Model";
-            case AssetType::Texture:
-                return "Texture";
-            default:
-                return "Invalid";
+            case AssetType::AnimationClip: return "Animation CLip";
+            case AssetType::AudioClip: return "Audio Clip";
+            case AssetType::Material: return "Material";
+            case AssetType::Model: return "Standard Model";
+            case AssetType::ModelAnimated: return "Animated Model";
+            case AssetType::Scene: return "Scene";
+            case AssetType::Texture: return "Texture";
+            default: return "Invalid";
         }
     }
 
@@ -33,6 +27,7 @@ namespace Nova
             { "Material", AssetType::Material },
             { "Standard Model", AssetType::Model },
             { "Animated Model", AssetType::ModelAnimated },
+            { "Scene", AssetType::Scene },
             { "Texture", AssetType::Texture },
             { "Invalid", AssetType::Invalid },
         };
@@ -51,6 +46,7 @@ namespace Nova
             { ".mp3", AssetType::AudioClip },
             { ".ogg", AssetType::AudioClip },
             { ".mat", AssetType::Material },
+            { ".nscene", AssetType::Scene },
         };
 
         const std::filesystem::path extension = path.extension();

@@ -32,6 +32,9 @@ namespace Editor
     void RenderPass_SceneHDR();
     void RenderPass_Compositing();
     void RenderPass_UI();
+    bool EnsureStartupScene(Project& project, Scene& scene);
+    bool SaveSceneToPath(const std::filesystem::path& path_absolute, Scene& scene, Project& project);
+    bool SaveScene(Project& project, Scene& scene);
 
     void OnCreate()
     {
@@ -110,17 +113,24 @@ namespace Editor
 
         if (Input::IsKeyDown(KEY_LEFT_CTRL))
         {
-            if (Input::IsKeyPressed(KEY_U))
-                UI::ExportLayout(project);
-
             if (Input::IsKeyPressed(KEY_S))
+            {
+                Project& project = Projects::GetContext();
+                if (!project.IsValid())
+                    return;
+
+                if (!EnsureStartupScene(project, state.scene_editor))
+                    return;
+
+                SaveScene(project, state.scene_editor);
                 Projects::Export(project.path_config, project);
+            }
         }
     }
 
     void OnUpdate()
     {
-        Scene* active_scene = Scenes::GetActive();
+        Scene* const active_scene = Scenes::GetActive();
         Scenes::UpdateSubsystems(*active_scene);
 
         if (active_scene->state == SceneState::Editor && SceneViewportPanel::IsHovered())
@@ -153,6 +163,53 @@ namespace Editor
 
         if (state.show_demo_window)
             ImGui::ShowDemoWindow(&state.show_demo_window);
+    }
+
+    void Callback_ExportScene()
+    {
+        Project& project = Projects::GetContext();
+
+        const std::filesystem::path path_scenes = Projects::GetAssetPath(project) / "Scenes";
+        std::error_code e;
+        std::filesystem::create_directories(path_scenes, e);
+        if (e)
+        {
+            ERROR("Editor::Callback_ExportScene - Cannot create directory %s!", path_scenes.string().c_str());
+            return;
+        }
+
+        const std::filesystem::path path_scene = path_scenes / "Playground.nscene";
+        SaveSceneToPath(path_scene, state.scene_editor, project);
+        project.path_scene_start = "Scenes/Playground.nscene";
+        Projects::Export(project.path_config, project);
+    }
+
+    void Callback_ImportStartupScene()
+    {
+        const Project& project = Projects::GetContext();
+        if (!Projects::HasStartupScene(project))
+        {
+            WARN("Editor::Callback_LoadStartupScene - %s", "Project has no startup scene on disk, keeping the current scene");
+            return;
+        }
+
+        const std::filesystem::path path_relative = Projects::GetAssetPathRelative(Projects::GetStartScenePath(project), project);
+        const AssetHandle handle = AssetManager::FindAssetHandleByPath(path_relative);
+        const Scene* loaded = AssetManager::GetAsset<Scene>(handle);
+        if (loaded == NULL)
+        {
+            ERROR("Editor::Callback_LoadStartupScene - Startup scene \"%s\" is not in the asset registry!", path_relative.string().c_str());
+            return;
+        }
+
+        // The renderer holds a pointer into the old registry's light component,
+        // and on_render still runs this frame, so drop it before replacing the registry.
+        Renderer::SetSun(Stub_DirectionalLight);
+        SceneHierarchyPanel::SetSelectionContext(Stub_Entity);
+
+        state.scene_editor = *loaded;
+        state.scene_editor.state = SceneState::Editor;
+        state.scene_editor.handle = handle;
     }
 
     void RenderPass_SceneHDR()
@@ -214,5 +271,78 @@ namespace Editor
         state.camera_editor.clip_near = 0.1f;
         state.camera_editor.clip_far = 500.f;
         Renderer::SetPrimaryCamera(&state.camera_editor);
+    }
+
+    bool EnsureStartupScene(Project& project, Scene& scene)
+    {
+        if (Projects::HasStartupScene(project))
+            return true;
+
+        /*
+        if (const auto handles = AssetManager::GetAllHandlesOfType(AssetType::Scene); !handles.empty() && project.path_scene_start.empty())
+        {
+            // optionally auto-assign first, but per spec still prompt
+        }*/
+
+        const FileDialogFilter filter = {
+            .name = "Scene",
+            .specification = "nscene",
+        };
+
+        const std::filesystem::path path_scenes = Projects::GetAssetPath(project) / "Scenes";
+        std::error_code e;
+        if (!std::filesystem::exists(path_scenes))
+            std::filesystem::create_directories(path_scenes, e);
+
+        if (e)
+        {
+            ERROR("Editor::EnsureStartupScene - Cannot create directory %s!", path_scenes.string().c_str());
+            return false;
+        }
+
+        FileDialogs::SetDefaultPath(path_scenes); // ensure Scenes/ exists first
+        if (!FileDialogs::AskSave(&filter, 1))
+            return false; // user cancelled -> abort project save
+
+        const std::filesystem::path path_selected = FileDialogs::GetPathSelected(); // already EnsureExtension(.nscene)
+        std::filesystem::create_directories(path_selected.parent_path(), e);
+        if (e)
+        {
+            ERROR("Editor::EnsureStartupScene - Cannot create directory %s!", path_selected.parent_path().string().c_str());
+            return false;
+        }
+
+        SaveSceneToPath(path_selected, scene, project);
+        project.path_scene_start = std::filesystem::proximate(path_selected, Projects::GetAssetPath(project)); // Scenes/Playground.nscene
+        return true;
+    }
+
+    bool SaveSceneToPath(const std::filesystem::path& path_absolute, Scene& scene, Project& project)
+    {
+        const std::filesystem::path path_relative = Projects::GetAssetPathRelative(path_absolute, project);
+
+        AssetHandle handle = AssetManager::FindAssetHandleByPath(path_relative);
+        const bool was_registered = AssetManager::IsHandleValid(handle);
+        if (!was_registered)
+            handle = Random::GenerateUUID();
+
+        scene.handle = handle; // must happen BEFORE Export
+        Scenes::Export(path_absolute, scene);
+
+        if (!was_registered)
+            AssetManager::ImportByPath(path_absolute, AssetType::Scene, handle);
+
+        return true;
+    }
+
+    bool SaveScene(Project& project, Scene& scene)
+    {
+        std::filesystem::path path;
+        if (AssetManager::IsHandleValid(scene.handle))
+            path = Projects::GetAssetPathAbsolute(AssetManager::GetAssetPath(scene.handle), project);
+        else
+            path = Projects::GetStartScenePath(project);
+
+        return SaveSceneToPath(path, scene, project);
     }
 }

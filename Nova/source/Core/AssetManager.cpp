@@ -3,6 +3,8 @@
 #include "Core/Random.h"
 #include "Core/Project.h"
 #include "Graphics/Model.h"
+#include "ECS/Scene.h"
+#include "ECS/Components.h"
 
 #include <inttypes.h>
 
@@ -133,6 +135,10 @@ namespace Nova::AssetManager
         if (AssetManager::IsHandleValid(handle))
         {
             INFO("Removing asset \"%s\"...", assetPath.c_str());
+
+            Asset* asset = GetAsset(handle);
+            delete asset;
+
             assets->registry.erase(handle);
             assets->loaded_assets.erase(handle);
         }
@@ -251,13 +257,13 @@ namespace Nova::AssetManager
     {
         Asset* asset = NULL;
         const Project& project = Projects::GetContext();
-        const std::filesystem::path path_absolute = Projects::GetAssetPathAbsolute(metadata.path, project);
+        const std::filesystem::path path = metadata.path.is_absolute() ? metadata.path : Projects::GetAssetPathAbsolute(metadata.path, project);
 
         switch (metadata.type)
         {
             case AssetType::AnimationClip:
             {
-                AnimationClip animation = Animations::Load(path_absolute);
+                AnimationClip animation = Animations::Load(path);
                 if (animation.IsValid())
                 {
                     asset = new AnimationClip(std::move(animation));
@@ -268,7 +274,7 @@ namespace Nova::AssetManager
 
             case AssetType::Material:
             {
-                Material material = Materials::Import(path_absolute);
+                Material material = Materials::Import(path);
                 asset = new Material(std::move(material));
                 asset->handle = handle;
                 break;
@@ -276,7 +282,7 @@ namespace Nova::AssetManager
 
             case AssetType::Model:
             {
-                Model model = Models::Load(path_absolute);
+                Model model = Models::Load(path);
                 if (model.meshes.size() > 0)
                 {
                     asset = new Model(std::move(model));
@@ -287,7 +293,7 @@ namespace Nova::AssetManager
 
             case AssetType::ModelAnimated:
             {
-                AnimatedModel model = Models::LoadAnimated(path_absolute);
+                AnimatedModel model = Models::LoadAnimated(path);
                 if (model.meshes.size() > 0)
                 {
                     asset = new AnimatedModel(std::move(model));
@@ -296,9 +302,19 @@ namespace Nova::AssetManager
                 break;
             }
 
+            case AssetType::Scene:
+            {
+                Scene scene = Scenes::Import(path);
+                if (scene.entity_count > 0)
+                {
+                    asset = new Scene(std::move(scene));
+                    asset->handle = handle;
+                }
+                break;
+            }
             case AssetType::Texture:
             {
-                Texture texture = Textures::Load(path_absolute);
+                Texture texture = Textures::Load(path);
                 if (texture.IsValid())
                 {
                     asset = new Texture(std::move(texture));

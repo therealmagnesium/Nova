@@ -115,7 +115,7 @@ namespace Nova::FileDialogs
 
     const std::filesystem::path& GetPathSelected() { return path_selected; }
     const std::filesystem::path& GetPathDefault() { return path_default; }
-    void SetDefaultPath(const std::filesystem::path& path) { path_selected = path; }
+    void SetDefaultPath(const std::filesystem::path& path) { path_default = path; }
 
     std::filesystem::path EnsureExtension(const std::filesystem::path& path, std::string_view extension)
     {

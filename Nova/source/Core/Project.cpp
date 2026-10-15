@@ -72,6 +72,7 @@ namespace Nova::Projects
     {
         YAML::Emitter out;
         out << YAML::BeginMap;
+
         out << YAML::Key << "Project" << YAML::Value << project.name;
         out << YAML::Key << "Assets Directory" << YAML::Value << project.path_assets;
         out << YAML::Key << "Startup Scene" << YAML::Value << project.path_scene_start;
@@ -89,6 +90,7 @@ namespace Nova::Projects
         out << YAML::EndSeq;
 
         out << YAML::EndMap;
+
         try
         {
             std::ofstream fout(path);
@@ -96,7 +98,7 @@ namespace Nova::Projects
         }
         catch (const std::filesystem::filesystem_error& e)
         {
-            ERROR("Materials::Export - Failed to export material \"%s\"! (std::filesystem): %s", path.string().c_str(), e.what());
+            ERROR("Projects::Export - Failed to export project \"%s\"! (std::filesystem): %s", path.string().c_str(), e.what());
             return;
         }
 
@@ -108,6 +110,7 @@ namespace Nova::Projects
     std::filesystem::path GetAssetPath(const Project& project) { return project.path_directory / project.path_assets; }
     std::filesystem::path GetAssetPathAbsolute(const std::filesystem::path& path, const Project& project) { return project.path_directory / path; }
     std::filesystem::path GetAssetPathRelative(const std::filesystem::path& path, const Project& project) { return std::filesystem::proximate(path, project.path_directory); }
+    bool HasStartupScene(const Project& project) { return !project.path_scene_start.empty() && std::filesystem::exists(GetStartScenePath(project)); }
 
     Project& GetContext() { return active_project; }
     bool ClearPendingLayoutLoad()

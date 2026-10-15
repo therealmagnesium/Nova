@@ -1,9 +1,11 @@
 #pragma once
+#include "Core/Asset.h"
 #include "Core/Base.h"
 #include "Core/Log.h"
-#include <tuple>
+
+#include <filesystem>
 #include <vector>
-#include <string>
+#include <tuple>
 
 namespace Nova
 {
@@ -132,12 +134,14 @@ namespace Nova
         RuntimePhysics,
     };
 
-    struct Scene
+    struct Scene : public Asset
     {
         EntityRegistry registry;
         std::vector<EntityID> pending_removal;
         u64 entity_count = 0;
         SceneState state = SceneState::Editor;
+
+        inline AssetType GetType() const override { return AssetType::Scene; }
     };
 
     namespace Scenes
@@ -154,6 +158,9 @@ namespace Nova
         void RenderSubsystems(Scene& scene);
         void FlushPendingRemoval(Scene& scene);
         void Copy(const Scene& source, Scene& destination);
+
+        Scene Import(const std::filesystem::path& path);
+        void Export(const std::filesystem::path& path, Scene& scene);
 
         Scene* GetActive();
         void SetActive(Scene& scene);
