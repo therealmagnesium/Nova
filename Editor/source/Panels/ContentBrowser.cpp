@@ -430,7 +430,7 @@ namespace ContentBrowserPanel
                 const bool is_hovered = ImGui::IsItemHovered();
                 const bool is_selected = state.path_selection == entry.path();
 
-                if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+                if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && entry.is_regular_file())
                 {
                     state.path_selection = entry.path();
                     SceneHierarchyPanel::SetSelectionContext(Stub_Entity);
@@ -598,6 +598,9 @@ namespace ContentBrowserPanel
         {
             const bool is_directory = entry.is_directory(error);
             if (!is_directory && !entry.is_regular_file(error))
+                continue;
+
+            if (entry.path().extension() == ".meta")
                 continue;
 
             BrowserEntry& item = entries.emplace_back();

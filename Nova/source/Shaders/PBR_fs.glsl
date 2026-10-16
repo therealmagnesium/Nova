@@ -25,6 +25,7 @@ layout (std140, set = 3, binding = 0) uniform UniformData
     LightData light;
     MaterialData material;
     vec3 camera_position;
+    vec4 texture_tiling; // x = albedo, y = normal, z = metallic, w = roughness
 } uniforms;
 
 layout (location = 0) in vec3 v_position;
@@ -132,15 +133,17 @@ void main()
     const vec3 B = cross(N, T);
     const mat3 TBN = mat3(T, B, N);
 
-    const vec4 albedo = texture(texture_albedo, v_uv) * uniforms.material.albedo;
-    const vec3 normal_tangent = texture(texture_normal, v_uv).rgb * 2.f - 1.f;
+    const vec4 tiling = uniforms.texture_tiling;
+
+    const vec4 albedo = texture(texture_albedo, v_uv * tiling.x) * uniforms.material.albedo;
+    const vec3 normal_tangent = texture(texture_normal, v_uv * tiling.y).rgb * 2.f - 1.f;
     const vec3 normal_world = normalize(TBN * normal_tangent);
 
     const vec3 V = normalize(uniforms.camera_position - v_position);
     const vec3 R = reflect(-V, normal_world);
 
-    const float metallic = texture(texture_metallic, v_uv).r * uniforms.material.pbr.x;
-    const float roughness = texture(texture_roughness, v_uv).r * uniforms.material.pbr.y;
+    const float metallic = texture(texture_metallic, v_uv * tiling.z).r * uniforms.material.pbr.x;
+    const float roughness = texture(texture_roughness, v_uv * tiling.w).r * uniforms.material.pbr.y;
 
     vec4 F0 = vec4(vec3(0.04), 1.f); 
     F0 = mix(F0, albedo, metallic);

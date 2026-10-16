@@ -42,6 +42,13 @@ namespace Nova
         u8* pixel_data = NULL;
     };
 
+    struct TextureSettings
+    {
+        TextureFormat format = TextureFormat::RGBA8_SRGB;
+        TextureSampler sampler = TextureSampler::LinearClamp;
+        float tiling = 1.f;
+    };
+
     struct Texture : public Asset
     {
         u32 id = 0;
@@ -77,8 +84,25 @@ namespace Nova
         void Unload(Texture& texture);
         void Bind(const Texture& texture, u8 slot = 0);
 
+        /** @brief Re-reads the image file and recreates the GPU texture with a new format, keeping the same id.
+         *  Only RGBA8 / RGBA8_SRGB are valid for 8-bit image files. Returns false if the file can't be re-read. */
+        bool Reload(Texture& texture, TextureFormat format);
+
+        TextureSettings LoadSettings(const std::filesystem::path& path_asset);
+        void SaveSettings(const std::filesystem::path& path_asset, const TextureSettings& settings);
+
+        std::string_view FormatToStringView(TextureFormat format);
+        TextureFormat StringViewToFormat(std::string_view view);
+        std::string_view SamplerToStringView(TextureSampler sampler);
+        TextureSampler StringViewToSampler(std::string_view view);
+
         u32 GetDefaultWhiteID();
         TextureHandle GetHandle(const Texture& texture);
         const std::filesystem::path& GetPath(const Texture& texture);
+        TextureSettings GetSettings(const Texture& texture);
+        float GetTiling(const Texture& texture);
+
+        void SetSampler(const Texture& texture, TextureSampler sampler);
+        void SetTiling(const Texture& texture, float tiling);
     }
 }

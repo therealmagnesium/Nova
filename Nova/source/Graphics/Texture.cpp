@@ -5,8 +5,10 @@
 
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_filesystem.h>
-#include <algorithm>
+#include <yaml-cpp/yaml.h>
 #include <stb_image.h>
+#include <algorithm>
+#include <fstream>
 
 namespace Nova::Textures
 {
@@ -16,6 +18,7 @@ namespace Nova::Textures
         Texture metadata;
         TextureHandle handle = NULL;
         TextureSampler sampler = TextureSampler::LinearClamp;
+        float tiling = 1.f;
     };
 
     static SDL_GPUSampler* samplers[6];
@@ -31,6 +34,7 @@ namespace Nova::Textures
     Texture RegisterTexture(CachedTexture&& entry);
     void UploadTexture(const Texture& metadata, const void* image_data, SDL_GPUTexture* handle);
     bool ValidateTransparency(const Texture& metadata, const u8* image_data);
+    std::filesystem::path GetSettingsPath(const std::filesystem::path& path_asset);
 
     void SetupSamplers()
     {
@@ -280,6 +284,7 @@ namespace Nova::Textures
         const std::filesystem::path path_full = path_base / path;
 
         s32 width, height, channels = 0;
+        stbi_set_flip_vertically_on_load(false);
         u8* image_data = stbi_load(path_full.c_str(), &width, &height, &channels, STBI_rgb_alpha);
         if (image_data == NULL)
         {
@@ -529,6 +534,201 @@ namespace Nova::Textures
         return (it != cache.end()) ? it->second.path : path_empty;
     }
 
+    TextureSettings GetSettings(const Texture& texture)
+    {
+        const auto it = cache.find(texture.id);
+        if (it == cache.end())
+            return {};
+
+        return { .format = it->second.metadata.format, .sampler = it->second.sampler, .tiling = it->second.tiling };
+    }
+
+    float GetTiling(const Texture& texture)
+    {
+        const auto it = cache.find(texture.id);
+        return it != cache.end() ? it->second.tiling : 1.f;
+    }
+
+    bool Reload(Texture& texture, TextureFormat format)
+    {
+        // UploadTexture memcpy's BytesPerPixel(format) * w * h out of an 8-bit stbi buffer,
+        // so a 16F/32F format here would read past the end of the image data.
+        if (format != TextureFormat::RGBA8 && format != TextureFormat::RGBA8_SRGB)
+        {
+            ERROR("Textures::Reload - %s", "Only RGBA8 and RGBA8_SRGB are supported for 8-bit image files!");
+            return false;
+        }
+
+        const auto it = cache.find(texture.id);
+        if (it == cache.end())
+            return false;
+
+        CachedTexture& entry = it->second;
+        if (entry.metadata.format == format)
+            return true;
+
+        // Default/embedded textures have no real file behind them, so stbi_load fails and we bail out below.
+        const std::filesystem::path path_full = std::filesystem::path(SDL_GetBasePath()) / entry.path;
+
+        stbi_set_flip_vertically_on_load(false); // Must match what Load() assumes
+        s32 width, height, channels = 0;
+        u8* image_data = stbi_load(path_full.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+        if (image_data == NULL)
+        {
+            WARN("Textures::Reload - Failed to re-read \"%s\"!", path_full.c_str());
+            return false;
+        }
+
+        Texture updated = entry.metadata; // Copy so Asset::handle etc. are preserved
+        updated.width = (u16)width;
+        updated.height = (u16)height;
+        updated.channel_count = (u8)channels;
+        updated.mip_levels = CalculateMipLevels(width, height);
+        updated.format = format;
+        updated.has_transparency = ValidateTransparency(updated, image_data);
+
+        const Window& window = Application::GetWindow();
+        SDL_GPUDevice* device = static_cast<SDL_GPUDevice*>(window.gpu_device);
+
+        SDL_GPUTextureCreateInfo info = {};
+        info.type = SDL_GPU_TEXTURETYPE_2D;
+        info.format = TextureFormatToSDL(format);
+        info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
+        info.width = updated.width;
+        info.height = updated.height;
+        info.layer_count_or_depth = 1;
+        info.num_levels = updated.mip_levels;
+
+        SDL_GPUTexture* handle_new = SDL_CreateGPUTexture(device, &info);
+        if (handle_new == NULL)
+        {
+            ERROR("Textures::Reload - Failed to create the GPU texture for \"%s\"!", path_full.c_str());
+            stbi_image_free(image_data);
+            return false;
+        }
+
+        UploadTexture(updated, image_data, handle_new);
+        stbi_image_free(image_data);
+
+        // SDL defers the actual destruction until in-flight command buffers are done with it.
+        SDL_ReleaseGPUTexture(device, static_cast<SDL_GPUTexture*>(entry.handle));
+        entry.handle = handle_new;
+        entry.metadata = updated;
+
+        // Keep the caller's copy (the AssetManager's Texture) in sync, without touching its Asset::handle.
+        texture.width = updated.width;
+        texture.height = updated.height;
+        texture.channel_count = updated.channel_count;
+        texture.mip_levels = updated.mip_levels;
+        texture.format = updated.format;
+        texture.has_transparency = updated.has_transparency;
+        return true;
+    }
+
+    TextureSettings LoadSettings(const std::filesystem::path& path_asset)
+    {
+        TextureSettings settings;
+        const std::filesystem::path path = GetSettingsPath(path_asset);
+        if (!std::filesystem::exists(path))
+            return settings;
+
+        try
+        {
+            const YAML::Node root = YAML::LoadFile(path.string());
+            settings.format = StringViewToFormat(root["Format"].as<std::string>());
+            settings.sampler = StringViewToSampler(root["Sampler"].as<std::string>());
+            settings.tiling = root["Tiling"].as<float>(1.f);
+        }
+        catch (const YAML::Exception& e)
+        {
+            ERROR("Textures::LoadSettings - Failed to read \"%s\"! (yaml-cpp): %s", path.string().c_str(), e.what());
+            return TextureSettings{};
+        }
+
+        return settings;
+    }
+
+    void SaveSettings(const std::filesystem::path& path_asset, const TextureSettings& settings)
+    {
+        YAML::Emitter out;
+        out << YAML::BeginMap;
+        out << YAML::Key << "Format" << YAML::Value << std::string(FormatToStringView(settings.format));
+        out << YAML::Key << "Sampler" << YAML::Value << std::string(SamplerToStringView(settings.sampler));
+        out << YAML::Key << "Tiling" << YAML::Value << settings.tiling;
+        out << YAML::EndMap;
+
+        const std::filesystem::path path = GetSettingsPath(path_asset);
+        std::ofstream fout(path);
+        if (!fout.is_open())
+        {
+            ERROR("Textures::SaveSettings - Failed to open \"%s\" for writing!", path.string().c_str());
+            return;
+        }
+
+        fout << out.c_str();
+        INFO("Texture settings saved to \"%s\"", path.string().c_str());
+    }
+
+    std::string_view FormatToStringView(TextureFormat format)
+    {
+        switch (format)
+        {
+            case TextureFormat::RGBA8: return "RGBA8";
+            case TextureFormat::RGBA8_SRGB: return "RGBA8_SRGB";
+            case TextureFormat::RGBA16F: return "RGBA16F";
+            case TextureFormat::RGBA32F: return "RGBA32F";
+            case TextureFormat::RG16F: return "RG16F";
+            case TextureFormat::Depth32F: return "Depth32F";
+        }
+        return "RGBA8_SRGB";
+    }
+
+    TextureFormat StringViewToFormat(std::string_view view)
+    {
+        for (u8 i = 0; i <= static_cast<u8>(TextureFormat::Depth32F); i++)
+            if (FormatToStringView(static_cast<TextureFormat>(i)) == view)
+                return static_cast<TextureFormat>(i);
+
+        return TextureFormat::RGBA8_SRGB;
+    }
+
+    std::string_view SamplerToStringView(TextureSampler sampler)
+    {
+        switch (sampler)
+        {
+            case TextureSampler::LinearRepeat: return "LinearRepeat";
+            case TextureSampler::LinearClamp: return "LinearClamp";
+            case TextureSampler::PointRepeat: return "PointRepeat";
+            case TextureSampler::PointClamp: return "PointClamp";
+            case TextureSampler::AnisotropicRepeat: return "AnisotropicRepeat";
+            case TextureSampler::AnisotropicClamp: return "AnisotropicClamp";
+        }
+        return "LinearClamp";
+    }
+
+    TextureSampler StringViewToSampler(std::string_view view)
+    {
+        for (u8 i = 0; i <= static_cast<u8>(TextureSampler::AnisotropicClamp); i++)
+            if (SamplerToStringView(static_cast<TextureSampler>(i)) == view)
+                return static_cast<TextureSampler>(i);
+
+        return TextureSampler::LinearClamp;
+    }
+
+    void SetSampler(const Texture& texture, TextureSampler sampler)
+    {
+        const auto it = cache.find(texture.id);
+        if (it != cache.end())
+            it->second.sampler = sampler;
+    }
+
+    void SetTiling(const Texture& texture, float tiling)
+    {
+        const auto it = cache.find(texture.id);
+        if (it != cache.end())
+            it->second.tiling = std::max(tiling, 0.001f);
+    }
+
     SDL_GPUTextureFormat TextureFormatToSDL(TextureFormat format)
     {
         SDL_GPUTextureFormat format_sdl = (SDL_GPUTextureFormat)0;
@@ -675,5 +875,13 @@ namespace Nova::Textures
         }
 
         return has_transparency;
+    }
+
+    std::filesystem::path GetSettingsPath(const std::filesystem::path& path_asset)
+    {
+        // Resolved against the base path exactly like Load() does, so relative and absolute paths both work.
+        std::filesystem::path path = std::filesystem::path(SDL_GetBasePath()) / path_asset;
+        path += ".meta";
+        return path;
     }
 }

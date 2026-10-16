@@ -314,9 +314,11 @@ namespace Nova::AssetManager
             }
             case AssetType::Texture:
             {
-                Texture texture = Textures::Load(path);
+                const TextureSettings settings = Textures::LoadSettings(path);
+                Texture texture = Textures::Load(path, settings.format, settings.sampler);
                 if (texture.IsValid())
                 {
+                    Textures::SetTiling(texture, settings.tiling);
                     asset = new Texture(std::move(texture));
                     asset->handle = handle;
                 }

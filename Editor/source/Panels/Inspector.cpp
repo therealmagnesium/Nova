@@ -15,14 +15,43 @@ struct InspectorState
     bool should_display = true;
 };
 
+struct FormatOption
+{
+    TextureFormat value;
+    const char* label;
+};
+struct SamplerOption
+{
+    TextureSampler value;
+    const char* label;
+};
+
 local InspectorState state;
+
+local constexpr FormatOption k_TextureFormats[] = {
+    FormatOption{ TextureFormat::RGBA8_SRGB, "RGBA8 sRGB (color maps)" },
+    FormatOption{ TextureFormat::RGBA8, "RGBA8 Linear (normal / data maps)" },
+};
+
+local constexpr SamplerOption k_TextureSamplers[] = {
+    SamplerOption{ TextureSampler::LinearRepeat, "Linear / Repeat" },
+    SamplerOption{ TextureSampler::LinearClamp, "Linear / Clamp" },
+    SamplerOption{ TextureSampler::PointRepeat, "Point / Repeat" },
+    SamplerOption{ TextureSampler::PointClamp, "Point / Clamp" },
+    SamplerOption{ TextureSampler::AnisotropicRepeat, "Anisotropic / Repeat" },
+    SamplerOption{ TextureSampler::AnisotropicClamp, "Anisotropic / Clamp" },
+};
+
+local constexpr float k_TexturePreviewMaxWidth = 320.f;
 
 namespace InspectorPanel
 {
     void DisplayTagInput(Entity selection_context);
     void DisplayComponents(Entity selection_context);
     void DisplayAddComponentButton(Entity selection_context);
+    void DisplayTextureSlot(const char* label, Texture& slot);
     void DisplayAssetControls(AssetType asset_type, AssetHandle asset_handle, const std::filesystem::path& browser_selection);
+    void DisplayTextureControls(Texture& texture, const std::filesystem::path& path_relative);
     std::string PrimitiveToString(PrimitiveMesh primitive);
 
     template <typename T, typename UIFunction>
@@ -479,6 +508,12 @@ namespace InspectorPanel
                 ImGui::SetNextItemWidth(-1.f);
                 ImGui::DragFloat("##Material Roughness", &material->roughness, 0.01f, 0.f, 1.f);
 
+                ImGui::SeparatorText("Textures");
+                DisplayTextureSlot("Albedo Map", material->texture_albedo);
+                DisplayTextureSlot("Normal Map", material->texture_normal);
+                DisplayTextureSlot("Metallic Map", material->texture_metallic);
+                DisplayTextureSlot("Roughness Map", material->texture_roughness);
+
                 ImGui::Separator();
 
                 const ImGuiStyle& style = ImGui::GetStyle();
@@ -504,13 +539,127 @@ namespace InspectorPanel
             }
             case AssetType::Texture:
             {
-                ImGui::TextUnformatted("[TEXTURE CONTROLS PLACEHOLDER]");
+                Texture* const texture = AssetManager::GetAsset<Texture>(asset_handle);
+                if (texture != NULL)
+                    DisplayTextureControls(*texture, browser_selection);
+
                 break;
             }
 
             default:
                 ImGui::TextUnformatted("[UNSUPPORTED ASSET TYPE PLACEHOLDER]");
                 break;
+        }
+    }
+
+    void DisplayTextureControls(Texture& texture, const std::filesystem::path& path_relative)
+    {
+        const float column_width = 150.f;
+        TextureSettings settings = Textures::GetSettings(texture);
+
+        ImGui::TextUnformatted(path_relative.string().c_str());
+
+        // --- Preview (re-fetch the handle: it may have just changed) ---
+        ImGui::SeparatorText("Preview");
+        ImGui::TextDisabled("%d x %d  |  %d mips  |  %d channels", texture.width, texture.height, texture.mip_levels, texture.channel_count);
+
+        if (texture.width > 0 && texture.height > 0)
+        {
+            const float width = std::min(ImGui::GetContentRegionAvail().x, k_TexturePreviewMaxWidth);
+            const float height = width * (static_cast<float>(texture.height) / static_cast<float>(texture.width));
+            ImGui::Image((ImTextureID)Textures::GetHandle(texture), ImVec2(width, height));
+        }
+
+        // NOTE: Controls come BEFORE the preview on purpose. A format change recreates the GPU texture
+        // and releases the old one; if ImGui::Image had already been submitted with the old handle
+        // this frame, the UI render pass would bind a dead texture.
+        ImGui::SeparatorText("Import Settings");
+
+        // --- Format (recreates the GPU texture in place) ---
+        const char* preview_format = "Unsupported";
+        for (const FormatOption& option : k_TextureFormats)
+            if (option.value == settings.format)
+                preview_format = option.label;
+
+        ImGui::TextUnformatted("Format");
+        ImGui::SameLine(column_width - ImGui::GetCursorPosX());
+        ImGui::SetNextItemWidth(-1.f);
+        if (ImGui::BeginCombo("##Texture Format", preview_format))
+        {
+            for (const FormatOption& option : k_TextureFormats)
+                if (ImGui::Selectable(option.label, option.value == settings.format))
+                    Textures::Reload(texture, option.value);
+
+            ImGui::EndCombo();
+        }
+
+        // --- Sampler (just a cache lookup change, applies instantly) ---
+        const char* preview_sampler = "Unknown";
+        for (const SamplerOption& option : k_TextureSamplers)
+            if (option.value == settings.sampler)
+                preview_sampler = option.label;
+
+        ImGui::TextUnformatted("Sampler");
+        ImGui::SameLine(column_width - ImGui::GetCursorPosX());
+        ImGui::SetNextItemWidth(-1.f);
+        if (ImGui::BeginCombo("##Texture Sampler", preview_sampler))
+        {
+            for (const SamplerOption& option : k_TextureSamplers)
+                if (ImGui::Selectable(option.label, option.value == settings.sampler))
+                    Textures::SetSampler(texture, option.value);
+
+            ImGui::EndCombo();
+        }
+
+        // --- Tiling ---
+        ImGui::TextUnformatted("Tiling");
+        ImGui::SameLine(column_width - ImGui::GetCursorPosX());
+        ImGui::SetNextItemWidth(-1.f);
+        if (ImGui::DragFloat("##Texture Tiling", &settings.tiling, 0.05f, 0.01f, 1000.f, "%.2f"))
+            Textures::SetTiling(texture, settings.tiling);
+
+        const bool is_clamped = settings.sampler == TextureSampler::LinearClamp ||
+                                settings.sampler == TextureSampler::PointClamp ||
+                                settings.sampler == TextureSampler::AnisotropicClamp;
+        if (settings.tiling != 1.f && is_clamped)
+            ImGui::TextColored(ImVec4(0.95f, 0.85f, 0.40f, 1.f), "Tiling needs a Repeat sampler, otherwise the edge pixels smear.");
+
+        // --- Save ---
+        ImGui::Separator();
+        const ImGuiStyle& style = ImGui::GetStyle();
+        const float avail_width = ImGui::GetContentRegionAvail().x;
+        const float line_height = ImGui::GetFontSize() + style.FramePadding.y * 2.f;
+        const ImVec2 button_size = ImVec2(avail_width * 0.85f, line_height);
+        ImGui::SetCursorPosX(style.WindowPadding.x + ((avail_width - button_size.x) * 0.5f));
+        if (ImGui::Button("Save", button_size))
+        {
+            const std::filesystem::path path_absolute = Projects::GetAssetPathAbsolute(path_relative, Projects::GetContext());
+            Textures::SaveSettings(path_absolute, Textures::GetSettings(texture));
+        }
+    }
+
+    void DisplayTextureSlot(const char* label, Texture& slot)
+    {
+        const AssetHandle current = slot.IsValid() ? slot.handle : AssetHandle_Invalid;
+        const std::string preview = AssetManager::IsHandleValid(current)
+                                        ? AssetManager::GetAssetPath(current).filename().string()
+                                        : "None";
+
+        ImGui::TextUnformatted(label);
+        ImGui::SameLine(150.f - ImGui::GetCursorPosX());
+        ImGui::SetNextItemWidth(-1.f);
+        if (ImGui::BeginCombo(std::format("##{}", label).c_str(), preview.c_str()))
+        {
+            if (ImGui::Selectable("None", !slot.IsValid()))
+                slot = Stub_Texture;
+
+            for (const AssetHandle handle : AssetManager::GetAllHandlesOfType(AssetType::Texture))
+            {
+                const std::string name = AssetManager::GetAssetPath(handle).filename().string();
+                if (ImGui::Selectable(name.c_str(), handle == current))
+                    slot = *AssetManager::GetAsset<Texture>(handle);
+            }
+            ImGui::EndCombo();
         }
     }
 

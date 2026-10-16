@@ -64,6 +64,7 @@ namespace Nova::Renderer
         LightData data_light;
         MaterialData data_material;
         glm::vec4 camera_position;
+        glm::vec4 texture_tiling = glm::vec4(1.f); // x = albedo, y = normal, z = metallic, w = roughness
     };
 
     struct RenderCommand
@@ -507,10 +508,16 @@ namespace Nova::Renderer
         if (command.buffer_ssbo_bones != NULL)
             Buffers::Bind(*command.buffer_ssbo_bones);
 
-        Textures::Bind(command.material->texture_albedo.IsValid() ? command.material->texture_albedo : state.textures.default_white, 0);
-        Textures::Bind(command.material->texture_normal.IsValid() ? command.material->texture_normal : state.textures.default_normal, 1);
-        Textures::Bind(command.material->texture_metallic.IsValid() ? command.material->texture_metallic : state.textures.default_white, 2);
-        Textures::Bind(command.material->texture_roughness.IsValid() ? command.material->texture_roughness : state.textures.default_white, 3);
+        const Material& material = *command.material;
+        const Texture& texture_albedo = material.texture_albedo.IsValid() ? material.texture_albedo : state.textures.default_white;
+        const Texture& texture_normal = material.texture_normal.IsValid() ? material.texture_normal : state.textures.default_normal;
+        const Texture& texture_metallic = material.texture_metallic.IsValid() ? material.texture_metallic : state.textures.default_white;
+        const Texture& texture_roughness = material.texture_roughness.IsValid() ? material.texture_roughness : state.textures.default_white;
+
+        Textures::Bind(texture_albedo, 0);
+        Textures::Bind(texture_normal, 1);
+        Textures::Bind(texture_metallic, 2);
+        Textures::Bind(texture_roughness, 3);
 
         if (state.active_environment_map != NULL && state.active_environment_map->IsValid())
         {
@@ -542,6 +549,7 @@ namespace Nova::Renderer
                 .pbr = glm::vec4(command.material->texture_metallic.IsValid() ? 1.f : command.material->metallic, command.material->texture_roughness.IsValid() ? 1.f : command.material->roughness, 0.f, 0.f),
             },
             .camera_position = glm::vec4(state.primary_camera->position, 0.f),
+            .texture_tiling = glm::vec4(Textures::GetTiling(texture_albedo), Textures::GetTiling(texture_normal), Textures::GetTiling(texture_metallic), Textures::GetTiling(texture_roughness)),
         };
 
         SDL_PushGPUVertexUniformData(state.command_buffer, 0, &mvp_data, sizeof(MVPData));
